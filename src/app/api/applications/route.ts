@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-let applications: any[] = [];
+const applications: unknown[] = [];
 
 export async function GET() {
   return NextResponse.json(applications);

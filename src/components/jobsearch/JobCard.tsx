@@ -1,6 +1,16 @@
 "use client";
 
-export default function JobCard({ job }: { job: any }) {
+interface JobCardProps {
+  job: {
+    company: string;
+    location: string;
+    title?: string;
+    match?: number;
+    [key: string]: string | number | boolean | undefined;
+  };
+}
+
+export default function JobCard({ job }: JobCardProps) {
   return (
     <div className="bg-white rounded-xl shadow p-4 flex justify-between items-center">
       <div>

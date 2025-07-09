@@ -1,3 +1,4 @@
+"use client";
 import { useState } from "react";
 import OverviewTab from "./OverviewTab";
 import MyFitAnalysisTab from "./MyFitAnalysisTab";

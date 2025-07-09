@@ -193,7 +193,7 @@ const mockJobs = [
 export default function Dashboard() {
 
   const [selectedResume, setSelectedResume] = useState<number | null>(null);
-  const [selectedJob, setSelectedJob] = useState<number | null>(null);
+  // const [selectedJob, setSelectedJob] = useState<number | null>(null); // Removed unused state
 
   return (
 	<div className="max-w-7xl mx-auto py-10 px-4 flex flex-col gap-8">
@@ -239,7 +239,7 @@ export default function Dashboard() {
 				<ul className="flex flex-col gap-6">
 				  {mockJobs
 					.filter((job) => !selectedResume || job.resume === selectedResume)
-					.map((job, idx, arr) => (
+		.map((job) => (
 					  <li key={job.id} className="relative flex items-center group" style={{ zIndex: 1 }}>
 						{/* Connector dot */}
 						<div className="absolute -left-4 w-4 h-4 bg-blue-500 rounded-full border-4 border-white shadow" style={{ zIndex: 2 }}></div>
