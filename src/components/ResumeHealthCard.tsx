@@ -1,21 +1,39 @@
 "use client";
 import { useEffect, useState } from "react";
 
+import { fetchFromApi } from "@/lib/api";
+import { ACTIVE_CANDIDATE_ID } from "@/lib/constants";
+import { fallbackResumeHealth } from "@/lib/fallback-data";
+
 type SubScore = { label: string; value: number };
 
 export default function ResumeHealthCard() {
-  const [score, setScore] = useState<number | null>(null);
-  const [subScores, setSubScores] = useState<SubScore[]>([]);
+  const [score, setScore] = useState<number>(fallbackResumeHealth.score);
+  const [subScores, setSubScores] = useState<SubScore[]>(fallbackResumeHealth.sub_scores);
   const [loading, setLoading] = useState(true);
+  const [usingFallback, setUsingFallback] = useState(false);
 
   useEffect(() => {
-    fetch("/api/resume-health")
-      .then((res) => res.json())
-      .then((data) => {
-        setScore(data.score);
-        setSubScores(data.subScores);
+    async function loadResumeHealth() {
+      try {
+        const response = await fetchFromApi<{
+          score: number;
+          sub_scores: SubScore[];
+        }>(`/candidates/${ACTIVE_CANDIDATE_ID}/resume-health`);
+        setScore(response.score);
+        setSubScores(response.sub_scores ?? []);
+        setUsingFallback(false);
+      } catch (error) {
+        console.error("Failed to load resume health", error);
+        setScore(fallbackResumeHealth.score);
+        setSubScores(fallbackResumeHealth.sub_scores);
+        setUsingFallback(true);
+      } finally {
         setLoading(false);
-      });
+      }
+    }
+
+    void loadResumeHealth();
   }, []);
 
   return (
@@ -34,6 +52,9 @@ export default function ResumeHealthCard() {
               </div>
             ))}
           </div>
+          {usingFallback && (
+            <div className="text-xs text-gray-400 mt-3">Showing cached data while the API is unavailable.</div>
+          )}
         </>
       )}
     </div>

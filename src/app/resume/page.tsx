@@ -1,115 +1,62 @@
+
 "use client";
-import { useState } from "react";
 
-const mockResumes = [
-  {
-	id: 1,
-	name: "Software Engineer Resume",
-	type: "Technical",
-	summary: "5+ years experience in full-stack development, React, Node.js, and cloud platforms.",
-	preview: `John Doe\nSoftware Engineer\n\nProfessional Summary:\nResults-driven software engineer with 5+ years of experience building scalable web applications. Adept at React, Node.js, and AWS. Passionate about clean code and agile teams.\n\nSkills:\n- React.js\n- Node.js\n- AWS\n- TypeScript\n- REST APIs\n- Agile/Scrum\n\nExperience:\nAcme Corp (2019-2024): Senior Frontend Engineer\nBeta Inc (2017-2019): Full Stack Developer\n\nEducation:\nB.Sc. in Computer Science, Tech University\n`,
-	skills: ["React.js", "Node.js", "AWS", "TypeScript", "REST APIs", "Agile/Scrum"],
-	lastUpdated: "2025-07-01",
-  },
-  {
-	id: 2,
-	name: "Product Manager Resume",
-	type: "Business",
-	summary: "Experienced in product lifecycle, agile, and cross-functional teams.",
-	preview: `Jane Smith\nProduct Manager\n\nProfessional Summary:\nStrategic product manager with a track record of launching successful SaaS products. Skilled in agile methodologies and cross-functional leadership.\n\nSkills:\n- Product Strategy\n- Agile/Scrum\n- Roadmapping\n- Stakeholder Management\n- User Research\n\nExperience:\nBeta Inc (2020-2024): Product Manager\nAcme Corp (2017-2020): Associate PM\n\nEducation:\nMBA, Business School\n`,
-	skills: ["Product Strategy", "Agile/Scrum", "Roadmapping", "Stakeholder Management", "User Research"],
-	lastUpdated: "2025-06-28",
-  },
-  {
-	id: 3,
-	name: "Data Scientist Resume",
-	type: "Technical",
-	summary: "Expert in Python, ML, and data visualization.",
-	preview: `Alex Kim\nData Scientist\n\nProfessional Summary:\nData scientist with deep expertise in machine learning, Python, and data visualization. Proven ability to turn data into actionable insights.\n\nSkills:\n- Python\n- Machine Learning\n- Data Visualization\n- SQL\n- Pandas\n\nExperience:\nDataWorks (2021-2024): Data Scientist\nAnalyticsPro (2018-2021): Data Analyst\n\nEducation:\nM.Sc. in Data Science, Analytics University\n`,
-	skills: ["Python", "Machine Learning", "Data Visualization", "SQL", "Pandas"],
-	lastUpdated: "2025-07-05",
-  },
-  {
-	id: 4,
-	name: "Marketing Resume",
-	type: "Creative",
-	summary: "Digital marketing specialist with SEO/SEM expertise.",
-	preview: `Sam Lee\nMarketing Specialist\n\nProfessional Summary:\nCreative digital marketer with a focus on SEO, SEM, and content strategy. Experienced in driving brand growth and engagement.\n\nSkills:\n- SEO\n- SEM\n- Content Strategy\n- Google Analytics\n- Social Media Marketing\n\nExperience:\nBrandBoost (2020-2024): Marketing Specialist\nAdWorks (2017-2020): Marketing Coordinator\n\nEducation:\nB.A. in Marketing, State College\n`,
-	skills: ["SEO", "SEM", "Content Strategy", "Google Analytics", "Social Media Marketing"],
-	lastUpdated: "2025-06-30",
-  },
-  {
-	id: 5,
-	name: "Finance Resume",
-	type: "Business",
-	summary: "Financial analyst with strong modeling skills.",
-	preview: `Chris Patel\nFinancial Analyst\n\nProfessional Summary:\nAnalytical finance professional with expertise in financial modeling, forecasting, and reporting.\n\nSkills:\n- Financial Modeling\n- Forecasting\n- Excel\n- Reporting\n- Budgeting\n\nExperience:\nFinCorp (2019-2024): Financial Analyst\nMoneyMatters (2016-2019): Junior Analyst\n\nEducation:\nB.Com. in Finance, City University\n`,
-	skills: ["Financial Modeling", "Forecasting", "Excel", "Reporting", "Budgeting"],
-	lastUpdated: "2025-07-03",
-  },
-  {
-	id: 6,
-	name: "UX Designer Resume",
-	type: "Creative",
-	summary: "UX/UI designer with a focus on accessibility.",
-	preview: `Morgan Yu\nUX Designer\n\nProfessional Summary:\nUser-focused UX/UI designer with a passion for accessibility and clean interfaces.\n\nSkills:\n- UX Design\n- UI Design\n- Accessibility\n- Figma\n- Prototyping\n\nExperience:\nDesignLab (2021-2024): UX Designer\nWebWorks (2018-2021): Junior Designer\n\nEducation:\nB.Des. in Design, Art Institute\n`,
-	skills: ["UX Design", "UI Design", "Accessibility", "Figma", "Prototyping"],
-	lastUpdated: "2025-07-02",
-  },
-  {
-	id: 7,
-	name: "DevOps Resume",
-	type: "Technical",
-	summary: "DevOps engineer with CI/CD and cloud automation.",
-	preview: `Jordan Park\nDevOps Engineer\n\nProfessional Summary:\nDevOps engineer skilled in CI/CD, cloud automation, and infrastructure as code.\n\nSkills:\n- CI/CD\n- Cloud Automation\n- Docker\n- Kubernetes\n- Terraform\n\nExperience:\nCloudOps (2020-2024): DevOps Engineer\nInfraTech (2017-2020): Systems Engineer\n\nEducation:\nB.Sc. in Information Systems, Tech University\n`,
-	skills: ["CI/CD", "Cloud Automation", "Docker", "Kubernetes", "Terraform"],
-	lastUpdated: "2025-06-29",
-  },
-	{
-		id: 8,
-		name: "Sales Resume",
-		type: "Business",
-		summary: "Top-performing sales executive in SaaS.",
-		preview: `Taylor Brooks\nSales Executive\n\nProfessional Summary:\nResults-oriented sales executive with a record of exceeding targets in SaaS sales.\n\nSkills:\n- SaaS Sales\n- CRM\n- Negotiation\n- Lead Generation\n- Account Management\n\nExperience:\nSalesForce (2019-2024): Sales Executive\nBizGrow (2016-2019): Sales Associate\n\nEducation:\nB.A. in Business, State College\n`,
-		skills: ["SaaS Sales", "CRM", "Negotiation", "Lead Generation", "Account Management"],
-		lastUpdated: "2025-07-04",
-	},
-	{
-		id: 9,
-		name: "HR Resume",
-		type: "Business",
-		summary: "HR manager with talent acquisition expertise.",
-		preview: `Casey Lin\nHR Manager\n\nProfessional Summary:\nHR manager with a focus on talent acquisition, employee engagement, and compliance.\n\nSkills:\n- Talent Acquisition\n- Employee Engagement\n- Compliance\n- HRIS\n- Onboarding\n\nExperience:\nPeopleFirst (2020-2024): HR Manager\nTalentWorks (2017-2020): HR Specialist\n\nEducation:\nB.A. in Human Resources, City University\n`,
-		skills: ["Talent Acquisition", "Employee Engagement", "Compliance", "HRIS", "Onboarding"],
-		lastUpdated: "2025-06-27",
-	},
-	{
-		id: 10,
-		name: "Content Writer Resume",
-		type: "Creative",
-		summary: "Content writer with published work in tech.",
-		preview: `Jamie Fox\nContent Writer\n\nProfessional Summary:\nContent writer with a portfolio of published work in technology and business.\n\nSkills:\n- Content Writing\n- Editing\n- Blogging\n- SEO\n- Research\n\nExperience:\nWriteNow (2021-2024): Content Writer\nBlogPro (2018-2021): Junior Writer\n\nEducation:\nB.A. in English, State College\n`,
-		skills: ["Content Writing", "Editing", "Blogging", "SEO", "Research"],
-		lastUpdated: "2025-07-06",
-	},
-];
+import type { ChangeEvent, FormEvent, MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-const sections = ["Technical", "Business", "Creative"];
+import { fetchFromApi } from "@/lib/api";
+import { ACTIVE_CANDIDATE_ID } from "@/lib/constants";
+import { fallbackResumes } from "@/lib/fallback-data";
 
-function EditIcon({ onClick }: { onClick: (e: React.MouseEvent) => void }) {
+type Resume = {
+	id: string;
+	slug: string;
+	name: string;
+	type: string;
+	summary: string;
+	preview: string;
+	skills: string[];
+	lastUpdated: string;
+};
+
+type ResumeApiResponse = {
+	id: string;
+	slug?: string;
+	name?: string;
+	type?: string;
+	summary?: string;
+	preview?: string;
+	skills?: string[];
+	last_updated?: string;
+	lastUpdated?: string;
+};
+
+const SECTION_ORDER: string[] = ["Technical", "Business", "Creative"];
+const RESUME_TYPES = ["Technical", "Business", "Creative", "General"] as const;
+
+function mapResume(apiResume: ResumeApiResponse): Resume {
+	return {
+		id: apiResume.id,
+		slug: apiResume.slug ?? apiResume.id,
+		name: apiResume.name ?? "Untitled Resume",
+		type: apiResume.type ?? "Technical",
+		summary: apiResume.summary ?? "",
+		preview: apiResume.preview ?? "",
+		skills: apiResume.skills ?? [],
+		lastUpdated: apiResume.last_updated ?? apiResume.lastUpdated ?? new Date().toISOString().slice(0, 10),
+	};
+}
+
+function EditIcon({ onClick }: { onClick: (event: MouseEvent<HTMLButtonElement>) => void }) {
 	return (
 		<button
 			onClick={onClick}
 			className="ml-2 text-gray-500 hover:text-blue-600"
 			title="Edit resume name"
 			aria-label="Edit resume name"
+			type="button"
 		>
-			<svg
-				width="16"
-				height="16"
-				fill="none"
-				viewBox="0 0 24 24"
-			>
+			<svg width="16" height="16" fill="none" viewBox="0 0 24 24">
 				<path
 					stroke="currentColor"
 					strokeWidth="2"
@@ -121,49 +68,251 @@ function EditIcon({ onClick }: { onClick: (e: React.MouseEvent) => void }) {
 }
 
 export default function ResumePage() {
-	const [resumes, setResumes] = useState(mockResumes);
-	const [editingId, setEditingId] = useState<number | null>(null);
+	const [resumes, setResumes] = useState<Resume[]>(fallbackResumes);
+	const [selectedId, setSelectedId] = useState<string | null>(fallbackResumes[0]?.id ?? null);
+	const [editingId, setEditingId] = useState<string | null>(null);
 	const [editName, setEditName] = useState("");
-	const [selectedId, setSelectedId] = useState<number | null>(null);
+	const [loading, setLoading] = useState<boolean>(true);
+	const [usingFallback, setUsingFallback] = useState<boolean>(true);
+	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+	const [uploadName, setUploadName] = useState("");
+	const [uploadType, setUploadType] = useState<string>(RESUME_TYPES[0]);
+	const [uploadSummary, setUploadSummary] = useState("");
+	const [uploadSkills, setUploadSkills] = useState("");
+	const [uploadFile, setUploadFile] = useState<File | null>(null);
+	const [uploading, setUploading] = useState(false);
+	const [deletingId, setDeletingId] = useState<string | null>(null);
+	const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-	function startEdit(id: number, name: string) {
+	const loadResumes = useCallback(async () => {
+		setLoading(true);
+		setErrorMessage(null);
+		setStatusMessage(null);
+		try {
+			const response = await fetchFromApi<{ resumes: ResumeApiResponse[] }>(
+				`/candidates/${ACTIVE_CANDIDATE_ID}/resumes`
+			);
+			const mapped = response.resumes.map(mapResume);
+			const sorted = mapped.sort((a, b) => b.lastUpdated.localeCompare(a.lastUpdated));
+			setResumes(sorted);
+			setSelectedId(sorted[0]?.id ?? null);
+			setUsingFallback(false);
+		} catch (error) {
+			console.error("Failed to load resumes", error);
+			setResumes(fallbackResumes);
+			setSelectedId(fallbackResumes[0]?.id ?? null);
+			setUsingFallback(true);
+		} finally {
+			setLoading(false);
+		}
+	}, []);
+
+	useEffect(() => {
+		void loadResumes();
+	}, [loadResumes]);
+
+	const sections = useMemo(() => {
+		const types = Array.from(new Set(resumes.map(resume => resume.type)));
+		const preferred = SECTION_ORDER.filter(section => types.includes(section));
+		const remaining = types.filter(type => !SECTION_ORDER.includes(type));
+		return [...preferred, ...remaining];
+	}, [resumes]);
+
+	const availableTypes = useMemo(() => {
+		const types = [...RESUME_TYPES, ...resumes.map(resume => resume.type)];
+		return Array.from(new Set(types)).filter(Boolean) as string[];
+	}, [resumes]);
+
+	useEffect(() => {
+		if (!availableTypes.includes(uploadType)) {
+			setUploadType(availableTypes[0] ?? RESUME_TYPES[0]);
+		}
+	}, [availableTypes, uploadType]);
+
+	const selectedResume = useMemo(() => {
+		return resumes.find(resume => resume.id === selectedId) ?? resumes[0];
+	}, [resumes, selectedId]);
+
+	function startEdit(id: string, name: string) {
 		setEditingId(id);
 		setEditName(name);
 	}
-	function saveEdit(id: number) {
-		setResumes(
-			resumes.map(r => (r.id === id ? { ...r, name: editName } : r)),
-		);
+
+	async function saveEdit(id: string) {
+		const trimmedName = editName.trim();
+		if (!trimmedName) {
+			setEditingId(null);
+			setEditName("");
+			return;
+		}
+
+		setResumes(prev => prev.map(resume => (resume.id === id ? { ...resume, name: trimmedName } : resume)));
+		setEditingId(null);
+		setEditName("");
+
+		if (usingFallback || id.startsWith("fallback-")) {
+			return;
+		}
+
+		try {
+			await fetchFromApi(`/resumes/${id}`, {
+				method: "PATCH",
+				body: JSON.stringify({ name: trimmedName }),
+			});
+		} catch (error) {
+			console.error("Failed to update resume name", error);
+			setErrorMessage("Could not sync the change to the server. Showing local copy.");
+			setUsingFallback(true);
+		}
+	}
+
+	function cancelEdit() {
 		setEditingId(null);
 		setEditName("");
 	}
-	function selectResume(id: number) {
-		setSelectedId(id);
+
+	function resetUploadForm() {
+		setUploadName("");
+		setUploadType(availableTypes[0] ?? RESUME_TYPES[0]);
+		setUploadSummary("");
+		setUploadSkills("");
+		setUploadFile(null);
 	}
 
-	const selectedResume = resumes.find(r => r.id === selectedId) || resumes[0];
+	function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+		const file = event.target.files?.[0] ?? null;
+		setUploadFile(file);
+	}
+
+	async function handleUpload(event: FormEvent<HTMLFormElement>) {
+		event.preventDefault();
+		setErrorMessage(null);
+		if (!uploadName.trim()) {
+			setStatusMessage("Resume name is required.");
+			return;
+		}
+		if (!uploadFile) {
+			setStatusMessage("Please choose a resume file to upload.");
+			return;
+		}
+
+		setUploading(true);
+		setStatusMessage(null);
+
+		const skills = uploadSkills
+			.split(",")
+			.map(skill => skill.trim())
+			.filter(Boolean);
+
+		try {
+			const formData = new FormData();
+			formData.append("candidate_id", ACTIVE_CANDIDATE_ID);
+			formData.append("name", uploadName.trim());
+			formData.append("file", uploadFile);
+			if (uploadSummary.trim()) {
+				formData.append("summary", uploadSummary.trim());
+			}
+			if (skills.length > 0) {
+				formData.append("skills", JSON.stringify(skills));
+			}
+			if (uploadType) {
+				formData.append("resume_type", uploadType);
+			}
+
+			await fetchFromApi<{ resume_id: string }>("/resumes/", {
+				method: "POST",
+				body: formData,
+			});
+
+			await loadResumes();
+			resetUploadForm();
+			setStatusMessage("Resume uploaded successfully.");
+		} catch (error) {
+			console.error("Failed to upload resume", error);
+			setStatusMessage(null);
+			setErrorMessage("Could not upload the resume. Please try again.");
+		} finally {
+			setUploading(false);
+		}
+	}
+
+	async function handleDelete(event: MouseEvent<HTMLButtonElement>, resumeId: string) {
+		event.stopPropagation();
+		if (!resumeId) return;
+		if (typeof window !== "undefined" && !window.confirm("Delete this resume?")) {
+			return;
+		}
+
+		setDeletingId(resumeId);
+		setStatusMessage(null);
+		setErrorMessage(null);
+
+		setResumes(prev => {
+			const updated = prev.filter(resume => resume.id !== resumeId);
+			if (selectedId === resumeId) {
+				setSelectedId(updated[0]?.id ?? null);
+			}
+			return updated;
+		});
+
+		if (usingFallback || resumeId.startsWith("fallback-")) {
+			setDeletingId(null);
+			setStatusMessage("Removed resume from the local list.");
+			setErrorMessage(null);
+			return;
+		}
+
+		try {
+			await fetchFromApi(`/resumes/${resumeId}`, {
+				method: "DELETE",
+			});
+			await loadResumes();
+			setStatusMessage("Resume deleted successfully.");
+		} catch (error) {
+			console.error("Failed to delete resume", error);
+			setStatusMessage(null);
+			setErrorMessage("Could not delete the resume. Restoring list.");
+			void loadResumes();
+		} finally {
+			setDeletingId(null);
+		}
+	}
+
+	const professionalSummary = useMemo(() => {
+		if (!selectedResume) return "";
+		const segments = selectedResume.preview.split("Professional Summary:");
+		if (segments.length < 2) return "";
+		return segments[1].split("Skills:")[0]?.trim() ?? "";
+	}, [selectedResume]);
 
 	return (
 		<div className="max-w-5xl mx-auto py-10 px-4 flex flex-col md:flex-row gap-8">
 			{/* Left: Resume List */}
 			<div className="w-full md:w-1/2">
 				<h1 className="text-2xl font-bold mb-6">Your Resumes</h1>
+				{loading && <div className="text-sm text-gray-400 mb-4">Loading resumes...</div>}
+				{usingFallback && !loading && (
+					<div className="text-xs text-gray-400 mb-3">Showing cached resumes while the API is unavailable.</div>
+				)}
+				{errorMessage && <div className="text-xs text-red-500 mb-3">{errorMessage}</div>}
+				{statusMessage && <div className="text-xs text-blue-600 mb-3">{statusMessage}</div>}
+				{resumes.length === 0 && !loading && (
+					<div className="text-sm text-gray-500 mb-4">No resumes yet. Upload one to get started.</div>
+				)}
 				{sections.map(section => (
 					<div key={section} className="mb-6">
-						<h2 className="text-lg font-semibold mb-3 text-blue-800">
-							{section} Resumes
-						</h2>
+						<h2 className="text-lg font-semibold mb-3 text-blue-800">{section} Resumes</h2>
 						<ul className="flex flex-col gap-2">
 							{resumes
-								.filter(r => r.type === section)
+								.filter(resume => resume.type === section)
 								.map(resume => (
 									<li
 										key={resume.id}
 										className={`bg-white border border-blue-100 rounded-lg px-4 py-3 flex flex-col items-start shadow transition-all duration-200 cursor-pointer ${
-											selectedId === resume.id ? "ring-2 ring-blue-400" : ""
+											selectedResume?.id === resume.id ? "ring-2 ring-blue-400" : ""
 										}`}
 										style={{ minHeight: 48 }}
-										onClick={() => selectResume(resume.id)}
+										onClick={() => setSelectedId(resume.id)}
 									>
 										<div className="flex items-center gap-2 w-full">
 											{editingId === resume.id ? (
@@ -171,82 +320,160 @@ export default function ResumePage() {
 													<input
 														className="border rounded px-2 py-1 text-sm flex-1"
 														value={editName}
-														onChange={e =>
-															setEditName(e.target.value)
-														}
-														onClick={e => e.stopPropagation()}
+														onChange={event => setEditName(event.target.value)}
+														onClick={event => event.stopPropagation()}
 													/>
-													<button
-														className="text-blue-600 text-xs ml-2"
-														onClick={e => {
-															e.stopPropagation();
-															saveEdit(resume.id);
-														}}
-													>
-														Save
-													</button>
+													<div className="flex gap-2 text-xs">
+														<button
+															className="text-blue-600"
+															type="button"
+															onClick={event => {
+																event.stopPropagation();
+																void saveEdit(resume.id);
+															}}
+														>
+															Save
+														</button>
+														<button
+															className="text-gray-500"
+															type="button"
+															onClick={event => {
+																event.stopPropagation();
+																cancelEdit();
+															}}
+														>
+															Cancel
+														</button>
+													</div>
 												</>
 											) : (
 												<>
-													<span className="font-semibold flex-1 text-gray-900">
-														{resume.name}
-													</span>
-													<EditIcon
-														onClick={e => {
-															e.stopPropagation();
-															startEdit(resume.id, resume.name);
-														}}
-													/>
+													<span className="font-semibold flex-1 text-gray-900">{resume.name}</span>
+													<div className="flex items-center gap-3">
+														<EditIcon
+															onClick={event => {
+																event.stopPropagation();
+																startEdit(resume.id, resume.name);
+															}}
+														/>
+														<button
+															className="text-xs text-red-500 hover:text-red-600"
+															type="button"
+															onClick={event => {
+																void handleDelete(event, resume.id);
+															}}
+															disabled={deletingId === resume.id}
+														>
+															{deletingId === resume.id ? "Deleting..." : "Delete"}
+														</button>
+													</div>
 												</>
 											)}
 										</div>
-										<div className="text-sm text-gray-700 mb-1 mt-1">
-											{resume.summary}
-										</div>
+										<div className="text-sm text-gray-700 mb-1 mt-1">{resume.summary}</div>
 										<div className="text-xs text-gray-500 mt-1">
 											Last updated: <span className="font-semibold text-blue-700">{resume.lastUpdated}</span>
 										</div>
 									</li>
 								))}
-						</ul>
+							</ul>
+						</div>
+					))}
+
+				<form onSubmit={handleUpload} className="bg-white border border-blue-100 rounded-lg p-4 shadow-sm">
+					<h2 className="text-lg font-semibold mb-4 text-blue-800">Upload New Resume</h2>
+					<div className="flex flex-col gap-3">
+						<label className="flex flex-col text-sm text-gray-700">
+							<span className="mb-1 font-medium">Resume Name</span>
+							<input
+								className="border border-gray-300 rounded px-2 py-2"
+								required
+								value={uploadName}
+								onChange={event => setUploadName(event.target.value)}
+							/>
+						</label>
+						<label className="flex flex-col text-sm text-gray-700">
+							<span className="mb-1 font-medium">Resume Type</span>
+							<select
+								className="border border-gray-300 rounded px-2 py-2"
+								value={uploadType}
+								onChange={event => setUploadType(event.target.value)}
+							>
+								{availableTypes.map(type => (
+									<option key={type} value={type}>
+										{type}
+									</option>
+								))}
+							</select>
+						</label>
+						<label className="flex flex-col text-sm text-gray-700">
+							<span className="mb-1 font-medium">Summary (optional)</span>
+							<textarea
+								className="border border-gray-300 rounded px-2 py-2 h-20"
+								value={uploadSummary}
+								onChange={event => setUploadSummary(event.target.value)}
+							/>
+						</label>
+						<label className="flex flex-col text-sm text-gray-700">
+							<span className="mb-1 font-medium">Skills (comma separated)</span>
+							<input
+								className="border border-gray-300 rounded px-2 py-2"
+								value={uploadSkills}
+								onChange={event => setUploadSkills(event.target.value)}
+							/>
+						</label>
+						<label className="flex flex-col text-sm text-gray-700">
+							<span className="mb-1 font-medium">Resume File (PDF, DOCX)</span>
+							<input
+								className="border border-gray-300 rounded px-2 py-2"
+								required
+								type="file"
+								accept=".pdf,.doc,.docx,.txt"
+								onChange={handleFileChange}
+							/>
+							{uploadFile && <span className="text-xs text-gray-500 mt-1">{uploadFile.name}</span>}
+						</label>
+						<button
+							className="bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold disabled:opacity-50"
+							type="submit"
+							disabled={uploading}
+						>
+							{uploading ? "Uploading..." : "Upload Resume"}
+						</button>
 					</div>
-				))}
+				</form>
 			</div>
 			{/* Right: Resume Preview */}
 			<div className="w-full md:w-1/2">
-				<div className="bg-white border-2 border-blue-200 rounded-lg p-6 shadow-sm min-h-[300px]">
-					<div className="mb-2 font-semibold text-blue-900 text-lg">
-						{selectedResume.name}
+				{selectedResume ? (
+					<div className="bg-white border-2 border-blue-200 rounded-lg p-6 shadow-sm min-h-[300px]">
+						<div className="mb-2 font-semibold text-blue-900 text-lg">{selectedResume.name}</div>
+						<div className="mb-2 text-gray-700">{selectedResume.summary}</div>
+						<div className="mb-2 font-semibold text-blue-900">Professional Summary</div>
+						<div className="mb-3 text-gray-800">{professionalSummary || "No professional summary provided."}</div>
+						<div className="mb-2 font-semibold text-blue-900">Skills</div>
+						<div className="flex flex-wrap gap-2 mb-3">
+							{selectedResume.skills.length > 0 ? (
+								selectedResume.skills.map(skill => (
+									<span
+										key={skill}
+										className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium border border-blue-200"
+									>
+										{skill}
+										</span>
+								))
+							) : (
+								<span className="text-xs text-gray-500">No skills listed.</span>
+							)}
+						</div>
+						<div className="mb-2 font-semibold text-blue-900">Full Resume</div>
+						<pre className="bg-gray-50 border border-gray-200 rounded p-3 text-xs text-gray-700 whitespace-pre-line overflow-x-auto">
+							{selectedResume.preview || "Preview not available."}
+						</pre>
 					</div>
-					<div className="mb-2 text-gray-700">
-						{selectedResume.summary}
-					</div>
-					<div className="mb-2 font-semibold text-blue-900">
-						Professional Summary
-					</div>
-					<div className="mb-3 text-gray-800">
-						{selectedResume.preview
-							.split("Professional Summary:")
-							[1]
-							?.split("Skills:")[0]
-							?.trim() || ""}
-					</div>
-					<div className="mb-2 font-semibold text-blue-900">Skills</div>
-					<div className="flex flex-wrap gap-2 mb-3">
-						{selectedResume.skills.map(skill => (
-							<span
-								key={skill}
-								className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium border border-blue-200"
-							>
-								{skill}
-							</span>
-						))}
-					</div>
-					<div className="mb-2 font-semibold text-blue-900">Full Resume</div>
-					<pre className="bg-gray-50 border border-gray-200 rounded p-3 text-xs text-gray-700 whitespace-pre-line overflow-x-auto">
-						{selectedResume.preview}
-					</pre>
-				</div>
+				) : (
+					<div className="text-sm text-gray-500">No resume selected.</div>
+				)}
 			</div>
 		</div>
 	);

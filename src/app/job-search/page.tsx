@@ -1,17 +1,26 @@
 "use client";
-import JobSearchFilters from "@/components/jobsearch/JobSearchFilters";
+
+import { useState } from "react";
+
 import JobCardList from "@/components/jobsearch/JobCardList";
+import JobSearchFilters, { JobFilters } from "@/components/jobsearch/JobSearchFilters";
+
+const defaultFilters: JobFilters = {
+  hideApplied: true,
+  search: "",
+  sort: "match",
+};
 
 export default function JobSearchPage() {
+  const [filters, setFilters] = useState<JobFilters>(defaultFilters);
+
   return (
     <div className="max-w-7xl mx-auto py-10 px-4 grid grid-cols-1 md:grid-cols-4 gap-8 min-h-screen">
-      {/* Filter Panel */}
       <div className="md:col-span-1">
-        <JobSearchFilters />
+        <JobSearchFilters filters={filters} onFiltersChange={setFilters} />
       </div>
-      {/* Job List */}
       <div className="md:col-span-3">
-        <JobCardList />
+        <JobCardList filters={filters} />
       </div>
     </div>
   );
