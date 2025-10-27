@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { useCandidateScope } from "@/context/PersonaContext";
 import { fetchFromApi } from "@/lib/api";
-import { ACTIVE_CANDIDATE_ID } from "@/lib/constants";
 import { fallbackApplications } from "@/lib/fallback-data";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -35,6 +35,7 @@ type Application = {
 const PAGE_SIZE = 12;
 
 export default function MyJobsPage() {
+  const { candidateId } = useCandidateScope();
   const [applications, setApplications] = useState<Application[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -42,6 +43,15 @@ export default function MyJobsPage() {
   const [usingFallback, setUsingFallback] = useState<boolean>(false);
 
   useEffect(() => {
+    if (!candidateId) {
+      setApplications([]);
+      setSelectedId(null);
+      setUsingFallback(false);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     async function loadApplications() {
       try {
         setLoading(true);
@@ -52,7 +62,7 @@ export default function MyJobsPage() {
           total: number;
           page: number;
           page_size: number;
-        }>(`/applications/candidates/${ACTIVE_CANDIDATE_ID}?page=1&page_size=${PAGE_SIZE}`);
+        }>(`/applications/candidates/${candidateId}?page=1&page_size=${PAGE_SIZE}`);
 
         setApplications(response.items);
         setSelectedId(prev => prev ?? (response.items[0]?.id ?? null));
@@ -80,7 +90,7 @@ export default function MyJobsPage() {
     }
 
     void loadApplications();
-  }, []);
+  }, [candidateId]);
 
   const selectedApplication = useMemo(() => {
     if (!selectedId) {
@@ -100,6 +110,14 @@ export default function MyJobsPage() {
       return value;
     }
   };
+
+  if (!candidateId) {
+    return (
+      <div className="max-w-5xl mx-auto py-10 px-4 text-sm text-gray-500">
+        Switch to the candidate persona to review applications.
+      </div>
+    );
+  }
 
   if (loading && !applications.length) {
     return <div className="max-w-5xl mx-auto py-10 px-4 text-sm text-gray-500">Loading your applications...</div>;

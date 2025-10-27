@@ -2,7 +2,7 @@
 
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 
-import { ACTIVE_CANDIDATE_ID } from "@/lib/constants";
+import { usePersona, useRecruiterScope } from "@/context/PersonaContext";
 import { fallbackRecruiterWorkflow } from "@/lib/fallback-data";
 import {
   CandidateAnalysis,
@@ -69,6 +69,8 @@ type CandidateOption = CandidateSummary & {
 };
 
 export default function RecruiterAIWorkflowPage() {
+  const { candidateId } = usePersona();
+  const { isRecruiter } = useRecruiterScope();
   const [jobTitle, setJobTitle] = useState<string>(fallback.jobTitle);
   const [jobCode, setJobCode] = useState<string>(fallback.jobCode);
   const [jobLevel, setJobLevel] = useState<string>(fallback.jobLevel);
@@ -104,7 +106,7 @@ export default function RecruiterAIWorkflowPage() {
           displayName: candidateDisplayName(candidate, index),
         }));
         setCandidates(mapped);
-        const defaultCandidate = mapped.find(item => item.candidate_id === ACTIVE_CANDIDATE_ID) || mapped[0];
+  const defaultCandidate = mapped.find(item => item.candidate_id === candidateId) || mapped[0];
         if (defaultCandidate) {
           setSelectedCandidateId(defaultCandidate.candidate_id);
         }
@@ -124,7 +126,7 @@ export default function RecruiterAIWorkflowPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [candidateId]);
 
   useEffect(() => {
     if (!selectedCandidateId) {
@@ -191,6 +193,14 @@ export default function RecruiterAIWorkflowPage() {
   const selectedReadout = selectedCandidateId ? readoutById.get(selectedCandidateId) || null : null;
 
   const shortlist = workflowResult?.ranked_shortlist || [];
+
+  if (!isRecruiter) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 py-10 text-sm text-gray-500">
+        Switch to the recruiter persona to run the AI hiring workflow.
+      </div>
+    );
+  }
 
   const handleResumeToggle = (event: ChangeEvent<HTMLInputElement>, resumeId: string) => {
     if (event.target.checked) {

@@ -1,25 +1,32 @@
 "use client";
 import { useEffect, useState } from "react";
 
+import { useCandidateScope } from "@/context/PersonaContext";
 import { fetchFromApi } from "@/lib/api";
-import { ACTIVE_CANDIDATE_ID } from "@/lib/constants";
 import { fallbackResumeHealth } from "@/lib/fallback-data";
 
 type SubScore = { label: string; value: number };
 
 export default function ResumeHealthCard() {
+  const { candidateId } = useCandidateScope();
   const [score, setScore] = useState<number>(fallbackResumeHealth.score);
   const [subScores, setSubScores] = useState<SubScore[]>(fallbackResumeHealth.sub_scores);
   const [loading, setLoading] = useState(true);
   const [usingFallback, setUsingFallback] = useState(false);
 
   useEffect(() => {
+    if (!candidateId) {
+      setLoading(false);
+      setUsingFallback(false);
+      return;
+    }
+
     async function loadResumeHealth() {
       try {
         const response = await fetchFromApi<{
           score: number;
           sub_scores: SubScore[];
-        }>(`/candidates/${ACTIVE_CANDIDATE_ID}/resume-health`);
+        }>(`/candidates/${candidateId}/resume-health`);
         setScore(response.score);
         setSubScores(response.sub_scores ?? []);
         setUsingFallback(false);
@@ -34,11 +41,13 @@ export default function ResumeHealthCard() {
     }
 
     void loadResumeHealth();
-  }, []);
+  }, [candidateId]);
 
   return (
     <div className="bg-white rounded-xl shadow p-6 flex flex-col items-center">
-      {loading ? (
+      {!candidateId ? (
+        <div className="text-xs text-gray-500">Switch to the candidate persona to view resume health.</div>
+      ) : loading ? (
         <div className="text-gray-400 text-sm">Loading...</div>
       ) : (
         <>

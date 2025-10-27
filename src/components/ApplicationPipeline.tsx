@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { useCandidateScope } from "@/context/PersonaContext";
 import { fetchFromApi } from "@/lib/api";
-import { ACTIVE_CANDIDATE_ID } from "@/lib/constants";
 import { fallbackPipelineCounts } from "@/lib/fallback-data";
 
 type PipelineResponse = {
@@ -21,15 +21,22 @@ const PIPELINE_CONFIG: Array<{
 ];
 
 export default function ApplicationPipeline() {
+  const { candidateId } = useCandidateScope();
   const [pipeline, setPipeline] = useState<Record<string, number>>(fallbackPipelineCounts);
   const [loading, setLoading] = useState(true);
   const [usingFallback, setUsingFallback] = useState(false);
 
   useEffect(() => {
+    if (!candidateId) {
+      setLoading(false);
+      setUsingFallback(false);
+      return;
+    }
+
     async function loadPipeline() {
       try {
         const response = await fetchFromApi<PipelineResponse>(
-          `/candidates/${ACTIVE_CANDIDATE_ID}/pipeline`
+          `/candidates/${candidateId}/pipeline`
         );
         setPipeline(response.pipeline);
         setUsingFallback(false);
@@ -43,7 +50,7 @@ export default function ApplicationPipeline() {
     }
 
     void loadPipeline();
-  }, []);
+  }, [candidateId]);
 
   const pipelineTotals = useMemo(() => {
     return PIPELINE_CONFIG.map(({ label, keys }) => ({
@@ -62,7 +69,9 @@ export default function ApplicationPipeline() {
   return (
     <div className="bg-white rounded-xl shadow p-6">
       <div className="text-base font-semibold mb-4">Application Pipeline</div>
-      {loading ? (
+      {!candidateId ? (
+        <div className="text-xs text-gray-500">Switch to the candidate persona to review your applications.</div>
+      ) : loading ? (
         <div className="text-sm text-gray-400">Loading...</div>
       ) : (
         <>

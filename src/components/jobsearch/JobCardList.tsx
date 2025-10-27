@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { useCandidateScope } from "@/context/PersonaContext";
 import { fetchFromApi } from "@/lib/api";
-import { ACTIVE_CANDIDATE_ID } from "@/lib/constants";
 import { fallbackJobs } from "@/lib/fallback-data";
 import JobCard from "./JobCard";
 import type { JobFilters } from "./JobSearchFilters";
@@ -25,6 +25,7 @@ interface JobCardListProps {
 }
 
 export default function JobCardList({ filters, pageSize = 10 }: JobCardListProps) {
+  const { candidateId } = useCandidateScope();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [page, setPage] = useState<number>(1);
   const [hasMore, setHasMore] = useState<boolean>(true);
@@ -36,13 +37,22 @@ export default function JobCardList({ filters, pageSize = 10 }: JobCardListProps
 
   const loadJobs = useCallback(
     async (targetPage: number) => {
+      if (!candidateId) {
+        setJobs([]);
+        setHasMore(false);
+        setLoading(false);
+        setUsingFallback(false);
+        setError(null);
+        return;
+      }
+
       try {
         loadingRef.current = true;
         setLoading(true);
         setError(null);
 
         const params = new URLSearchParams();
-        params.append("candidate_id", ACTIVE_CANDIDATE_ID);
+        params.append("candidate_id", candidateId);
         params.append("page", String(targetPage));
         params.append("page_size", String(pageSize));
 
@@ -83,7 +93,7 @@ export default function JobCardList({ filters, pageSize = 10 }: JobCardListProps
         loadingRef.current = false;
       }
     },
-    [filters.hideApplied, filters.search, pageSize]
+    [candidateId, filters.hideApplied, filters.search, pageSize]
   );
 
   useEffect(() => {
@@ -91,17 +101,20 @@ export default function JobCardList({ filters, pageSize = 10 }: JobCardListProps
     setJobs([]);
     setHasMore(true);
     setUsingFallback(false);
-  }, [filters.hideApplied, filters.search, filters.sort]);
+  }, [candidateId, filters.hideApplied, filters.search, filters.sort]);
 
   useEffect(() => {
+    if (!candidateId) {
+      return;
+    }
     if (usingFallback && page > 1) {
       return;
     }
     void loadJobs(page);
-  }, [page, loadJobs, usingFallback]);
+  }, [candidateId, page, loadJobs, usingFallback]);
 
   useEffect(() => {
-    if (usingFallback || !hasMore) {
+    if (!candidateId || usingFallback || !hasMore) {
       return;
     }
 
@@ -122,7 +135,7 @@ export default function JobCardList({ filters, pageSize = 10 }: JobCardListProps
     return () => {
       observer.disconnect();
     };
-  }, [hasMore, usingFallback, jobs.length]);
+  }, [candidateId, hasMore, usingFallback, jobs.length]);
 
   const sortedJobs = useMemo(() => {
     const jobCopy = [...jobs];
@@ -154,7 +167,11 @@ export default function JobCardList({ filters, pageSize = 10 }: JobCardListProps
     return jobCopy;
   }, [jobs, filters.sort]);
 
-  const showInitialLoading = loading && !jobs.length && !usingFallback;
+  const showInitialLoading = candidateId != null && loading && !jobs.length && !usingFallback;
+
+  if (!candidateId) {
+    return <div className="text-sm text-gray-500">Switch to the candidate persona to see personalised job results.</div>;
+  }
 
   if (showInitialLoading) {
     return <div className="text-sm text-gray-400">Loading jobs...</div>;

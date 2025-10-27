@@ -4,8 +4,8 @@
 import type { ChangeEvent, FormEvent, MouseEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { useCandidateScope } from "@/context/PersonaContext";
 import { fetchFromApi } from "@/lib/api";
-import { ACTIVE_CANDIDATE_ID } from "@/lib/constants";
 import { fallbackResumes } from "@/lib/fallback-data";
 
 type Resume = {
@@ -68,6 +68,7 @@ function EditIcon({ onClick }: { onClick: (event: MouseEvent<HTMLButtonElement>)
 }
 
 export default function ResumePage() {
+    const { candidateId } = useCandidateScope();
 	const [resumes, setResumes] = useState<Resume[]>(fallbackResumes);
 	const [selectedId, setSelectedId] = useState<string | null>(fallbackResumes[0]?.id ?? null);
 	const [editingId, setEditingId] = useState<string | null>(null);
@@ -85,12 +86,17 @@ export default function ResumePage() {
 	const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
 	const loadResumes = useCallback(async () => {
+		if (!candidateId) {
+			setLoading(false);
+			setUsingFallback(false);
+			return;
+		}
 		setLoading(true);
 		setErrorMessage(null);
 		setStatusMessage(null);
 		try {
 			const response = await fetchFromApi<{ resumes: ResumeApiResponse[] }>(
-				`/candidates/${ACTIVE_CANDIDATE_ID}/resumes`
+				`/candidates/${candidateId}/resumes`
 			);
 			const mapped = response.resumes.map(mapResume);
 			const sorted = mapped.sort((a, b) => b.lastUpdated.localeCompare(a.lastUpdated));
@@ -105,7 +111,7 @@ export default function ResumePage() {
 		} finally {
 			setLoading(false);
 		}
-	}, []);
+	}, [candidateId]);
 
 	useEffect(() => {
 		void loadResumes();
@@ -195,6 +201,10 @@ export default function ResumePage() {
 			setStatusMessage("Please choose a resume file to upload.");
 			return;
 		}
+		if (!candidateId) {
+			setStatusMessage("Switch to the candidate persona to upload resumes.");
+			return;
+		}
 
 		setUploading(true);
 		setStatusMessage(null);
@@ -206,7 +216,7 @@ export default function ResumePage() {
 
 		try {
 			const formData = new FormData();
-			formData.append("candidate_id", ACTIVE_CANDIDATE_ID);
+			formData.append("candidate_id", candidateId);
 			formData.append("name", uploadName.trim());
 			formData.append("file", uploadFile);
 			if (uploadSummary.trim()) {
@@ -284,6 +294,14 @@ export default function ResumePage() {
 		if (segments.length < 2) return "";
 		return segments[1].split("Skills:")[0]?.trim() ?? "";
 	}, [selectedResume]);
+
+	if (!candidateId) {
+		return (
+			<div className="max-w-5xl mx-auto py-10 px-4 text-sm text-gray-500">
+				Switch to the candidate persona to manage resumes.
+			</div>
+		);
+	}
 
 	return (
 		<div className="max-w-5xl mx-auto py-10 px-4 flex flex-col md:flex-row gap-8">

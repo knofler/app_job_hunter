@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { useCandidateScope } from "@/context/PersonaContext";
 import { fetchFromApi } from "@/lib/api";
-import { ACTIVE_CANDIDATE_ID } from "@/lib/constants";
 import { fallbackTopMatches } from "@/lib/fallback-data";
 
 type MatchedJob = {
@@ -15,15 +15,22 @@ type MatchedJob = {
 };
 
 export default function TopMatchedJobs() {
+  const { candidateId } = useCandidateScope();
   const [jobs, setJobs] = useState<MatchedJob[]>(fallbackTopMatches);
   const [loading, setLoading] = useState(true);
   const [usingFallback, setUsingFallback] = useState(false);
 
   useEffect(() => {
+    if (!candidateId) {
+      setLoading(false);
+      setUsingFallback(false);
+      return;
+    }
+
     async function loadMatches() {
       try {
         const response = await fetchFromApi<{ jobs: MatchedJob[] }>(
-          `/candidates/${ACTIVE_CANDIDATE_ID}/top-matches?limit=5`
+          `/candidates/${candidateId}/top-matches?limit=5`
         );
         setJobs(response.jobs);
         setUsingFallback(false);
@@ -37,12 +44,14 @@ export default function TopMatchedJobs() {
     }
 
     void loadMatches();
-  }, []);
+  }, [candidateId]);
 
   return (
     <div className="bg-white rounded-xl shadow p-6 mt-4">
       <div className="text-base font-semibold mb-2">Top Matched Jobs</div>
-      {loading ? (
+      {!candidateId ? (
+        <div className="text-xs text-gray-500">Switch to the candidate persona to see personalised job matches.</div>
+      ) : loading ? (
         <div className="text-sm text-gray-400">Loading...</div>
       ) : jobs.length === 0 ? (
         <div className="text-sm text-gray-500">No matches yet. Keep refining your profile!</div>
