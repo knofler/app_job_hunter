@@ -1,14 +1,45 @@
 "use client";
 
-import { ChangeEvent, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
 
+import { ACTIVE_CANDIDATE_ID } from "@/lib/constants";
+import { fallbackRecruiterWorkflow } from "@/lib/fallback-data";
 import {
-  fallbackRecruiterWorkflow,
-  RecruiterWorkflowCandidate,
-  RecruiterWorkflowImprovement,
-} from "@/lib/fallback-data";
+  CandidateAnalysis,
+  CandidateListResponse,
+  CandidateReadout,
+  CandidateSummary,
+  generateRecruiterWorkflow,
+  listCandidateResumes,
+  listCandidates,
+  RecruiterWorkflowRequest,
+  RecruiterWorkflowResponse,
+  ResumeSummary,
+} from "@/lib/recruiter-workflow";
 
-const data = fallbackRecruiterWorkflow;
+const fallback = fallbackRecruiterWorkflow;
+
+const fallbackCoreSkills = fallback.coreSkills.map(item => ({
+  name: item.name,
+  reason: item.reason,
+}));
+
+const fallbackEngagementPlan = fallback.engagementInsights.map(item => ({
+  label: item.label,
+  value: item.value,
+  helper: item.helper ?? null,
+}));
+
+const fallbackFairnessGuidance = fallback.fairnessInsights.map(item => ({
+  label: item.label,
+  value: item.value,
+  helper: item.helper ?? null,
+}));
+
+const fallbackInterviewPack = fallback.interviewPreparation.map(item => ({
+  question: item.question,
+  rationale: item.rationale,
+}));
 
 const skillStatusClasses: Record<string, string> = {
   Yes: "bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -16,24 +47,10 @@ const skillStatusClasses: Record<string, string> = {
   No: "bg-rose-100 text-rose-700 border-rose-200",
 };
 
-const improvementStatusClasses: Record<RecruiterWorkflowImprovement["status"], string> = {
-  Completed: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  "In progress": "border-amber-200 bg-amber-50 text-amber-700",
-  Queued: "border-slate-200 bg-slate-50 text-slate-700",
-};
-
-const priorityBadgeClasses: Record<RecruiterWorkflowCandidate["priority"], string> = {
-  Hot: "bg-rose-100 text-rose-700 border-rose-200",
-  Warm: "bg-amber-100 text-amber-700 border-amber-200",
-  Pipeline: "bg-slate-100 text-slate-700 border-slate-200",
-};
-
-const defaultUploadedFiles = data.candidates.map((candidate, index) => {
-  const safeName = candidate.name.replace(/\s+/g, "_");
-  return `${index + 1}_${safeName}.pdf`;
-});
-
-function formatDateTime(value: Date): string {
+function formatDateTime(value: Date | null): string {
+  if (!value) {
+    return "Never";
+  }
   return new Intl.DateTimeFormat("en-AU", {
     day: "numeric",
     month: "short",
@@ -43,112 +60,288 @@ function formatDateTime(value: Date): string {
   }).format(value);
 }
 
-function ImprovementTimeline({ items }: { items: RecruiterWorkflowImprovement[] }) {
-  if (items.length === 0) {
-    return null;
-  }
-  return (
-    <ul className="space-y-3 text-sm text-gray-700">
-      {items.map(item => (
-        <li key={`${item.label}-${item.status}`} className={`rounded-xl border px-4 py-3 ${improvementStatusClasses[item.status]}`}>
-          <div className="text-xs font-semibold uppercase tracking-wide">{item.status}</div>
-          <p className="mt-2 font-medium text-gray-800">{item.label}</p>
-          <p className="text-xs text-gray-500">
-            {item.completedAt ? `Completed ${item.completedAt}` : "Pending"}
-            {item.impact ? ` · ${item.impact}` : ""}
-          </p>
-        </li>
-      ))}
-    </ul>
-  );
+function candidateDisplayName(candidate: CandidateSummary, index: number): string {
+  return candidate.name || `Candidate ${index + 1}`;
 }
 
+type CandidateOption = CandidateSummary & {
+  displayName: string;
+};
+
 export default function RecruiterAIWorkflowPage() {
-  const [jobDescription, setJobDescription] = useState<string>(data.jobDescription);
-  const [uploadedFiles, setUploadedFiles] = useState<string[]>(defaultUploadedFiles);
-  const [selectedCandidateId, setSelectedCandidateId] = useState<string>(data.candidates[0]?.id ?? "");
-  const [analysisState, setAnalysisState] = useState<"ready" | "running">("ready");
-  const [lastAnalyzedAt, setLastAnalyzedAt] = useState<Date>(new Date());
+  const [jobTitle, setJobTitle] = useState<string>(fallback.jobTitle);
+  const [jobCode, setJobCode] = useState<string>(fallback.jobCode);
+  const [jobLevel, setJobLevel] = useState<string>(fallback.jobLevel);
+  const [jobSummary, setJobSummary] = useState<string>(fallback.jobSummary);
+  const [salaryBand, setSalaryBand] = useState<string>(fallback.salaryBand);
+  const [jobDescription, setJobDescription] = useState<string>(fallback.jobDescription);
 
-  const selectedCandidate = useMemo<RecruiterWorkflowCandidate | undefined>(
-    () => data.candidates.find(candidate => candidate.id === selectedCandidateId),
-    [selectedCandidateId],
-  );
+  const [candidates, setCandidates] = useState<CandidateOption[]>([]);
+  const [candidatesLoading, setCandidatesLoading] = useState<boolean>(false);
+  const [candidateError, setCandidateError] = useState<string | null>(null);
 
-  const topCandidates = useMemo(() => data.candidates.slice(0, 3), []);
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string>("");
+  const [resumes, setResumes] = useState<ResumeSummary[]>([]);
+  const [selectedResumeIds, setSelectedResumeIds] = useState<string[]>([]);
+  const [resumeLoading, setResumeLoading] = useState<boolean>(false);
 
-  const handleGenerate = (): void => {
-    if (analysisState === "running") {
+  const [workflowResult, setWorkflowResult] = useState<RecruiterWorkflowResponse | null>(null);
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [lastAnalyzedAt, setLastAnalyzedAt] = useState<Date | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCandidates() {
+      setCandidatesLoading(true);
+      try {
+        const response: CandidateListResponse = await listCandidates();
+        if (cancelled) {
+          return;
+        }
+        const mapped = response.items.map((candidate, index) => ({
+          ...candidate,
+          displayName: candidateDisplayName(candidate, index),
+        }));
+        setCandidates(mapped);
+        const defaultCandidate = mapped.find(item => item.candidate_id === ACTIVE_CANDIDATE_ID) || mapped[0];
+        if (defaultCandidate) {
+          setSelectedCandidateId(defaultCandidate.candidate_id);
+        }
+        setCandidateError(null);
+      } catch (error) {
+        console.error(error);
+        if (!cancelled) {
+          setCandidateError((error as Error).message || "Failed to load candidates");
+        }
+      } finally {
+        if (!cancelled) {
+          setCandidatesLoading(false);
+        }
+      }
+    }
+    loadCandidates();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedCandidateId) {
+      setResumes([]);
+      setSelectedResumeIds([]);
       return;
     }
-    setAnalysisState("running");
-    window.setTimeout(() => {
-      setAnalysisState("ready");
+    let cancelled = false;
+    async function loadResumes() {
+      setResumeLoading(true);
+      try {
+        const response = await listCandidateResumes(selectedCandidateId);
+        if (cancelled) {
+          return;
+        }
+        setResumes(response.resumes);
+        if (response.resumes.length > 0) {
+          setSelectedResumeIds([response.resumes[0].id]);
+        } else {
+          setSelectedResumeIds([]);
+        }
+      } catch (error) {
+        console.error(error);
+        if (!cancelled) {
+          setResumes([]);
+          setSelectedResumeIds([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setResumeLoading(false);
+        }
+      }
+    }
+    loadResumes();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCandidateId]);
+
+  const candidateAnalysisById = useMemo(() => {
+    const map = new Map<string, CandidateAnalysis>();
+    if (!workflowResult) {
+      return map;
+    }
+    for (const item of workflowResult.candidate_analysis) {
+      map.set(item.candidate_id, item);
+    }
+    return map;
+  }, [workflowResult]);
+
+  const readoutById = useMemo(() => {
+    const map = new Map<string, CandidateReadout>();
+    if (!workflowResult) {
+      return map;
+    }
+    for (const item of workflowResult.detailed_readout) {
+      map.set(item.candidate_id, item);
+    }
+    return map;
+  }, [workflowResult]);
+
+  const selectedCandidate = candidates.find(candidate => candidate.candidate_id === selectedCandidateId) || null;
+  const selectedAnalysis = selectedCandidateId ? candidateAnalysisById.get(selectedCandidateId) || null : null;
+  const selectedReadout = selectedCandidateId ? readoutById.get(selectedCandidateId) || null : null;
+
+  const shortlist = workflowResult?.ranked_shortlist || [];
+
+  const handleResumeToggle = (event: ChangeEvent<HTMLInputElement>, resumeId: string) => {
+    if (event.target.checked) {
+      setSelectedResumeIds(current => {
+        const merged = Array.from(new Set([...current, resumeId]));
+        return merged.slice(0, 5);
+      });
+    } else {
+      setSelectedResumeIds(current => current.filter(id => id !== resumeId));
+    }
+  };
+
+  const handleGenerate = async () => {
+    if (isGenerating) {
+      return;
+    }
+    if (!selectedCandidateId) {
+      setGenerationError("Select a candidate before running the workflow");
+      return;
+    }
+    if (!jobDescription.trim()) {
+      setGenerationError("Job description is required");
+      return;
+    }
+    if (selectedResumeIds.length === 0) {
+      setGenerationError("Select at least one resume");
+      return;
+    }
+
+    const payload: RecruiterWorkflowRequest = {
+      job_description: jobDescription,
+      job_metadata: {
+        title: jobTitle,
+        code: jobCode,
+        level: jobLevel,
+        salary_band: salaryBand,
+        summary: jobSummary,
+      },
+      resumes: selectedResumeIds.map(resumeId => ({
+        resume_id: resumeId,
+        candidate_id: selectedCandidateId,
+      })),
+    };
+
+    setIsGenerating(true);
+    setGenerationError(null);
+    try {
+      const response = await generateRecruiterWorkflow(payload);
+      setWorkflowResult(response);
       setLastAnalyzedAt(new Date());
-    }, 900);
+    } catch (error) {
+      console.error(error);
+      setGenerationError((error as Error).message || "Failed to generate recruiter workflow");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
-  const handleFileUpload = (event: ChangeEvent<HTMLInputElement>): void => {
-    const files = Array.from(event.target.files ?? []).slice(0, 5);
-    if (files.length === 0) {
-      return;
-    }
-    setUploadedFiles(files.map(file => file.name));
-  };
+  const displayCoreSkills = (workflowResult?.core_skills && workflowResult.core_skills.length > 0)
+    ? workflowResult.core_skills
+    : fallbackCoreSkills;
+  const displayEngagement = (workflowResult?.engagement_plan && workflowResult.engagement_plan.length > 0)
+    ? workflowResult.engagement_plan
+    : fallbackEngagementPlan;
+  const displayFairness = (workflowResult?.fairness_guidance && workflowResult.fairness_guidance.length > 0)
+    ? workflowResult.fairness_guidance
+    : fallbackFairnessGuidance;
+  const displayInterview = (workflowResult?.interview_preparation && workflowResult.interview_preparation.length > 0)
+    ? workflowResult.interview_preparation
+    : fallbackInterviewPack;
+  const markdownAnalysis = workflowResult?.ai_analysis_markdown
+    || fallback.workflowSteps
+      .map(step => `### ${step.title}\n${step.description}`)
+      .join("\n\n");
 
   return (
     <div className="max-w-7xl mx-auto py-10 px-4 space-y-10">
       <header className="space-y-6">
         <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 border border-blue-100 px-4 py-1 text-sm font-medium text-blue-700">
-          Recruiter AI Workflow · Prototype
+          Recruiter AI Workflow
         </span>
         <div className="flex flex-wrap items-start justify-between gap-6">
           <div className="max-w-3xl space-y-4">
-            <h1 className="text-3xl font-bold text-gray-900">Recruiter AI workflow mock</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Recruiter AI workflow</h1>
             <p className="text-gray-600">
-              This view mirrors the PartyRock recruiter assistant but re-centres on the functional requirements: job
-              profiles keep a document trail, AI ranks best-fit resumes, and recruiters monitor how applicants improve
-              their standing via assessments or research.
+              Capture the job context, choose candidate resumes, and let the AI engine produce ranked shortlists,
+              detailed readouts, fairness guidance, and interview packs.
             </p>
-            <ul className="space-y-2 text-sm text-gray-600">
-              <li className="flex gap-2">
-                <span className="mt-1 inline-flex h-2 w-2 flex-none rounded-full bg-blue-500" />
-                Maintain a living job brief with AI-derived must-have skills and recruiter filters.
-              </li>
-              <li className="flex gap-2">
-                <span className="mt-1 inline-flex h-2 w-2 flex-none rounded-full bg-blue-500" />
-                Surface the ranked shortlist with match/bias-free scores, recruiter-defined priority, and must-match flags.
-              </li>
-              <li className="flex gap-2">
-                <span className="mt-1 inline-flex h-2 w-2 flex-none rounded-full bg-blue-500" />
-                Track ranking improvements as candidates complete voluntary assessments or add context.
-              </li>
-            </ul>
-            <div className="rounded-xl border border-blue-100 bg-blue-50 px-5 py-4">
-              <p className="text-sm uppercase tracking-wide text-blue-600">Target brief</p>
-              <p className="mt-1 text-lg font-semibold text-blue-900">{data.jobTitle}</p>
-              <p className="text-sm text-blue-700">{data.jobLevel}</p>
-              <p className="mt-2 text-sm text-blue-800">{data.jobSummary}</p>
+            <div className="rounded-xl border border-blue-100 bg-blue-50 px-5 py-4 space-y-2">
+              <div className="grid gap-2 md:grid-cols-2">
+                <label className="flex flex-col gap-1 text-sm text-blue-900">
+                  Job title
+                  <input
+                    className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm"
+                    value={jobTitle}
+                    onChange={event => setJobTitle(event.target.value)}
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-blue-900">
+                  Job code
+                  <input
+                    className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm"
+                    value={jobCode}
+                    onChange={event => setJobCode(event.target.value)}
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-blue-900">
+                  Level / program
+                  <input
+                    className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm"
+                    value={jobLevel}
+                    onChange={event => setJobLevel(event.target.value)}
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-blue-900">
+                  Salary band
+                  <input
+                    className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm"
+                    value={salaryBand}
+                    onChange={event => setSalaryBand(event.target.value)}
+                  />
+                </label>
+              </div>
+              <label className="flex flex-col gap-1 text-sm text-blue-900">
+                Summary / recruiter notes
+                <textarea
+                  className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm"
+                  rows={3}
+                  value={jobSummary}
+                  onChange={event => setJobSummary(event.target.value)}
+                />
+              </label>
             </div>
           </div>
           <div className="flex flex-col gap-3 text-sm text-gray-500">
-            <div>
-              <span className="font-semibold text-gray-700">Job code:</span> {data.jobCode}
-            </div>
-            <div>
-              <span className="font-semibold text-gray-700">Salary band:</span> {data.salaryBand}
-            </div>
             <div>
               <span className="font-semibold text-gray-700">Last analysis:</span> {formatDateTime(lastAnalyzedAt)}
             </div>
             <button
               type="button"
               onClick={handleGenerate}
-              disabled={analysisState === "running"}
-              className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-700 shadow-sm transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isGenerating || !selectedCandidateId || selectedResumeIds.length === 0}
+              className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {analysisState === "running" ? "Generating sample..." : "Re-run sample analysis"}
+              {isGenerating ? "Generating..." : "Run workflow"}
             </button>
+            {generationError && (
+              <p className="max-w-xs rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                {generationError}
+              </p>
+            )}
           </div>
         </div>
       </header>
@@ -156,16 +349,14 @@ export default function RecruiterAIWorkflowPage() {
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-semibold text-gray-900">1. Inputs captured</h2>
-          {analysisState === "running" && (
-            <span className="text-sm text-blue-600">Simulating processing •••</span>
-          )}
+          {isGenerating && <span className="text-sm text-blue-600">Processing...</span>}
         </div>
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Job description</h3>
-                <p className="text-sm text-gray-500">Recruiter-owned text that feeds the AI prompt.</p>
+                <p className="text-sm text-gray-500">Paste the recruiter-owned job brief driving the AI prompt.</p>
               </div>
               <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700">
                 Required
@@ -175,71 +366,83 @@ export default function RecruiterAIWorkflowPage() {
               value={jobDescription}
               onChange={event => setJobDescription(event.target.value)}
               rows={16}
-              className="mt-4 h-full w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 shadow-inner focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 shadow-inner focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              placeholder="Paste the job description or upload a JD file"
             />
           </div>
-          <div className="flex h-full flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Candidate resumes</h3>
-                <p className="text-sm text-gray-500">Upload up to five resumes. AI will attach the files to the prompt.</p>
+                <h3 className="text-lg font-semibold text-gray-900">Candidate & resumes</h3>
+                <p className="text-sm text-gray-500">Pick a candidate and up to five resumes to analyse.</p>
               </div>
               <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                {uploadedFiles.length} uploaded
+                {selectedResumeIds.length} selected
               </span>
             </div>
-            <label className="block rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500 hover:border-blue-200 hover:text-blue-700">
-              <span className="font-medium">Drag & drop or browse</span>
-              <input
-                type="file"
-                accept=".pdf,.docx,.txt"
-                multiple
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-              <p className="mt-1 text-xs text-gray-500">Accepted: PDF, DOCX, TXT · Max 5 files</p>
-            </label>
-            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600">
-              <p className="font-semibold text-gray-800">Uploaded files</p>
-              <ul className="mt-2 space-y-1 text-xs text-gray-600">
-                {uploadedFiles.map(file => (
-                  <li key={file} className="truncate">{file}</li>
-                ))}
-              </ul>
-            </div>
-            <div className="grid flex-1 gap-3">
-              {data.candidates.map(candidate => {
-                const isActive = candidate.id === selectedCandidateId;
+            {candidateError && (
+              <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{candidateError}</p>
+            )}
+            <div className="grid gap-3">
+              {candidatesLoading && <p className="text-xs text-gray-500">Loading candidates...</p>}
+              {!candidatesLoading && candidates.length === 0 && (
+                <p className="text-xs text-gray-500">No candidates available. Upload resumes via the candidate profile first.</p>
+              )}
+              {candidates.map(candidate => {
+                const isActive = candidate.candidate_id === selectedCandidateId;
                 return (
                   <button
-                    key={candidate.id}
+                    key={candidate.candidate_id}
                     type="button"
-                    onClick={() => setSelectedCandidateId(candidate.id)}
+                    onClick={() => setSelectedCandidateId(candidate.candidate_id)}
                     className={`rounded-xl border px-4 py-3 text-left transition ${
-                      isActive
-                        ? "border-blue-500 bg-blue-50 shadow"
-                        : "border-gray-200 bg-gray-50 hover:border-blue-200 hover:bg-white"
+                      isActive ? "border-blue-500 bg-blue-50 shadow" : "border-gray-200 bg-gray-50 hover:border-blue-200 hover:bg-white"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-gray-900">{candidate.name}</p>
-                        <p className="text-xs text-gray-600">{candidate.currentRole}</p>
+                        <p className="text-sm font-semibold text-gray-900">{candidate.displayName}</p>
+                        <p className="text-xs text-gray-600">{candidate.primary_role || "Role not captured"}</p>
                       </div>
                       <div className="text-right text-xs text-gray-500">
-                        <p>
-                          Match: <span className="font-semibold text-gray-700">{candidate.matchScore}</span>
-                        </p>
-                        <p>
-                          Bias-free: <span className="font-semibold text-gray-700">{candidate.biasFreeScore}</span>
-                        </p>
+                        <p>Candidate ID</p>
+                        <p className="font-semibold text-gray-700">{candidate.candidate_id}</p>
                       </div>
                     </div>
-                    <p className="mt-2 line-clamp-2 text-xs text-gray-600">{candidate.summary}</p>
+                    {candidate.preferred_locations && candidate.preferred_locations.length > 0 && (
+                      <p className="mt-2 text-xs text-gray-500">Preferred locations: {candidate.preferred_locations.join(", ")}</p>
+                    )}
                   </button>
                 );
               })}
             </div>
+            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600">
+              <p className="font-semibold text-gray-800">Available resumes</p>
+              {resumeLoading && <p className="text-xs text-gray-500">Loading resumes...</p>}
+              {!resumeLoading && resumes.length === 0 && (
+                <p className="text-xs text-gray-500">No resumes available for this candidate yet.</p>
+              )}
+              <ul className="mt-3 space-y-2 text-xs text-gray-600">
+                {resumes.map(resume => (
+                  <li key={resume.id} className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={selectedResumeIds.includes(resume.id)}
+                      onChange={event => handleResumeToggle(event, resume.id)}
+                    />
+                    <div>
+                      <p className="font-semibold text-gray-800">{resume.name}</p>
+                      {resume.summary && <p className="text-gray-500">{resume.summary}</p>}
+                      {resume.skills && resume.skills.length > 0 && (
+                        <p className="text-gray-500">Skills: {resume.skills.join(", ")}</p>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <p className="text-xs text-gray-500">Upload additional resumes via the candidate profile to make them available here.</p>
           </div>
         </div>
       </section>
@@ -247,7 +450,7 @@ export default function RecruiterAIWorkflowPage() {
       <section className="space-y-4">
         <h2 className="text-2xl font-semibold text-gray-900">2. Workflow steps</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {data.workflowSteps.map((step, index) => (
+          {fallback.workflowSteps.map((step, index) => (
             <div key={step.title} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
               <div className="flex items-center gap-3">
                 <span className="flex h-10 w-10 items-center justify-center rounded-full border border-blue-100 bg-blue-50 text-sm font-semibold text-blue-700">
@@ -271,7 +474,7 @@ export default function RecruiterAIWorkflowPage() {
       <section className="space-y-4">
         <h2 className="text-2xl font-semibold text-gray-900">3. Core must-have skills</h2>
         <div className="grid gap-4 md:grid-cols-3">
-          {data.coreSkills.map(skill => (
+          {displayCoreSkills.map(skill => (
             <div key={skill.name} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900">{skill.name}</h3>
               <p className="mt-2 text-sm text-gray-600">{skill.reason}</p>
@@ -283,42 +486,10 @@ export default function RecruiterAIWorkflowPage() {
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-2xl font-semibold text-gray-900">4. AI-powered analysis (markdown preview)</h2>
-          <span className="text-xs uppercase tracking-wide text-gray-500">Synced with PartyRock prompt structure</span>
+          <span className="text-xs uppercase tracking-wide text-gray-500">Rendered exactly as returned by the LLM</span>
         </div>
         <div className="space-y-5 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="text-xl font-semibold text-gray-900">Top Candidates for the Role</h3>
-          <div>
-            <p className="text-sm font-semibold text-gray-800">Core must-have skills for this job:</p>
-            <ul className="mt-2 list-disc space-y-1 pl-6 text-sm text-gray-600">
-              {data.coreSkills.map(skill => (
-                <li key={skill.name}>{skill.name}</li>
-              ))}
-            </ul>
-          </div>
-          {topCandidates.map((candidate, index) => (
-            <div key={candidate.id} className="space-y-3 border-t border-gray-100 pt-4">
-              <h4 className="text-lg font-semibold text-gray-900">
-                Rank {index + 1}: Candidate {candidate.name}
-              </h4>
-              <ul className="space-y-1 text-sm text-gray-600">
-                <li><span className="font-semibold text-gray-800">Match Score:</span> {candidate.matchScore}/100</li>
-                <li><span className="font-semibold text-gray-800">Bias-Free Score:</span> {candidate.biasFreeScore}/100</li>
-                <li>
-                  <span className="font-semibold text-gray-800">AI Summary:</span> {candidate.summary}
-                </li>
-              </ul>
-              <div>
-                <p className="text-sm font-semibold text-gray-800">Skill alignment:</p>
-                <ul className="mt-2 space-y-1 text-sm text-gray-600">
-                  {candidate.skillAlignment.map(skill => (
-                    <li key={skill.skill}>
-                      <span className="font-semibold">{skill.skill}</span>: {skill.status} – {skill.evidence}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          ))}
+          <pre className="whitespace-pre-wrap text-sm text-gray-800">{markdownAnalysis}</pre>
         </div>
       </section>
 
@@ -337,30 +508,33 @@ export default function RecruiterAIWorkflowPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {data.candidates.map(candidate => {
-                const isActive = candidate.id === selectedCandidateId;
+              {shortlist.length === 0 && (
+                <tr>
+                  <td className="px-4 py-4 text-sm text-gray-500" colSpan={6}>
+                    Run the workflow to populate the ranked shortlist.
+                  </td>
+                </tr>
+              )}
+              {shortlist.map(item => {
+                const rowCandidate = candidates.find(candidate => candidate.candidate_id === item.candidate_id);
+                const analysis = candidateAnalysisById.get(item.candidate_id);
+                const isActive = item.candidate_id === selectedCandidateId;
                 return (
                   <tr
-                    key={candidate.id}
+                    key={`${item.candidate_id}-${item.rank}`}
                     className={`${isActive ? "bg-blue-50/60" : "bg-white"} hover:bg-blue-50/50`}
                   >
                     <td className="px-4 py-4">
-                      <div className="font-semibold text-gray-900">{candidate.name}</div>
-                      <div className="text-xs text-gray-600">{candidate.currentRole}</div>
+                      <div className="font-semibold text-gray-900">
+                        {analysis?.name || rowCandidate?.displayName || item.candidate_id}
+                      </div>
+                      <div className="text-xs text-gray-600">Rank {item.rank}</div>
                     </td>
-                    <td className="px-4 py-4 font-semibold text-gray-900">{candidate.matchScore}</td>
-                    <td className="px-4 py-4 font-semibold text-gray-900">{candidate.biasFreeScore}</td>
-                    <td className="px-4 py-4">
-                      <span
-                        className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
-                          priorityBadgeClasses[candidate.priority]
-                        }`}
-                      >
-                        {candidate.priority}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-xs text-gray-600">{candidate.status}</td>
-                    <td className="px-4 py-4 text-xs text-gray-600">{candidate.availability}</td>
+                    <td className="px-4 py-4 font-semibold text-gray-900">{analysis?.match_score ?? "--"}</td>
+                    <td className="px-4 py-4 font-semibold text-gray-900">{analysis?.bias_free_score ?? "--"}</td>
+                    <td className="px-4 py-4 text-xs text-gray-600">{item.priority ?? "--"}</td>
+                    <td className="px-4 py-4 text-xs text-gray-600">{item.status ?? "--"}</td>
+                    <td className="px-4 py-4 text-xs text-gray-600">{item.availability ?? "--"}</td>
                   </tr>
                 );
               })}
@@ -374,181 +548,153 @@ export default function RecruiterAIWorkflowPage() {
           <div className="flex items-center gap-3">
             <h2 className="text-2xl font-semibold text-gray-900">6. Detailed readout</h2>
             <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700">
-              Focus: {selectedCandidate.name}
+              Focus: {selectedAnalysis?.name || selectedCandidate.displayName}
             </span>
           </div>
           <div className="space-y-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="space-y-2">
-                <h3 className="text-xl font-semibold text-gray-900">{selectedCandidate.name}</h3>
-                <p className="text-sm text-gray-600">{selectedCandidate.currentRole}</p>
-                <div className="flex flex-wrap items-center gap-2">
-                  {selectedCandidate.mustMatchFlags.map(flag => (
-                    <span
-                      key={flag}
-                      className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700"
-                    >
-                      Must match: {flag}
-                    </span>
-                  ))}
-                </div>
+                <h3 className="text-xl font-semibold text-gray-900">{selectedAnalysis?.name || selectedCandidate.displayName}</h3>
+                <p className="text-sm text-gray-600">{selectedCandidate.primary_role || "Role not captured"}</p>
+                {selectedCandidate.experience_years != null && (
+                  <p className="text-sm text-gray-600">Experience: {selectedCandidate.experience_years} years</p>
+                )}
               </div>
               <div className="flex flex-wrap items-end gap-4 text-sm text-gray-600">
-                <div>
-                  <span className="font-semibold text-gray-800">Match</span>
-                  <div className="text-lg font-bold text-blue-700">{selectedCandidate.matchScore}</div>
-                </div>
-                <div>
-                  <span className="font-semibold text-gray-800">Bias-free</span>
-                  <div className="text-lg font-bold text-emerald-700">{selectedCandidate.biasFreeScore}</div>
-                </div>
-                <div>
-                  <span className="font-semibold text-gray-800">Experience</span>
-                  <div>{selectedCandidate.experienceYears}+ yrs</div>
-                </div>
-                <div>
-                  <span className="font-semibold text-gray-800">Compensation</span>
-                  <div>{selectedCandidate.compensation}</div>
-                </div>
-                <div>
-                  <span className="font-semibold text-gray-800">Priority</span>
-                  <div
-                    className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
-                      priorityBadgeClasses[selectedCandidate.priority]
-                    }`}
-                  >
-                    {selectedCandidate.priority}
+                {selectedAnalysis?.match_score != null && (
+                  <div>
+                    <span className="font-semibold text-gray-800">Match score</span>
+                    <div className="text-lg font-bold text-blue-700">{selectedAnalysis.match_score}</div>
                   </div>
+                )}
+                {selectedAnalysis?.bias_free_score != null && (
+                  <div>
+                    <span className="font-semibold text-gray-800">Bias-free score</span>
+                    <div className="text-lg font-bold text-emerald-700">{selectedAnalysis.bias_free_score}</div>
+                  </div>
+                )}
+                <div>
+                  <span className="font-semibold text-gray-800">Selected resumes</span>
+                  <div className="text-xs text-gray-600">{selectedResumeIds.join(", ") || "None"}</div>
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-800">Workflow run</span>
+                  <div className="text-xs text-gray-600">{formatDateTime(lastAnalyzedAt)}</div>
                 </div>
               </div>
             </div>
 
-            <p className="text-sm text-gray-700">{selectedCandidate.summary}</p>
+            {selectedAnalysis?.summary && <p className="text-sm text-gray-700">{selectedAnalysis.summary}</p>}
 
-            <div>
+            <div className="space-y-3">
               <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Highlights</h4>
-              <ul className="mt-2 space-y-2 text-sm text-gray-700">
-                {selectedCandidate.highlights.map(item => (
+              <ul className="space-y-2 text-sm text-gray-700">
+                {selectedAnalysis && selectedAnalysis.highlights.length === 0 && <li>No highlights returned.</li>}
+                {selectedAnalysis?.highlights.map(item => (
                   <li key={item} className="flex gap-2">
-                    <span className="mt-1 inline-flex h-2 w-2 grow-0 rounded-full bg-blue-400" />
+                    <span className="mt-1 inline-flex h-2 w-2 flex-none rounded-full bg-blue-400" />
                     <span>{item}</span>
                   </li>
                 ))}
+                {!selectedAnalysis && <li className="text-xs text-gray-500">Run the workflow to populate highlights.</li>}
               </ul>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {selectedCandidate.skillAlignment.map(alignment => (
-                <div key={alignment.skill} className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm font-semibold text-gray-900">{alignment.skill}</p>
-                    <span
-                      className={`rounded-full border px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ${
-                        skillStatusClasses[alignment.status]
-                      }`}
-                    >
-                      {alignment.status}
-                    </span>
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Skill alignment</h4>
+              <div className="grid gap-3 md:grid-cols-2">
+                {selectedAnalysis?.skill_alignment.map(alignment => (
+                  <div
+                    key={`${alignment.skill}-${alignment.status}`}
+                    className={`rounded-xl border px-4 py-3 text-sm ${skillStatusClasses[alignment.status] || "border-gray-200 bg-gray-50 text-gray-700"}`}
+                  >
+                    <p className="font-semibold">{alignment.skill}</p>
+                    <p className="text-xs">{alignment.evidence}</p>
                   </div>
-                  <p className="mt-2 text-sm text-gray-600">{alignment.evidence}</p>
+                ))}
+                {(!selectedAnalysis || selectedAnalysis.skill_alignment.length === 0) && (
+                  <p className="text-xs text-gray-500">Run the workflow to see AI-assessed skill alignment.</p>
+                )}
+              </div>
+            </div>
+
+            {selectedReadout && (
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                  <h4 className="text-sm font-semibold uppercase tracking-wide text-emerald-700">Strengths</h4>
+                  <ul className="mt-2 space-y-1 text-sm text-emerald-800">
+                    {selectedReadout.strengths.map(item => (
+                      <li key={item}>{item}</li>
+                    ))}
+                    {selectedReadout.strengths.length === 0 && <li>No strengths supplied.</li>}
+                  </ul>
                 </div>
-              ))}
-            </div>
-
-            <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
-              <h4 className="text-sm font-semibold uppercase tracking-wide text-blue-700">Recruiter notes</h4>
-              <p className="mt-2">{selectedCandidate.recruiterNotes}</p>
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                <h4 className="text-sm font-semibold uppercase tracking-wide text-emerald-700">Recommendation</h4>
-                <p className="mt-2 text-sm text-emerald-900">{selectedCandidate.recommendation}</p>
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <h4 className="text-sm font-semibold uppercase tracking-wide text-amber-700">Risks</h4>
+                  <ul className="mt-2 space-y-1 text-sm text-amber-800">
+                    {selectedReadout.risks.map(item => (
+                      <li key={item}>{item}</li>
+                    ))}
+                    {selectedReadout.risks.length === 0 && <li>No risks supplied.</li>}
+                  </ul>
+                </div>
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                  <h4 className="text-sm font-semibold uppercase tracking-wide text-blue-700">Recommended actions</h4>
+                  <ul className="mt-2 space-y-1 text-sm text-blue-800">
+                    {selectedReadout.recommended_actions.map(item => (
+                      <li key={item}>{item}</li>
+                    ))}
+                    {selectedReadout.recommended_actions.length === 0 && <li>No actions supplied.</li>}
+                  </ul>
+                </div>
               </div>
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                <h4 className="text-sm font-semibold uppercase tracking-wide text-amber-700">Risks & notes</h4>
-                <ul className="mt-2 space-y-2 text-sm text-amber-900">
-                  {selectedCandidate.riskNotes.map(note => (
-                    <li key={note} className="flex gap-2">
-                      <span className="mt-1 inline-flex h-2 w-2 grow-0 rounded-full bg-amber-500" />
-                      <span>{note}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
-                Commitment & ranking improvements
-              </h4>
-              <ImprovementTimeline items={selectedCandidate.improvementJourney} />
-            </div>
+            )}
+            {!selectedReadout && <p className="text-xs text-gray-500">Run the workflow to populate the detailed readout.</p>}
           </div>
         </section>
       )}
 
-      <section className="space-y-6">
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-gray-900">7. Engagement plan</h3>
-            <p className="text-sm text-gray-600">Financial comparison and recruiter levers carried over from the PartyRock output.</p>
-            <ul className="space-y-3 text-sm text-gray-700">
-              {data.engagementInsights.map(item => (
-                <li key={item.label} className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-                  <p className="text-sm font-semibold text-blue-900">{item.label}</p>
-                  <p className="mt-1 text-sm text-blue-800">{item.value}</p>
-                  {item.helper && <p className="mt-1 text-xs text-blue-700">{item.helper}</p>}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-gray-900">8. Fairness & panel guidance</h3>
-            <p className="text-sm text-gray-600">Bias-aware scoring stays visible so recruiters can act on mitigation steps.</p>
-            <ul className="space-y-3 text-sm text-gray-700">
-              {data.fairnessInsights.map(item => (
-                <li key={item.label} className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-                  <p className="text-sm font-semibold text-emerald-900">{item.label}</p>
-                  <p className="mt-1 text-sm text-emerald-800">{item.value}</p>
-                  {item.helper && <p className="mt-1 text-xs text-emerald-700">{item.helper}</p>}
-                </li>
-              ))}
-            </ul>
-          </div>
+      <section className="space-y-4">
+        <h2 className="text-2xl font-semibold text-gray-900">Engagement plan</h2>
+        <div className="grid gap-4 md:grid-cols-2">
+          {displayEngagement.length === 0 && <p className="text-sm text-gray-500">Run the workflow to populate engagement actions.</p>}
+          {displayEngagement.map(item => (
+            <div key={item.label} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <p className="text-sm font-semibold text-gray-900">{item.label}</p>
+              <p className="mt-1 text-sm text-gray-700">{item.value}</p>
+              {item.helper && <p className="mt-2 text-xs text-gray-500">{item.helper}</p>}
+            </div>
+          ))}
         </div>
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-2xl font-semibold text-gray-900">9. Interview preparation pack</h2>
-        <p className="text-sm text-gray-600 max-w-3xl">
-          The question bank—including rationale—travels with the recruiter so panel prep remains transparent even once we
-          swap the static data for real LLM output.
-        </p>
-        <ol className="space-y-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm text-sm text-gray-700">
-          {data.interviewPreparation.map((item, index) => (
-            <li key={item.question} className="space-y-1">
-              <div className="flex items-start gap-3">
-                <span className="mt-1 inline-flex h-6 w-6 flex-none items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-700">
-                  {index + 1}
-                </span>
-                <div>
-                  <p className="font-semibold text-gray-900">{item.question}</p>
-                  <p className="text-xs text-gray-500">Why: {item.rationale}</p>
-                </div>
-              </div>
-            </li>
+        <h2 className="text-2xl font-semibold text-gray-900">Fairness & panel guidance</h2>
+        <div className="grid gap-4 md:grid-cols-2">
+          {displayFairness.length === 0 && <p className="text-sm text-gray-500">Run the workflow to receive panel guidance.</p>}
+          {displayFairness.map(item => (
+            <div key={item.label} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <p className="text-sm font-semibold text-gray-900">{item.label}</p>
+              <p className="mt-1 text-sm text-gray-700">{item.value}</p>
+              {item.helper && <p className="mt-2 text-xs text-gray-500">{item.helper}</p>}
+            </div>
           ))}
-        </ol>
+        </div>
       </section>
 
-      <section className="rounded-2xl border border-gray-200 bg-gray-50 p-6 text-sm text-gray-600">
-        <h2 className="text-base font-semibold text-gray-800">10. Prototype disclaimers</h2>
-        <ul className="mt-2 list-disc space-y-1 pl-5">
-          {data.disclaimers.map(item => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
+      <section className="space-y-4">
+        <h2 className="text-2xl font-semibold text-gray-900">Interview preparation pack</h2>
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          {displayInterview.length === 0 && <p className="text-sm text-gray-500">Run the workflow to populate interview prompts.</p>}
+          <ul className="space-y-3 text-sm text-gray-700">
+            {displayInterview.map(item => (
+              <li key={item.question} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                <p className="font-semibold text-gray-900">{item.question}</p>
+                <p className="text-xs text-gray-500">{item.rationale}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
       </section>
     </div>
   );

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { getApiBaseUrl } from "@/lib/api";
+
 export default function Health() {
   const [healthStatus, setHealthStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -9,9 +11,8 @@ export default function Health() {
   useEffect(() => {
     async function fetchHealthStatus() {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL; // Use the environment variable
-        console.log("API URL:", apiUrl); // Log the API URL for debugging
-        const response = await fetch(`${apiUrl}/health`); // Append the /health endpoint
+        const apiBaseUrl = getApiBaseUrl();
+        const response = await fetch(`${apiBaseUrl}/health`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
