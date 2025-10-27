@@ -12,6 +12,8 @@ export default function NavBar() {
           <Link href="/my-jobs" className="text-gray-700 hover:text-blue-700">My Jobs</Link>
           <Link href="/candidates" className="text-gray-700 hover:text-blue-700">Candidates</Link>
           <Link href="/recruiters" className="text-gray-700 hover:text-blue-700">Recruiters</Link>
+          <Link href="/recruiters/dashboard" className="text-gray-700 hover:text-blue-700">Recruiter Dashboard</Link>
+          <Link href="/recruiters/ai-workflow" className="text-gray-700 hover:text-blue-700">Recruiter AI</Link>
           <Link href="/resume" className="text-gray-700 hover:text-blue-700">Resumes</Link>
         </div>
         <div>
