@@ -7,6 +7,8 @@ import { useMemo } from "react";
 import type { Persona } from "@/context/PersonaContext";
 import { usePersona } from "@/context/PersonaContext";
 
+const FALLBACK_ROUTE = "/dashboard";
+
 type NavItem = {
   label: string;
   href: string;
@@ -53,6 +55,14 @@ export default function NavBar() {
 
   const navItems = useMemo(() => NAV_ITEMS[persona], [persona]);
 
+  const handlePersonaChange = (nextPersona: Persona) => {
+    const preferred = DEFAULT_DESTINATION[nextPersona] ?? FALLBACK_ROUTE;
+    const allowedRoutes = NAV_ITEMS[nextPersona]?.map(item => item.href) ?? [];
+    const nextRoute = allowedRoutes.includes(preferred) ? preferred : allowedRoutes[0] ?? FALLBACK_ROUTE;
+    setPersona(nextPersona);
+    router.push(nextRoute);
+  };
+
   return (
     <nav className="w-full bg-white shadow mb-8">
       <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -80,8 +90,7 @@ export default function NavBar() {
                 if (nextPersona === persona) {
                   return;
                 }
-                setPersona(nextPersona);
-                router.push(DEFAULT_DESTINATION[nextPersona]);
+                handlePersonaChange(nextPersona);
               }}
             >
               {personaOptions.map(option => (

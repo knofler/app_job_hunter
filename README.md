@@ -20,6 +20,19 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Automation shortcuts
+
+Install `just` (`brew install just`) to access the project workflows:
+
+```bash
+just install    # npm install
+just dev        # next dev --turbopack
+just verify     # npm run verify (lint + typecheck + build)
+just pr-draft   # gh pr create --draft --fill
+```
+
+The helper script `npm run verify` runs linting, type checks, and a production build for CI parity.
+
 ## API configuration
 
 - Local development automatically targets `NEXT_PUBLIC_API_URL_LOCAL` (defaults to `http://localhost:8010`).

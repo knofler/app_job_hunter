@@ -4,19 +4,12 @@ import { getApiBaseUrl } from "@/lib/api";
 const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 
 async function proxy(request: NextRequest, init?: RequestInit) {
-  if (!ADMIN_API_KEY) {
-    return NextResponse.json(
-      { detail: "ADMIN_API_KEY is not configured on the frontend server." },
-      { status: 503 },
-    );
-  }
-
   const apiBaseUrl = getApiBaseUrl();
   const response = await fetch(`${apiBaseUrl}/admin/llm/settings`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      "X-Admin-Token": ADMIN_API_KEY,
+      ...(ADMIN_API_KEY ? { "X-Admin-Token": ADMIN_API_KEY } : {}),
       ...(init?.headers ?? {}),
     },
     cache: "no-store",
