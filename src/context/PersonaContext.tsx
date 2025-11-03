@@ -17,30 +17,17 @@ const STORAGE_KEY = "ai-job-hunter.activePersona";
 
 const PersonaContext = createContext<PersonaContextValue | undefined>(undefined);
 
-function resolveInitialPersona(): Persona {
-  if (typeof window === "undefined") {
-    return "candidate";
-  }
-
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored === "candidate" || stored === "recruiter" || stored === "admin") {
-    return stored;
-  }
-
-  return "candidate";
-}
-
 export function PersonaProvider({ children }: { children: React.ReactNode }) {
-  const [persona, setPersonaState] = useState<Persona>(() => resolveInitialPersona());
+  const [persona, setPersonaState] = useState<Persona>("candidate");
+  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
+    // Hydration: read from localStorage on client mount
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored === "candidate" || stored === "recruiter" || stored === "admin") {
       setPersonaState(stored);
     }
+    setIsHydrated(true);
   }, []);
 
   const setPersona = useCallback((nextPersona: Persona) => {
@@ -56,6 +43,11 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
     candidateId: DEFAULT_CANDIDATE_ID,
     recruiterId: DEFAULT_RECRUITER_ID,
   }), [persona, setPersona]);
+
+  // Prevent hydration mismatch by rendering nothing until client mounts
+  if (!isHydrated) {
+    return null;
+  }
 
   return <PersonaContext.Provider value={value}>{children}</PersonaContext.Provider>;
 }
