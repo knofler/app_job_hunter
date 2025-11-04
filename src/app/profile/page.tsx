@@ -3,6 +3,12 @@
 import { useUser } from '@auth0/nextjs-auth0/client';
 import Link from 'next/link';
 
+interface UserWithCustomClaims {
+  [key: string]: unknown;
+  'https://your-domain/roles'?: string[];
+  org_id?: string;
+}
+
 export default function ProfilePage() {
   const { user, isLoading } = useUser();
 
@@ -42,13 +48,13 @@ export default function ProfilePage() {
         <div>
           <span className="font-semibold">Roles:</span>
           <span className="text-sm text-gray-600 ml-2">
-            {(user as any)['https://your-domain/roles']?.join(', ') || 'No roles assigned'}
+            {(user as UserWithCustomClaims)['https://your-domain/roles']?.join(', ') || 'No roles assigned'}
           </span>
         </div>
         <div>
           <span className="font-semibold">Organization:</span>
           <span className="text-sm text-gray-600 ml-2">
-            {(user as any).org_id || 'No organization'}
+            {(user as UserWithCustomClaims).org_id || 'No organization'}
           </span>
         </div>
 

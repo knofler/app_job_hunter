@@ -11,7 +11,7 @@ interface RecruiterChatProps {
   sessionId: string;
   jobId?: string;
   resumeIds?: string[];
-  workflowContext?: any;
+  workflowContext?: Record<string, unknown>;
 }
 
 export default function RecruiterChat({ sessionId, jobId, resumeIds, workflowContext }: RecruiterChatProps) {

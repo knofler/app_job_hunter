@@ -10,10 +10,9 @@ interface Org {
   description?: string;
 }
 
-interface OrgMember {
-  org_id: string;
-  user_sub: string;
-  roles: string[];
+interface UserWithRoles {
+  [key: string]: unknown;
+  'https://your-domain/roles'?: string[];
 }
 
 export default function AdminOrgsPage() {
@@ -23,7 +22,7 @@ export default function AdminOrgsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const roles = (user as any)?.['https://your-domain/roles'] || [];
+    const roles = ((user as UserWithRoles)?. ['https://your-domain/roles'] || []) as string[];
     if (!roles.includes('admin') && !roles.includes('power_user')) {
       router.push('/');
       return;
