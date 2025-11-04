@@ -15,7 +15,7 @@ import {
 
 interface UserWithRoles {
   [key: string]: unknown;
-  'https://myappframe-herokuapp-com.auth0.com/roles'?: string[];
+  'https://ai-job-hunter/roles'?: string[];
 }
 
 const WORKFLOW_STEPS: { id: string; label: string }[] = [
@@ -82,8 +82,8 @@ export default function AdminLLMSettingsPage() {
       return;
     }
 
-    const roles = ((user as UserWithRoles)?.['https://myappframe-herokuapp-com.auth0.com/roles'] || []) as string[];
-    if (!roles.includes('admin') && !roles.includes('power_user')) {
+    const roles = ((user as UserWithRoles)?.['https://ai-job-hunter/roles'] || []) as string[];
+    if (!roles.includes('admin') && !roles.includes('power_user') && !roles.includes('recruiter')) {
       router.push('/dashboard');
       return;
     }
