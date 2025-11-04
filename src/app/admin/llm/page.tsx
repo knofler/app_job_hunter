@@ -1,5 +1,7 @@
 "use client";
 
+import { useUser } from '@auth0/nextjs-auth0/client';
+import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import {
@@ -10,6 +12,11 @@ import {
   fetchSettings,
   updateSettings,
 } from "@/lib/admin-llm";
+
+interface UserWithRoles {
+  [key: string]: unknown;
+  'https://your-domain/roles'?: string[];
+}
 
 const WORKFLOW_STEPS: { id: string; label: string }[] = [
   { id: "core_skills", label: "3. Core must-have skills" },
@@ -56,6 +63,8 @@ type StepFormState = {
 };
 
 export default function AdminLLMSettingsPage() {
+  const { user, isLoading: authLoading } = useUser();
+  const router = useRouter();
   const [providers, setProviders] = useState<LLMProviderSummary[]>([]);
   const [defaultConfig, setDefaultConfig] = useState<ConfigFormState>(() => toFormConfig());
   const [stepConfigs, setStepConfigs] = useState<Record<string, StepFormState>>({});
@@ -64,7 +73,25 @@ export default function AdminLLMSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Auth check
   useEffect(() => {
+    if (authLoading) return;
+    
+    if (!user) {
+      router.push('/api/auth/login?returnTo=/admin/llm');
+      return;
+    }
+
+    const roles = ((user as UserWithRoles)?.['https://your-domain/roles'] || []) as string[];
+    if (!roles.includes('admin') && !roles.includes('power_user')) {
+      router.push('/dashboard');
+      return;
+    }
+  }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (authLoading || !user) return;
+    
     let isMounted = true;
     async function load() {
       try {
@@ -206,10 +233,10 @@ export default function AdminLLMSettingsPage() {
     }
   };
 
-  if (loading) {
+  if (authLoading || !user || loading) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-10">
-        <p className="text-sm text-gray-600">Loading LLM settings…</p>
+        <p className="text-sm text-gray-600">Loading...</p>
       </div>
     );
   }

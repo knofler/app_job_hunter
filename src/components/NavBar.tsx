@@ -1,5 +1,6 @@
 "use client";
 
+import { useUser } from '@auth0/nextjs-auth0/client';
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo } from "react";
@@ -49,6 +50,7 @@ const personaOptions: Array<{ id: Persona; label: string }> = [
 ];
 
 export default function NavBar() {
+  const { user, isLoading } = useUser();
   const { persona, setPersona } = usePersona();
   const router = useRouter();
   const pathname = usePathname();
@@ -100,7 +102,31 @@ export default function NavBar() {
               ))}
             </select>
           </label>
-          <Link href="/profile" className="text-sm text-gray-700 hover:text-blue-700">Profile</Link>
+          
+          {isLoading ? (
+            <span className="text-sm text-gray-500">Loading...</span>
+          ) : user ? (
+            <>
+              <Link href="/profile" className="text-sm text-gray-700 hover:text-blue-700">
+                {user.name || user.email || 'Profile'}
+              </Link>
+              <Link 
+                href="/api/auth/logout" 
+                className="text-sm text-red-600 hover:text-red-700 font-medium"
+              >
+                Logout
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href="/api/auth/login" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                Login
+              </Link>
+              <Link href="/api/auth/signup" className="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">
+                Sign Up
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </nav>

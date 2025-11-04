@@ -16,7 +16,7 @@ interface UserWithRoles {
 }
 
 export default function AdminOrgsPage() {
-  const { user } = useUser();
+  const { user, isLoading: authLoading } = useUser();
   const router = useRouter();
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,7 +47,7 @@ export default function AdminOrgsPage() {
     }
   };
 
-  if (loading) {
+  if (authLoading || !user || loading) {
     return <div className="p-6">Loading...</div>;
   }
 
