@@ -43,6 +43,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: {
       "Content-Type": "application/json",
+      "X-Admin-Token": process.env.NEXT_PUBLIC_ADMIN_TOKEN || "changeme-admin-token",
       ...(init?.headers ?? {}),
     },
     cache: "no-store",
