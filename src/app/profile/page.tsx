@@ -5,7 +5,7 @@ import Link from 'next/link';
 
 interface UserWithCustomClaims {
   [key: string]: unknown;
-  'https://your-domain/roles'?: string[];
+  'https://myappframe-herokuapp-com.auth0.com/roles'?: string[];
   org_id?: string;
 }
 
@@ -48,7 +48,7 @@ export default function ProfilePage() {
         <div>
           <span className="font-semibold">Roles:</span>
           <span className="text-sm text-gray-600 ml-2">
-            {(user as UserWithCustomClaims)['https://your-domain/roles']?.join(', ') || 'No roles assigned'}
+            {(user as UserWithCustomClaims)['https://myappframe-herokuapp-com.auth0.com/roles']?.join(', ') || 'No roles assigned'}
           </span>
         </div>
         <div>

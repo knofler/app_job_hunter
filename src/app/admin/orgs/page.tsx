@@ -12,7 +12,7 @@ interface Org {
 
 interface UserWithRoles {
   [key: string]: unknown;
-  'https://your-domain/roles'?: string[];
+  'https://myappframe-herokuapp-com.auth0.com/roles'?: string[];
 }
 
 export default function AdminOrgsPage() {
@@ -22,7 +22,7 @@ export default function AdminOrgsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const roles = ((user as UserWithRoles)?. ['https://your-domain/roles'] || []) as string[];
+    const roles = ((user as UserWithRoles)?.['https://myappframe-herokuapp-com.auth0.com/roles'] || []) as string[];
     if (!roles.includes('admin') && !roles.includes('power_user')) {
       router.push('/');
       return;

@@ -15,7 +15,7 @@ import {
 
 interface UserWithRoles {
   [key: string]: unknown;
-  'https://your-domain/roles'?: string[];
+  'https://myappframe-herokuapp-com.auth0.com/roles'?: string[];
 }
 
 const WORKFLOW_STEPS: { id: string; label: string }[] = [
@@ -82,7 +82,7 @@ export default function AdminLLMSettingsPage() {
       return;
     }
 
-    const roles = ((user as UserWithRoles)?.['https://your-domain/roles'] || []) as string[];
+    const roles = ((user as UserWithRoles)?.['https://myappframe-herokuapp-com.auth0.com/roles'] || []) as string[];
     if (!roles.includes('admin') && !roles.includes('power_user')) {
       router.push('/dashboard');
       return;
