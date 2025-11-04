@@ -132,7 +132,7 @@ export default function AdminLLMSettingsPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [authLoading, user]);
 
   const handleDefaultChange = (key: keyof ConfigFormState, value: string) => {
     setDefaultConfig(current => ({ ...current, [key]: value }));
