@@ -48,13 +48,18 @@ export default function ProfilePage() {
         <div>
           <span className="font-semibold">Roles:</span>
           <span className="text-sm text-gray-600 ml-2">
-            {(user as UserWithCustomClaims)['https://myappframe-herokuapp-com.auth0.com/roles']?.join(', ') || 'No roles assigned'}
+            {(user as UserWithCustomClaims)['https://myappframe-herokuapp-com.auth0.com/roles']?.join(', ') || 
+             (user as any)['https://ai-job-hunter/roles']?.join(', ') ||
+             'No roles assigned'}
           </span>
         </div>
         <div>
           <span className="font-semibold">Organization:</span>
           <span className="text-sm text-gray-600 ml-2">
-            {(user as UserWithCustomClaims).org_id || 'No organization'}
+            {(user as UserWithCustomClaims).org_id || 
+             (user as any)['https://myappframe-herokuapp-com.auth0.com/org_id'] ||
+             (user as any)['https://ai-job-hunter/org_id'] ||
+             'No organization'}
           </span>
         </div>
 
@@ -72,6 +77,14 @@ export default function ProfilePage() {
       <div className="bg-white rounded-xl shadow p-6 mt-6">
         <h2 className="text-lg font-semibold mb-2">Resume Management</h2>
         <p className="text-sm text-gray-600">Resume upload and management will be available after authentication setup.</p>
+      </div>
+
+      {/* Debug: Show all user properties */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded-xl shadow p-6 mt-6">
+        <h2 className="text-lg font-semibold mb-2 text-yellow-800">🔍 Debug: Full User Object</h2>
+        <pre className="text-xs bg-white p-4 rounded overflow-auto max-h-96">
+          {JSON.stringify(user, null, 2)}
+        </pre>
       </div>
     </div>
   );
