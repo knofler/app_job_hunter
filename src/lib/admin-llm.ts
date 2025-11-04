@@ -38,8 +38,12 @@ export type LLMSettingsPayload = {
   }>;
 };
 
+import { getApiBaseUrl } from "@/lib/api";
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
+  const baseUrl = getApiBaseUrl();
+  const fullUrl = url.startsWith('/') ? `${baseUrl}${url}` : url;
+  const response = await fetch(fullUrl, {
     ...init,
     headers: {
       "Content-Type": "application/json",
