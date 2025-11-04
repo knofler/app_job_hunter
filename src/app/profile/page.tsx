@@ -1,40 +1,71 @@
+'use client';
+
+import { useUser } from '@auth0/nextjs-auth0/client';
+import Link from 'next/link';
+
 export default function ProfilePage() {
+  const { user, isLoading } = useUser();
+
+  if (isLoading) {
+    return <div className="p-6">Loading...</div>;
+  }
+
+  if (!user) {
+    return (
+      <div className="p-6">
+        <p>Please log in to view your profile.</p>
+        <Link href="/api/auth/login" className="text-blue-600 hover:underline">
+          Log In
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto py-10 px-4">
       <h1 className="text-2xl font-bold mb-4">User Profile</h1>
-      <div className="bg-white rounded-xl shadow p-6">
-        <div className="mb-4">
-          <span className="font-semibold">Name:</span> Ambitious Alex
-        </div>
-        <div className="mb-4">
-          <span className="font-semibold">Email:</span> alex@example.com
-        </div>
-        <div className="mb-4">
-          <span className="font-semibold">Current Resume:</span>
-          <div className="bg-gray-100 rounded p-3 mt-2">
-            <div className="font-semibold">Software Engineer Resume</div>
-            <div className="text-xs text-gray-500 mb-2">Type: Technical</div>
-            <div className="text-sm text-gray-700">Summary: 5+ years experience in full-stack development, React, Node.js, and cloud platforms. Proven track record of delivering scalable web applications.</div>
-          </div>
+      
+      <div className="bg-white rounded-xl shadow p-6 space-y-4">
+        <div>
+          <span className="font-semibold">Name:</span> {user.name || 'N/A'}
         </div>
         <div>
-          <span className="font-semibold">Resume Preview:</span>
-          <pre className="bg-gray-50 rounded p-3 text-xs mt-2 overflow-x-auto">
-{`John Doe
-Software Engineer
-
-Summary:
-Experienced software engineer with a passion for building scalable web applications. Skilled in React, Node.js, and AWS.
-
-Experience:
-- Acme Corp (2019-2024): Senior Frontend Engineer
-- Beta Inc (2017-2019): Full Stack Developer
-
-Education:
-- B.Sc. in Computer Science, Tech University
-`}
-          </pre>
+          <span className="font-semibold">Email:</span> {user.email || 'N/A'}
         </div>
+        <div>
+          <span className="font-semibold">Email Verified:</span> {user.email_verified ? 'Yes' : 'No'}
+        </div>
+        <div>
+          <span className="font-semibold">Subject (ID):</span>
+          <span className="text-sm text-gray-600 ml-2">{user.sub}</span>
+        </div>
+        <div>
+          <span className="font-semibold">Roles:</span>
+          <span className="text-sm text-gray-600 ml-2">
+            {(user as any)['https://your-domain/roles']?.join(', ') || 'No roles assigned'}
+          </span>
+        </div>
+        <div>
+          <span className="font-semibold">Organization:</span>
+          <span className="text-sm text-gray-600 ml-2">
+            {(user as any).org_id || 'No organization'}
+          </span>
+        </div>
+
+        <div className="pt-4">
+          <Link
+            href="/api/auth/logout"
+            className="inline-block px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Log Out
+          </Link>
+        </div>
+      </div>
+
+      {/* Resume section can be added back when integrating with backend */}
+      <div className="bg-white rounded-xl shadow p-6 mt-6">
+        <h2 className="text-lg font-semibold mb-2">Resume Management</h2>
+        <p className="text-sm text-gray-600">Resume upload and management will be available after authentication setup.</p>
       </div>
     </div>
   );
