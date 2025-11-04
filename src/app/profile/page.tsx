@@ -5,8 +5,8 @@ import Link from 'next/link';
 
 interface UserWithCustomClaims {
   [key: string]: unknown;
-  'https://myappframe-herokuapp-com.auth0.com/roles'?: string[];
-  org_id?: string;
+  'https://ai-job-hunter/roles'?: string[];
+  'https://ai-job-hunter/org_id'?: string;
 }
 
 export default function ProfilePage() {
@@ -48,17 +48,16 @@ export default function ProfilePage() {
         <div>
           <span className="font-semibold">Roles:</span>
           <span className="text-sm text-gray-600 ml-2">
-            {(user as UserWithCustomClaims)['https://myappframe-herokuapp-com.auth0.com/roles']?.join(', ') || 
-             (user as any)['https://ai-job-hunter/roles']?.join(', ') ||
+            {(user as UserWithCustomClaims)['https://ai-job-hunter/roles']?.join(', ') ||
+             (user as any)['https://myappframe-herokuapp-com.auth0.com/roles']?.join(', ') ||
              'No roles assigned'}
           </span>
         </div>
         <div>
           <span className="font-semibold">Organization:</span>
           <span className="text-sm text-gray-600 ml-2">
-            {(user as UserWithCustomClaims).org_id || 
+            {(user as UserWithCustomClaims)['https://ai-job-hunter/org_id'] ||
              (user as any)['https://myappframe-herokuapp-com.auth0.com/org_id'] ||
-             (user as any)['https://ai-job-hunter/org_id'] ||
              'No organization'}
           </span>
         </div>
