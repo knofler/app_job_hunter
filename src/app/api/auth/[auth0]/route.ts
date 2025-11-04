@@ -1,11 +1,13 @@
 import { handleAuth, handleLogin, handleCallback } from '@auth0/nextjs-auth0';
+import type { NextRequest } from 'next/server';
+import type { Session } from '@auth0/nextjs-auth0';
 
 export const GET = handleAuth({
   login: handleLogin({
     returnTo: '/dashboard',
   }),
   callback: handleCallback({
-    afterCallback: async (req, session) => {
+    afterCallback: async (_req: NextRequest, session: Session) => {
       // Optional: enrich session with custom claims or org info
       return session;
     },
