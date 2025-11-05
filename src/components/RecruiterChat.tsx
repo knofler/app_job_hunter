@@ -29,17 +29,6 @@ export default function RecruiterChat({ sessionId, jobId, resumeIds, workflowCon
     }
   }, [shouldAutoScroll]);
 
-  // Handle scroll events to detect if user has scrolled up
-  const handleScroll = useCallback(() => {
-    if (messagesContainerRef.current && !isStreaming) {
-      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
-      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-      // Only disable auto-scroll if user has scrolled up significantly (more than 50px from bottom)
-      const isNearBottom = distanceFromBottom < 50;
-      setShouldAutoScroll(isNearBottom);
-    }
-  }, [isStreaming]);
-
   // Always scroll to show new user messages immediately
   useEffect(() => {
     if (messages.length > 0) {
