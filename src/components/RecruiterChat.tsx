@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -24,7 +24,7 @@ export default function RecruiterChat({ sessionId, jobId, resumeIds, workflowCon
 
   const scrollToBottom = useCallback(() => {
     if (shouldAutoScroll && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      messagesEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
     }
   }, [shouldAutoScroll]);
 
@@ -32,8 +32,10 @@ export default function RecruiterChat({ sessionId, jobId, resumeIds, workflowCon
   const handleScroll = useCallback(() => {
     if (messagesContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
-      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10; // 10px tolerance
-      setShouldAutoScroll(isAtBottom);
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      // Only disable auto-scroll if user has scrolled up significantly (more than 50px from bottom)
+      const isNearBottom = distanceFromBottom < 50;
+      setShouldAutoScroll(isNearBottom);
     }
   }, []);
 
@@ -41,14 +43,19 @@ export default function RecruiterChat({ sessionId, jobId, resumeIds, workflowCon
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Add scroll event listener
-  useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (container) {
-      container.addEventListener('scroll', handleScroll);
-      return () => container.removeEventListener('scroll', handleScroll);
-    }
-  }, [handleScroll]);
+  // Memoize context display to prevent unnecessary re-renders
+  const contextDisplay = useMemo(() => ({
+    hasContext: !!(jobId || resumeIds?.length || workflowContext),
+    description: jobId || resumeIds?.length || workflowContext ?
+      'Context-aware chat with current workflow data' :
+      'General recruitment assistance and advice',
+    placeholder: jobId || resumeIds?.length || workflowContext ?
+      "Ask about the job, resumes, or workflow..." :
+      "Ask about recruitment, hiring, or candidates...",
+    emptyMessage: jobId || resumeIds?.length || workflowContext ?
+      'Ask questions about the selected job, resumes, or workflow results.' :
+      'Ask me anything about recruitment, hiring strategies, or candidate evaluation.'
+  }), [jobId, resumeIds, workflowContext]);
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
@@ -124,12 +131,9 @@ export default function RecruiterChat({ sessionId, jobId, resumeIds, workflowCon
       <div className="p-4 border-b">
         <h3 className="font-semibold text-lg">Recruiter Assistant</h3>
         <p className="text-sm text-gray-600">
-          {jobId || resumeIds?.length || workflowContext ? 
-            'Context-aware chat with current workflow data' : 
-            'General recruitment assistance and advice'
-          }
+          {contextDisplay.description}
         </p>
-        {(jobId || resumeIds?.length || workflowContext) && (
+        {contextDisplay.hasContext && (
           <div className="mt-2 text-xs text-gray-500">
             {jobId && <span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded mr-1">Job Selected</span>}
             {resumeIds?.length && <span className="inline-block bg-green-100 text-green-800 px-2 py-1 rounded mr-1">{resumeIds.length} Resume{resumeIds.length > 1 ? 's' : ''} Selected</span>}
@@ -138,14 +142,11 @@ export default function RecruiterChat({ sessionId, jobId, resumeIds, workflowCon
         )}
       </div>
 
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0 scroll-smooth">
         {messages.length === 0 && (
           <div className="text-center text-gray-500 py-8">
             <p className="text-sm">
-              {jobId || resumeIds?.length || workflowContext ?
-                'Ask questions about the selected job, resumes, or workflow results.' :
-                'Ask me anything about recruitment, hiring strategies, or candidate evaluation.'
-              }
+              {contextDisplay.emptyMessage}
             </p>
           </div>
         )}
@@ -175,11 +176,7 @@ export default function RecruiterChat({ sessionId, jobId, resumeIds, workflowCon
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-            placeholder={
-              jobId || resumeIds?.length || workflowContext ?
-                "Ask about the job, resumes, or workflow..." :
-                "Ask about recruitment, hiring, or candidates..."
-            }
+            placeholder={contextDisplay.placeholder}
             disabled={loading}
             className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />

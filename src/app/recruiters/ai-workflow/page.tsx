@@ -822,7 +822,7 @@ export default function RecruiterAIWorkflowPage() {
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-2xl font-semibold text-gray-900">AI Recruiter Assistant</h2>
         </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm h-96">
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm h-[32rem]">
           <RecruiterChat
             sessionId={sessionId}
             jobId={selectedJobId || undefined}
