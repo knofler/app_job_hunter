@@ -139,6 +139,7 @@ export default function RecruiterAIWorkflowPage() {
   useEffect(() => {
     if (!selectedCandidateId) {
       setResumes([]);
+      setSelectedResumeIds([]);
       return;
     }
     const loadResumes = async () => {
@@ -146,8 +147,11 @@ export default function RecruiterAIWorkflowPage() {
       try {
         const response = await listCandidateResumes(selectedCandidateId);
         setResumes(response.resumes);
+        // Auto-select all resumes for the workflow
+        setSelectedResumeIds(response.resumes.map(resume => resume.id));
       } catch (error) {
         console.error("Failed to load resumes:", error);
+        setSelectedResumeIds([]);
       } finally {
         setResumeLoading(false);
       }
@@ -226,6 +230,35 @@ export default function RecruiterAIWorkflowPage() {
       job.description.toLowerCase().includes(searchLower)
     );
   }, [jobDescriptions, jobDescriptionSearch]);
+
+  const filteredCandidates = useMemo(() => {
+    if (!resumeSearch.trim()) {
+      return candidates;
+    }
+    const searchLower = resumeSearch.toLowerCase();
+    
+    // Filter candidates by name/role, and if a candidate is selected, also check their resume content
+    return candidates.filter(candidate => {
+      // Always check candidate metadata
+      const candidateMatches = 
+        candidate.name.toLowerCase().includes(searchLower) ||
+        candidate.primary_role?.toLowerCase().includes(searchLower) ||
+        candidate.candidate_type?.toLowerCase().includes(searchLower) ||
+        candidate.preferred_locations?.some(location => location.toLowerCase().includes(searchLower));
+      
+      // If this candidate is selected and we have their resumes loaded, also check resume content
+      if (candidate.candidate_id === selectedCandidateId) {
+        const resumeMatches = resumes.some(resume =>
+          resume.name.toLowerCase().includes(searchLower) ||
+          (resume.summary && resume.summary.toLowerCase().includes(searchLower)) ||
+          (resume.skills && resume.skills.some(skill => skill.toLowerCase().includes(searchLower)))
+        );
+        return candidateMatches || resumeMatches;
+      }
+      
+      return candidateMatches;
+    });
+  }, [candidates, resumeSearch, selectedCandidateId, resumes]);
 
   const filteredResumes = useMemo(() => {
     if (!resumeSearch.trim()) {
@@ -622,7 +655,7 @@ export default function RecruiterAIWorkflowPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Candidate & resumes</h3>
-                <p className="text-sm text-gray-500">Pick a candidate and up to five resumes to analyse.</p>
+                <p className="text-sm text-gray-500">Search candidates by name/role or resume content. Select a candidate to auto-load their resumes for analysis.</p>
               </div>
               <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">{selectedResumeIds.length} selected</span>
             </div>
@@ -632,7 +665,7 @@ export default function RecruiterAIWorkflowPage() {
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search resumes..."
+                placeholder="Search candidates by resume content..."
                 value={resumeSearch}
                 onChange={(e) => setResumeSearch(e.target.value)}
                 className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 pl-9 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
@@ -645,7 +678,8 @@ export default function RecruiterAIWorkflowPage() {
             <div className="grid gap-3">
               {candidatesLoading && <p className="text-xs text-gray-500">Loading candidates...</p>}
               {!candidatesLoading && candidates.length === 0 && <p className="text-xs text-gray-500">No candidates available. Upload resumes via the candidate profile first.</p>}
-              {candidates.slice(0, visibleCandidates).map(candidate => {
+              {!candidatesLoading && filteredCandidates.length === 0 && resumeSearch && <p className="text-xs text-gray-500">No candidates match your search.</p>}
+              {filteredCandidates.slice(0, visibleCandidates).map(candidate => {
                 const isActive = candidate.candidate_id === selectedCandidateId;
                 return (
                   <button key={candidate.candidate_id} type="button" onClick={() => setSelectedCandidateId(candidate.candidate_id)} className={`rounded-xl border px-4 py-3 text-left transition ${isActive ? "border-blue-500 bg-blue-50 shadow" : "border-gray-200 bg-gray-50 hover:border-blue-200 hover:bg-white"}`}>
@@ -660,7 +694,7 @@ export default function RecruiterAIWorkflowPage() {
                   </button>
                 );
               })}
-              {candidates.length > visibleCandidates && <button type="button" onClick={() => setVisibleCandidates(prev => Math.min(prev + 5, candidates.length))} className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-50 hover:border-blue-300">Show 5 more candidates ({candidates.length - visibleCandidates} remaining)</button>}
+              {filteredCandidates.length > visibleCandidates && <button type="button" onClick={() => setVisibleCandidates(prev => Math.min(prev + 5, filteredCandidates.length))} className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-50 hover:border-blue-300">Show 5 more candidates ({filteredCandidates.length - visibleCandidates} remaining)</button>}
             </div>
 
             <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600">
@@ -685,10 +719,31 @@ export default function RecruiterAIWorkflowPage() {
                       <li key={resume.id} className="flex items-start gap-2">
                         <input type="checkbox" className="mt-1" checked={selectedResumeIds.includes(resume.id)} onChange={event => handleResumeToggle(event, resume.id)} />
                         <div className="flex-1">
-                          <p className="font-semibold text-gray-800">{resume.name}</p>
-                          {resume.summary && <p className="text-gray-500">{resume.summary}</p>}
-                          {resume.skills && resume.skills.length > 0 && <p className="text-gray-500">Skills: {resume.skills.join(", ")}</p>}
-                          {resume.last_updated && <p className="text-gray-400">Last updated: {new Date(resume.last_updated).toLocaleDateString()}</p>}
+                          <div className="flex items-start justify-between mb-1">
+                            <p className="font-semibold text-gray-800 text-sm">{resume.name}</p>
+                            {resume.type && <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">{resume.type}</span>}
+                          </div>
+                          {resume.summary && (
+                            <p className="text-gray-600 text-xs leading-relaxed mb-2 line-clamp-3">{resume.summary}</p>
+                          )}
+                          {resume.skills && resume.skills.length > 0 && (
+                            <div className="mb-2">
+                              <p className="text-xs text-gray-500 font-medium">Skills:</p>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {resume.skills.slice(0, 4).map(skill => (
+                                  <span key={skill} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                                    {skill}
+                                  </span>
+                                ))}
+                                {resume.skills.length > 4 && (
+                                  <span className="text-xs text-gray-400">+{resume.skills.length - 4} more</span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          {resume.last_updated && (
+                            <p className="text-xs text-gray-400">Updated: {new Date(resume.last_updated).toLocaleDateString()}</p>
+                          )}
                         </div>
                       </li>
                     ))}
