@@ -31,40 +31,54 @@ export default function RecruiterChat({ sessionId, jobId, resumeIds, workflowCon
 
   // Handle scroll events to detect if user has scrolled up
   const handleScroll = useCallback(() => {
-    if (messagesContainerRef.current && !isStreaming) {
+    if (messagesContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
       const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-      // Only disable auto-scroll if user has scrolled up significantly (more than 50px from bottom)
-      const isNearBottom = distanceFromBottom < 50;
+      // During streaming, be more lenient with auto-scroll (allow more space)
+      // Outside streaming, require being very close to bottom
+      const threshold = isStreaming ? 100 : 50;
+      const isNearBottom = distanceFromBottom < threshold;
       setShouldAutoScroll(isNearBottom);
     }
   }, [isStreaming]);
 
-  // Only auto-scroll when user sends a message, not during streaming
+  // Always scroll to show new user messages immediately
   useEffect(() => {
-    if (!isStreaming && messages.length > 0) {
-      // Check if the last message is from user (meaning they just sent a message)
+    if (messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
       if (lastMessage && lastMessage.role === 'user') {
+        // Always scroll to show new user message
         setShouldAutoScroll(true);
         scrollToBottom();
       }
     }
-  }, [messages, isStreaming, scrollToBottom]);
+  }, [messages, scrollToBottom]);
 
-  // When streaming completes, scroll to bottom if user was near bottom
+  // During streaming, keep the latest content visible but allow scrolling up
+  useEffect(() => {
+    if (isStreaming && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage && lastMessage.role === 'assistant') {
+        // During streaming, scroll to keep response visible, but user can scroll up
+        if (messagesContainerRef.current) {
+          const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+          const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+          // Only auto-scroll if user is very close to bottom (within 20px)
+          if (distanceFromBottom < 20) {
+            scrollToBottom();
+          }
+        }
+      }
+    }
+  }, [isStreaming, messages, scrollToBottom]);
+
+  // When streaming completes, ensure the full response is visible
   useEffect(() => {
     if (!isStreaming && messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
       if (lastMessage && lastMessage.role === 'assistant') {
-        // Check if user was near bottom before streaming completed
-        if (messagesContainerRef.current) {
-          const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
-          const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-          if (distanceFromBottom < 100) { // More generous for completed responses
-            scrollToBottom();
-          }
-        }
+        // Streaming just completed, scroll to show the full response
+        setTimeout(() => scrollToBottom(), 100); // Small delay to ensure DOM is updated
       }
     }
   }, [isStreaming, messages, scrollToBottom]);
@@ -91,8 +105,9 @@ export default function RecruiterChat({ sessionId, jobId, resumeIds, workflowCon
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setLoading(true);
     setIsStreaming(true);
-    // Always auto-scroll when sending a message to show the user's input
+    // Force scroll to show the new user message immediately
     setShouldAutoScroll(true);
+    setTimeout(() => scrollToBottom(), 10);
 
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/chat/stream`, {
