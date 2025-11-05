@@ -121,6 +121,24 @@ export type CandidateResumesResponse = {
   resumes: ResumeSummary[];
 };
 
+export type JobDescription = {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  description: string;
+  code?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type JobListResponse = {
+  items: JobDescription[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
 export async function listCandidates(): Promise<CandidateListResponse> {
   return fetchFromApi<CandidateListResponse>(`/candidates?page=1&page_size=25`);
 }
@@ -135,5 +153,27 @@ export async function generateRecruiterWorkflow(
   return fetchFromApi<RecruiterWorkflowResponse>(`/recruiter-workflow/generate`, {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export async function listJobDescriptions(page: number = 1, pageSize: number = 25): Promise<JobListResponse> {
+  return fetchFromApi<JobListResponse>(`/jobs?page=${page}&page_size=${pageSize}`);
+}
+
+export async function getJobDescription(jobId: string): Promise<JobDescription> {
+  return fetchFromApi<JobDescription>(`/jobs/${jobId}`);
+}
+
+export async function createJobDescription(job: Omit<JobDescription, 'id' | 'created_at' | 'updated_at'>): Promise<JobDescription> {
+  return fetchFromApi<JobDescription>('/jobs', {
+    method: 'POST',
+    body: JSON.stringify(job),
+  });
+}
+
+export async function updateJobDescription(jobId: string, job: Partial<Omit<JobDescription, 'id' | 'created_at' | 'updated_at'>>): Promise<JobDescription> {
+  return fetchFromApi<JobDescription>(`/jobs/${jobId}`, {
+    method: 'PUT',
+    body: JSON.stringify(job),
   });
 }

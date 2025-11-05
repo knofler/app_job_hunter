@@ -1,13 +1,12 @@
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import RecruiterChat from "@/components/RecruiterChat";
 
-import { usePersona, useRecruiterScope } from "@/context/PersonaContext";
 import { fallbackRecruiterWorkflow } from "@/lib/fallback-data";
 import { streamRecruiterWorkflow } from "@/lib/stream-utils";
 import {
   CandidateAnalysis,
-  CandidateListResponse,
   CandidateReadout,
   CandidateSummary,
   listCandidateResumes,
@@ -15,6 +14,9 @@ import {
   RecruiterWorkflowRequest,
   RecruiterWorkflowResponse,
   ResumeSummary,
+  JobDescription,
+  listJobDescriptions,
+  updateJobDescription,
 } from "@/lib/recruiter-workflow";
 
 const fallback = fallbackRecruiterWorkflow;
@@ -60,123 +62,136 @@ function formatDateTime(value: Date | null): string {
   }).format(value);
 }
 
-function candidateDisplayName(candidate: CandidateSummary, index: number): string {
-  return candidate.name || `Candidate ${index + 1}`;
-}
-
 const STEP_ORDER = ['loading', 'core_skills', 'ai_analysis', 'ranked_shortlist', 'detailed_readout', 'engagement_plan', 'fairness_guidance', 'interview_preparation'];
 
 function isStepBefore(currentStep: string | null, targetStep: string): boolean {
   if (!currentStep) return false;
   const currentIndex = STEP_ORDER.indexOf(currentStep);
   const targetIndex = STEP_ORDER.indexOf(targetStep);
-  return currentIndex !== -1 && targetIndex !== -1 && currentIndex < targetIndex;
+  return currentIndex < targetIndex;
 }
 
-type CandidateOption = CandidateSummary & {
-  displayName: string;
-};
-
 export default function RecruiterAIWorkflowPage() {
-  const { candidateId } = usePersona();
-  const { isRecruiter } = useRecruiterScope();
-  const [jobTitle, setJobTitle] = useState<string>(fallback.jobTitle);
-  const [jobCode, setJobCode] = useState<string>(fallback.jobCode);
-  const [jobLevel, setJobLevel] = useState<string>(fallback.jobLevel);
-  const [jobSummary, setJobSummary] = useState<string>(fallback.jobSummary);
-  const [salaryBand, setSalaryBand] = useState<string>(fallback.salaryBand);
-  const [jobDescription, setJobDescription] = useState<string>(fallback.jobDescription);
 
-  const [candidates, setCandidates] = useState<CandidateOption[]>([]);
-  const [candidatesLoading, setCandidatesLoading] = useState<boolean>(false);
+  // State variables
+  const [jobTitle, setJobTitle] = useState("");
+  const [jobCode, setJobCode] = useState("");
+  const [jobLevel, setJobLevel] = useState("");
+  const [salaryBand, setSalaryBand] = useState("");
+  const [jobSummary, setJobSummary] = useState("");
+  const [jobDescription, setJobDescription] = useState("");
+  const [jobDescriptionSearch, setJobDescriptionSearch] = useState("");
+  const [jobDescriptionCollapsed, setJobDescriptionCollapsed] = useState(true);
+  const [visibleJobDescriptions, setVisibleJobDescriptions] = useState(5);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [jobDescriptions, setJobDescriptions] = useState<JobDescription[]>([]);
+  const [jobDescriptionsLoading, setJobDescriptionsLoading] = useState(true);
+  const [candidates, setCandidates] = useState<CandidateSummary[]>([]);
+  const [candidatesLoading, setCandidatesLoading] = useState(true);
   const [candidateError, setCandidateError] = useState<string | null>(null);
-
-  const [selectedCandidateId, setSelectedCandidateId] = useState<string>("");
+  const [visibleCandidates, setVisibleCandidates] = useState(5);
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [resumes, setResumes] = useState<ResumeSummary[]>([]);
+  const [resumeLoading, setResumeLoading] = useState(false);
+  const [resumeSearch, setResumeSearch] = useState("");
+  const [resumeCollapsed, setResumeCollapsed] = useState(false);
   const [selectedResumeIds, setSelectedResumeIds] = useState<string[]>([]);
-  const [resumeLoading, setResumeLoading] = useState<boolean>(false);
-
   const [workflowResult, setWorkflowResult] = useState<RecruiterWorkflowResponse | null>(null);
-  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
-  const [lastAnalyzedAt, setLastAnalyzedAt] = useState<Date | null>(null);
   const [streamingStep, setStreamingStep] = useState<string | null>(null);
   const [streamingMessage, setStreamingMessage] = useState<string | null>(null);
-  const [candidateListCollapsed, setCandidateListCollapsed] = useState<boolean>(false);
+  const [lastAnalyzedAt, setLastAnalyzedAt] = useState<Date | null>(null);
+  const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
 
+  // Load job descriptions
   useEffect(() => {
-    let cancelled = false;
-    async function loadCandidates() {
-      setCandidatesLoading(true);
+    const loadJobDescriptions = async () => {
       try {
-        const response: CandidateListResponse = await listCandidates();
-        if (cancelled) {
-          return;
-        }
-        const mapped = response.items.map((candidate, index) => ({
-          ...candidate,
-          displayName: candidateDisplayName(candidate, index),
-        }));
-        setCandidates(mapped);
-  const defaultCandidate = mapped.find(item => item.candidate_id === candidateId) || mapped[0];
-        if (defaultCandidate) {
-          setSelectedCandidateId(defaultCandidate.candidate_id);
-        }
-        setCandidateError(null);
+        const response = await listJobDescriptions();
+        setJobDescriptions(response.items);
       } catch (error) {
-        console.error(error);
-        if (!cancelled) {
-          setCandidateError((error as Error).message || "Failed to load candidates");
-        }
+        console.error("Failed to load job descriptions:", error);
       } finally {
-        if (!cancelled) {
-          setCandidatesLoading(false);
-        }
+        setJobDescriptionsLoading(false);
       }
-    }
-    loadCandidates();
-    return () => {
-      cancelled = true;
     };
-  }, [candidateId]);
+    loadJobDescriptions();
+  }, []);
 
+  // Load candidates
+  useEffect(() => {
+    const loadCandidates = async () => {
+      try {
+        const response = await listCandidates();
+        setCandidates(response.items);
+      } catch (error) {
+        console.error("Failed to load candidates:", error);
+        setCandidateError("Failed to load candidates");
+      } finally {
+        setCandidatesLoading(false);
+      }
+    };
+    loadCandidates();
+  }, []);
+
+  // Load resumes when candidate changes
   useEffect(() => {
     if (!selectedCandidateId) {
       setResumes([]);
-      setSelectedResumeIds([]);
       return;
     }
-    let cancelled = false;
-    async function loadResumes() {
+    const loadResumes = async () => {
       setResumeLoading(true);
       try {
         const response = await listCandidateResumes(selectedCandidateId);
-        if (cancelled) {
-          return;
-        }
         setResumes(response.resumes);
-        if (response.resumes.length > 0) {
-          setSelectedResumeIds([response.resumes[0].id]);
-        } else {
-          setSelectedResumeIds([]);
-        }
       } catch (error) {
-        console.error(error);
-        if (!cancelled) {
-          setResumes([]);
-          setSelectedResumeIds([]);
-        }
+        console.error("Failed to load resumes:", error);
       } finally {
-        if (!cancelled) {
-          setResumeLoading(false);
-        }
+        setResumeLoading(false);
       }
-    }
-    loadResumes();
-    return () => {
-      cancelled = true;
     };
+    loadResumes();
   }, [selectedCandidateId]);
+
+  // Update job description when selection changes
+  useEffect(() => {
+    if (!selectedJobId) {
+      setJobDescription("");
+      setJobTitle("");
+      setJobCode("");
+      return;
+    }
+    const selectedJob = jobDescriptions.find(job => job.id === selectedJobId);
+    if (selectedJob) {
+      setJobDescription(selectedJob.description);
+      setJobTitle(selectedJob.title);
+      setJobCode(selectedJob.code || "");
+    }
+  }, [selectedJobId, jobDescriptions]);
+
+  const handleJobSelection = (jobId: string) => {
+    setSelectedJobId(jobId);
+    setJobDescriptionCollapsed(true);
+  };
+
+  const handleJobDescriptionUpdate = async () => {
+    if (!selectedJobId) return;
+    try {
+      await updateJobDescription(selectedJobId, { description: jobDescription });
+      // Update local state
+      setJobDescriptions(prev =>
+        prev.map(job =>
+          job.id === selectedJobId ? { ...job, description: jobDescription } : job
+        )
+      );
+    } catch (error) {
+      console.error("Failed to update job description:", error);
+    }
+  };
+
+  const workflowStepsRef = useRef<HTMLDivElement>(null);
 
   const candidateAnalysisById = useMemo(() => {
     const map = new Map<string, CandidateAnalysis>();
@@ -200,22 +215,43 @@ export default function RecruiterAIWorkflowPage() {
     return map;
   }, [workflowResult]);
 
-  const selectedCandidate = candidates.find(candidate => candidate.candidate_id === selectedCandidateId) || null;
-  const selectedAnalysis = selectedCandidateId ? candidateAnalysisById.get(selectedCandidateId) || null : null;
-  const selectedReadout = selectedCandidateId ? readoutById.get(selectedCandidateId) || null : null;
-
-  const shortlist = workflowResult?.ranked_shortlist || [];
-  
-  // Define ref before conditional return
-  const workflowStepsRef = useRef<HTMLDivElement>(null);
-
-  if (!isRecruiter) {
-    return (
-      <div className="max-w-5xl mx-auto px-4 py-10 text-sm text-gray-500">
-        Switch to the recruiter persona to run the AI hiring workflow.
-      </div>
+  const filteredJobDescriptions = useMemo(() => {
+    if (!jobDescriptionSearch.trim()) {
+      return jobDescriptions;
+    }
+    const searchLower = jobDescriptionSearch.toLowerCase();
+    return jobDescriptions.filter(job =>
+      job.title.toLowerCase().includes(searchLower) ||
+      job.company.toLowerCase().includes(searchLower) ||
+      job.description.toLowerCase().includes(searchLower)
     );
-  }
+  }, [jobDescriptions, jobDescriptionSearch]);
+
+  const filteredResumes = useMemo(() => {
+    if (!resumeSearch.trim()) {
+      return resumes;
+    }
+    const searchLower = resumeSearch.toLowerCase();
+    return resumes.filter(resume =>
+      resume.name.toLowerCase().includes(searchLower) ||
+      (resume.summary && resume.summary.toLowerCase().includes(searchLower)) ||
+      (resume.skills && resume.skills.some(skill => skill.toLowerCase().includes(searchLower)))
+    );
+  }, [resumes, resumeSearch]);
+
+  const topRecommendedResumes = useMemo((): (ResumeSummary & { matchScore: number })[] => {
+    if (!selectedJobId || resumes.length === 0) {
+      return [];
+    }
+    // This would need actual matching logic, for now return empty
+    return [];
+  }, [selectedJobId, resumes]);
+
+  // Computed values for display
+  const shortlist = workflowResult?.ranked_shortlist || [];
+  const selectedCandidate = candidates.find(c => c.candidate_id === selectedCandidateId);
+  const selectedAnalysis = selectedCandidateId ? candidateAnalysisById.get(selectedCandidateId) : undefined;
+  const selectedReadout = selectedCandidateId ? readoutById.get(selectedCandidateId) : undefined;
 
   const handleResumeToggle = (event: ChangeEvent<HTMLInputElement>, resumeId: string) => {
     if (event.target.checked) {
@@ -264,7 +300,6 @@ export default function RecruiterAIWorkflowPage() {
     setGenerationError(null);
     setStreamingStep(null);
     setStreamingMessage(null);
-    setCandidateListCollapsed(true);
     
     // Clear previous results to show streaming effect
     setWorkflowResult(null);
@@ -498,129 +533,199 @@ export default function RecruiterAIWorkflowPage() {
           <h2 className="text-2xl font-semibold text-gray-900">1. Inputs captured</h2>
           {isGenerating && <span className="text-sm text-blue-600">Processing...</span>}
         </div>
-        <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Left: Job descriptions */}
           <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Job description</h3>
-                <p className="text-sm text-gray-500">Paste the recruiter-owned job brief driving the AI prompt.</p>
+                <h3 className="text-lg font-semibold text-gray-900">Job descriptions</h3>
+                <p className="text-sm text-gray-500">Select a job description to edit and analyze.</p>
               </div>
               <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700">
-                Required
+                {filteredJobDescriptions.length} available
               </span>
             </div>
-            <textarea
-              value={jobDescription}
-              onChange={event => setJobDescription(event.target.value)}
-              rows={16}
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 shadow-inner focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-              placeholder="Paste the job description or upload a JD file"
-            />
+
+            <div className="space-y-3">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search job descriptions..."
+                  value={jobDescriptionSearch}
+                  onChange={(e) => setJobDescriptionSearch(e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 pl-9 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+                <svg className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+
+              {jobDescriptionsLoading && <p className="text-xs text-gray-500">Loading job descriptions...</p>}
+              {!jobDescriptionsLoading && filteredJobDescriptions.length === 0 && jobDescriptionSearch && (
+                <p className="text-xs text-gray-500">No job descriptions match your search.</p>
+              )}
+              {!jobDescriptionsLoading && filteredJobDescriptions.length === 0 && !jobDescriptionSearch && (
+                <p className="text-xs text-gray-500">No job descriptions available.</p>
+              )}
+
+              {jobDescriptionCollapsed && selectedJobId ? (
+                <div className="rounded-xl border border-blue-500 bg-blue-50 p-4 shadow">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-blue-900">{jobDescriptions.find(job => job.id === selectedJobId)?.title}</p>
+                      <p className="text-xs text-blue-700">{jobDescriptions.find(job => job.id === selectedJobId)?.company} • {jobDescriptions.find(job => job.id === selectedJobId)?.location}</p>
+                    </div>
+                    <button type="button" onClick={() => setJobDescriptionCollapsed(false)} className="rounded-lg border border-blue-200 bg-white px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50">Show All</button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {filteredJobDescriptions.slice(0, visibleJobDescriptions).map(job => {
+                    const isActive = job.id === selectedJobId;
+                    return (
+                      <button key={job.id} type="button" onClick={() => handleJobSelection(job.id)} className={`w-full rounded-xl border px-4 py-3 text-left transition ${isActive ? "border-blue-500 bg-blue-50 shadow" : "border-gray-200 bg-gray-50 hover:border-blue-200 hover:bg-white"}`}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 truncate">{job.title}</p>
+                            <p className="text-xs text-gray-600 truncate">{job.company} • {job.location}</p>
+                            <p className="text-xs text-gray-500 mt-1 overflow-hidden" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>{job.description.substring(0, 150)}{job.description.length > 150 ? '...' : ''}</p>
+                          </div>
+                          <div className="text-right text-xs text-gray-500"><p>{new Date(job.updated_at).toLocaleDateString()}</p></div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                  {filteredJobDescriptions.length > visibleJobDescriptions && (
+                    <button type="button" onClick={() => setVisibleJobDescriptions(prev => Math.min(prev + 5, filteredJobDescriptions.length))} className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-50 hover:border-blue-300">Show 5 more job descriptions ({filteredJobDescriptions.length - visibleJobDescriptions} remaining)</button>
+                  )}
+                </>
+              )}
+
+              {selectedJobId && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold text-gray-900">Edit Job Description</h4>
+                    <button type="button" onClick={handleJobDescriptionUpdate} className="rounded-lg border border-blue-200 bg-blue-600 px-3 py-1 text-xs font-medium text-white shadow-sm transition hover:bg-blue-700">Save Changes</button>
+                  </div>
+                  <div className="space-y-2">
+                    <input type="text" value={jobTitle} onChange={event => setJobTitle(event.target.value)} className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 shadow-inner focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Job title" />
+                  </div>
+                  <textarea value={jobDescription} onChange={event => setJobDescription(event.target.value)} rows={12} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 shadow-inner focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Paste the job description or upload a JD file" />
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Right: Candidate & Resumes */}
           <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Candidate & resumes</h3>
                 <p className="text-sm text-gray-500">Pick a candidate and up to five resumes to analyse.</p>
               </div>
-              <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                {selectedResumeIds.length} selected
-              </span>
+              <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">{selectedResumeIds.length} selected</span>
             </div>
-            {candidateError && (
-              <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{candidateError}</p>
-            )}
+
+            {candidateError && <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{candidateError}</p>}
+
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search resumes..."
+                value={resumeSearch}
+                onChange={(e) => setResumeSearch(e.target.value)}
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 pl-9 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              />
+              <svg className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+
             <div className="grid gap-3">
               {candidatesLoading && <p className="text-xs text-gray-500">Loading candidates...</p>}
-              {!candidatesLoading && candidates.length === 0 && (
-                <p className="text-xs text-gray-500">No candidates available. Upload resumes via the candidate profile first.</p>
-              )}
-              {candidateListCollapsed && selectedCandidateId ? (
-                // Show only selected candidate when collapsed
-                <div className="space-y-3">
-                  {(() => {
-                    const selectedCandidate = candidates.find(c => c.candidate_id === selectedCandidateId);
-                    if (!selectedCandidate) return null;
-                    return (
-                      <div className="rounded-xl border border-blue-500 bg-blue-50 px-4 py-3 shadow">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-semibold text-gray-900">{selectedCandidate.displayName}</p>
-                            <p className="text-xs text-gray-600">{selectedCandidate.primary_role || "Role not captured"}</p>
-                          </div>
-                          <span className="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-semibold text-white">
-                            Selected
-                          </span>
-                        </div>
+              {!candidatesLoading && candidates.length === 0 && <p className="text-xs text-gray-500">No candidates available. Upload resumes via the candidate profile first.</p>}
+              {candidates.slice(0, visibleCandidates).map(candidate => {
+                const isActive = candidate.candidate_id === selectedCandidateId;
+                return (
+                  <button key={candidate.candidate_id} type="button" onClick={() => setSelectedCandidateId(candidate.candidate_id)} className={`rounded-xl border px-4 py-3 text-left transition ${isActive ? "border-blue-500 bg-blue-50 shadow" : "border-gray-200 bg-gray-50 hover:border-blue-200 hover:bg-white"}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">{candidate.name}</p>
+                        <p className="text-xs text-gray-600">{candidate.primary_role || "Role not captured"}</p>
                       </div>
-                    );
-                  })()}
-                  <button
-                    type="button"
-                    onClick={() => setCandidateListCollapsed(false)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-50 hover:border-blue-300"
-                  >
-                    Show all candidates
-                  </button>
-                </div>
-              ) : (
-                // Show all candidates when not collapsed
-                candidates.map(candidate => {
-                  const isActive = candidate.candidate_id === selectedCandidateId;
-                  return (
-                    <button
-                      key={candidate.candidate_id}
-                      type="button"
-                      onClick={() => setSelectedCandidateId(candidate.candidate_id)}
-                      className={`rounded-xl border px-4 py-3 text-left transition ${
-                        isActive ? "border-blue-500 bg-blue-50 shadow" : "border-gray-200 bg-gray-50 hover:border-blue-200 hover:bg-white"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900">{candidate.displayName}</p>
-                          <p className="text-xs text-gray-600">{candidate.primary_role || "Role not captured"}</p>
-                        </div>
-                        <div className="text-right text-xs text-gray-500">
-                          <p>Candidate ID</p>
-                          <p className="font-semibold text-gray-700">{candidate.candidate_id}</p>
-                        </div>
-                      </div>
-                      {candidate.preferred_locations && candidate.preferred_locations.length > 0 && (
-                        <p className="mt-2 text-xs text-gray-500">Preferred locations: {candidate.preferred_locations.join(", ")}</p>
-                      )}
-                    </button>
-                  );
-                })
-              )}
-            </div>
-            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600">
-              <p className="font-semibold text-gray-800">Available resumes</p>
-              {resumeLoading && <p className="text-xs text-gray-500">Loading resumes...</p>}
-              {!resumeLoading && resumes.length === 0 && (
-                <p className="text-xs text-gray-500">No resumes available for this candidate yet.</p>
-              )}
-              <ul className="mt-3 space-y-2 text-xs text-gray-600">
-                {resumes.map(resume => (
-                  <li key={resume.id} className="flex items-start gap-2">
-                    <input
-                      type="checkbox"
-                      className="mt-1"
-                      checked={selectedResumeIds.includes(resume.id)}
-                      onChange={event => handleResumeToggle(event, resume.id)}
-                    />
-                    <div>
-                      <p className="font-semibold text-gray-800">{resume.name}</p>
-                      {resume.summary && <p className="text-gray-500">{resume.summary}</p>}
-                      {resume.skills && resume.skills.length > 0 && (
-                        <p className="text-gray-500">Skills: {resume.skills.join(", ")}</p>
-                      )}
+                      <div className="text-right text-xs text-gray-500"><p>Candidate ID</p><p className="font-semibold text-gray-700">{candidate.candidate_id}</p></div>
                     </div>
-                  </li>
-                ))}
-              </ul>
+                    {candidate.preferred_locations && candidate.preferred_locations.length > 0 && <p className="mt-2 text-xs text-gray-500">Preferred locations: {candidate.preferred_locations.join(", ")}</p>}
+                  </button>
+                );
+              })}
+              {candidates.length > visibleCandidates && <button type="button" onClick={() => setVisibleCandidates(prev => Math.min(prev + 5, candidates.length))} className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-50 hover:border-blue-300">Show 5 more candidates ({candidates.length - visibleCandidates} remaining)</button>}
             </div>
-            <p className="text-xs text-gray-500">Upload additional resumes via the candidate profile to make them available here.</p>
+
+            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600">
+              <div className="flex items-center justify-between mb-3">
+                <p className="font-semibold text-gray-800">Available resumes</p>
+                {selectedResumeIds.length > 0 && <button type="button" onClick={() => setResumeCollapsed(!resumeCollapsed)} className="text-xs text-blue-600 hover:text-blue-800">{resumeCollapsed ? 'Show All' : 'Collapse'}</button>}
+              </div>              {resumeLoading && <p className="text-xs text-gray-500">Loading resumes...</p>}
+              {!resumeLoading && filteredResumes.length === 0 && resumeSearch && <p className="text-xs text-gray-500">No resumes match your search.</p>}
+              {!resumeLoading && filteredResumes.length === 0 && !resumeSearch && <p className="text-xs text-gray-500">No resumes available for this candidate yet.</p>}
+
+              {resumeCollapsed && selectedResumeIds.length > 0 && (
+                <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
+                  <p className="text-xs font-semibold text-blue-900 mb-2">Selected Resumes ({selectedResumeIds.length}):</p>
+                  <div className="flex flex-wrap gap-1">{selectedResumeIds.map(resumeId => {const resume = resumes.find(r => r.id === resumeId); return (<span key={resumeId} className="rounded bg-blue-100 px-2 py-1 text-xs text-blue-800">{resume?.name || `Resume ${resumeId}`}</span>);})}</div>
+                </div>
+              )}
+
+              {!resumeCollapsed && (
+                <>
+                  <ul className="mt-3 space-y-2 text-xs text-gray-600">
+                    {filteredResumes.slice(0, 5).map(resume => (
+                      <li key={resume.id} className="flex items-start gap-2">
+                        <input type="checkbox" className="mt-1" checked={selectedResumeIds.includes(resume.id)} onChange={event => handleResumeToggle(event, resume.id)} />
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-800">{resume.name}</p>
+                          {resume.summary && <p className="text-gray-500">{resume.summary}</p>}
+                          {resume.skills && resume.skills.length > 0 && <p className="text-gray-500">Skills: {resume.skills.join(", ")}</p>}
+                          {resume.last_updated && <p className="text-gray-400">Last updated: {new Date(resume.last_updated).toLocaleDateString()}</p>}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                  {filteredResumes.length > 5 && <button type="button" onClick={() => setResumeCollapsed(true)} className="mt-3 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-50 hover:border-blue-300">Show all {filteredResumes.length} resumes</button>}
+                </>
+              )}
+
+              <p className="text-xs text-gray-500">Upload additional resumes via the candidate profile to make them available here.</p>
+            </div>
+
+            {selectedJobId && topRecommendedResumes.length > 0 && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-semibold text-emerald-900">Top Matches</h4>
+                  <button type="button" onClick={() => {const topIds = topRecommendedResumes.slice(0, 3).map(r => r.id); setSelectedResumeIds(prev => {const combined = Array.from(new Set([...prev, ...topIds])); return combined.slice(0, 5);});}} className="rounded border border-emerald-300 bg-white px-2 py-1 text-xs text-emerald-700 hover:bg-emerald-50">Select Top 3</button>
+                </div>
+                <p className="text-xs text-emerald-700 mb-3">Best matching resumes for the selected job</p>
+                <div className="space-y-2">
+                  {topRecommendedResumes.slice(0, 5).map((resume, index) => (
+                    <div key={resume.id} className="rounded-lg border border-emerald-200 bg-white p-3">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-gray-900 truncate">{resume.name}</p>
+                          <p className="text-xs text-gray-600">Match: {Math.round(resume.matchScore)}%</p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-emerald-600 font-medium">#{index + 1}</span>
+                          <input type="checkbox" className="w-3 h-3" checked={selectedResumeIds.includes(resume.id)} onChange={event => handleResumeToggle(event, resume.id)} />
+                        </div>
+                      </div>
+                      {resume.skills && resume.skills.length > 0 && <p className="text-xs text-gray-500 truncate">Skills: {resume.skills.slice(0, 3).join(", ")}{resume.skills.length > 3 ? "..." : ""}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -654,6 +759,21 @@ export default function RecruiterAIWorkflowPage() {
               )}
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* AI Chatbot Section */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-2xl font-semibold text-gray-900">AI Recruiter Assistant</h2>
+        </div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm h-96">
+          <RecruiterChat
+            sessionId={sessionId}
+            jobId={selectedJobId || undefined}
+            resumeIds={selectedResumeIds.length > 0 ? selectedResumeIds : undefined}
+            workflowContext={workflowResult ? { workflowResult } : undefined}
+          />
         </div>
       </section>
 
@@ -793,7 +913,7 @@ export default function RecruiterAIWorkflowPage() {
                   >
                     <td className="px-4 py-4">
                       <div className="font-semibold text-gray-900">
-                        {analysis?.name || rowCandidate?.displayName || item.candidate_id}
+                        {analysis?.name || rowCandidate?.name || item.candidate_id}
                       </div>
                       <div className="text-xs text-gray-600">Rank {item.rank}</div>
                     </td>
@@ -816,7 +936,7 @@ export default function RecruiterAIWorkflowPage() {
             <div className="flex items-center gap-3">
               <h2 className="text-2xl font-semibold text-gray-900">6. Detailed readout</h2>
               <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700">
-                Focus: {selectedAnalysis?.name || selectedCandidate.displayName}
+                Focus: {selectedAnalysis?.name || selectedCandidate.name}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -837,7 +957,7 @@ export default function RecruiterAIWorkflowPage() {
           <div className="space-y-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="space-y-2">
-                <h3 className="text-xl font-semibold text-gray-900">{selectedAnalysis?.name || selectedCandidate.displayName}</h3>
+                <h3 className="text-xl font-semibold text-gray-900">{selectedAnalysis?.name || selectedCandidate.name}</h3>
                 <p className="text-sm text-gray-600">{selectedCandidate.primary_role || "Role not captured"}</p>
                 {selectedCandidate.experience_years != null && (
                   <p className="text-sm text-gray-600">Experience: {selectedCandidate.experience_years} years</p>
@@ -1046,4 +1166,3 @@ export default function RecruiterAIWorkflowPage() {
     </div>
   );
 }
-
