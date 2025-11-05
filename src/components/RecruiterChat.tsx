@@ -31,13 +31,11 @@ export default function RecruiterChat({ sessionId, jobId, resumeIds, workflowCon
 
   // Handle scroll events to detect if user has scrolled up
   const handleScroll = useCallback(() => {
-    if (messagesContainerRef.current) {
+    if (messagesContainerRef.current && !isStreaming) {
       const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
       const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-      // During streaming, be more lenient with auto-scroll (allow more space)
-      // Outside streaming, require being very close to bottom
-      const threshold = isStreaming ? 100 : 50;
-      const isNearBottom = distanceFromBottom < threshold;
+      // Only disable auto-scroll if user has scrolled up significantly (more than 50px from bottom)
+      const isNearBottom = distanceFromBottom < 50;
       setShouldAutoScroll(isNearBottom);
     }
   }, [isStreaming]);
@@ -54,31 +52,23 @@ export default function RecruiterChat({ sessionId, jobId, resumeIds, workflowCon
     }
   }, [messages, scrollToBottom]);
 
-  // During streaming, keep the latest content visible but allow scrolling up
+  // When streaming starts, disable auto-scroll to prevent jumping
   useEffect(() => {
-    if (isStreaming && messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
-      if (lastMessage && lastMessage.role === 'assistant') {
-        // During streaming, scroll to keep response visible, but user can scroll up
-        if (messagesContainerRef.current) {
-          const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
-          const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-          // Only auto-scroll if user is very close to bottom (within 20px)
-          if (distanceFromBottom < 20) {
-            scrollToBottom();
-          }
-        }
-      }
+    if (isStreaming) {
+      setShouldAutoScroll(false);
     }
-  }, [isStreaming, messages, scrollToBottom]);
+  }, [isStreaming]);
 
-  // When streaming completes, ensure the full response is visible
+  // When streaming completes, show the full response
   useEffect(() => {
     if (!isStreaming && messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
       if (lastMessage && lastMessage.role === 'assistant') {
         // Streaming just completed, scroll to show the full response
-        setTimeout(() => scrollToBottom(), 100); // Small delay to ensure DOM is updated
+        setTimeout(() => {
+          setShouldAutoScroll(true);
+          scrollToBottom();
+        }, 100); // Small delay to ensure DOM is updated
       }
     }
   }, [isStreaming, messages, scrollToBottom]);
