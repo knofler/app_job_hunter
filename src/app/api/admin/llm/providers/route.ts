@@ -6,15 +6,23 @@ import { getApiBaseUrl } from "@/lib/api";
 export async function GET(request: NextRequest) {
   // Get the user's session
   const session = await getSession(request, new NextResponse());
-  if (!session?.accessToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  
+  const apiBaseUrl = getApiBaseUrl();
+  const headers: Record<string, string> = {};
+
+  // Try JWT first if available
+  if (session?.accessToken) {
+    headers["Authorization"] = `Bearer ${session.accessToken}`;
+  }
+  
+  // Always include X-Admin-Token as fallback
+  const adminToken = process.env.ADMIN_API_KEY || process.env.NEXT_PUBLIC_ADMIN_TOKEN;
+  if (adminToken) {
+    headers["X-Admin-Token"] = adminToken;
   }
 
-  const apiBaseUrl = getApiBaseUrl();
   const response = await fetch(`${apiBaseUrl}/admin/llm/providers`, {
-    headers: {
-      "Authorization": `Bearer ${session.accessToken}`,
-    },
+    headers,
     cache: "no-store",
   });
 

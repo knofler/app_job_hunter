@@ -1,6 +1,13 @@
 "use client";
 
+import { useUser } from '@auth0/nextjs-auth0/client';
+import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useState } from "react";
+
+interface UserWithRoles {
+  [key: string]: unknown;
+  'https://ai-job-hunter/roles'?: string[];
+}
 
 interface Prompt {
   id: string;
@@ -34,7 +41,11 @@ const CATEGORIES = [
 ];
 
 async function fetchPrompts(): Promise<{ prompts: Prompt[] }> {
-  const response = await fetch('/api/admin/prompts');
+  const response = await fetch('/api/admin/prompts', {
+    headers: {
+      'X-Admin-Token': process.env.NEXT_PUBLIC_ADMIN_TOKEN || '',
+    },
+  });
   if (!response.ok) {
     throw new Error('Failed to fetch prompts');
   }
@@ -44,7 +55,10 @@ async function fetchPrompts(): Promise<{ prompts: Prompt[] }> {
 async function createPrompt(data: PromptFormData): Promise<{ prompt_id: string }> {
   const response = await fetch('/api/admin/prompts', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'X-Admin-Token': process.env.NEXT_PUBLIC_ADMIN_TOKEN || '',
+    },
     body: JSON.stringify(data),
   });
   if (!response.ok) {
@@ -56,7 +70,10 @@ async function createPrompt(data: PromptFormData): Promise<{ prompt_id: string }
 async function updatePrompt(id: string, data: Partial<PromptFormData>): Promise<{ message: string }> {
   const response = await fetch(`/api/admin/prompts/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'X-Admin-Token': process.env.NEXT_PUBLIC_ADMIN_TOKEN || '',
+    },
     body: JSON.stringify(data),
   });
   if (!response.ok) {
@@ -68,6 +85,9 @@ async function updatePrompt(id: string, data: Partial<PromptFormData>): Promise<
 async function deletePrompt(id: string): Promise<{ message: string }> {
   const response = await fetch(`/api/admin/prompts/${id}`, {
     method: 'DELETE',
+    headers: {
+      'X-Admin-Token': process.env.NEXT_PUBLIC_ADMIN_TOKEN || '',
+    },
   });
   if (!response.ok) {
     throw new Error('Failed to delete prompt');
@@ -76,6 +96,9 @@ async function deletePrompt(id: string): Promise<{ message: string }> {
 }
 
 export default function AdminPromptsPage() {
+  const { user, isLoading: authLoading } = useUser();
+  const router = useRouter();
+
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -90,10 +113,27 @@ export default function AdminPromptsPage() {
     metadata: {},
   });
 
+  // Auth check
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (!user) {
+      router.push('/api/auth/login?returnTo=/admin/prompts');
+      return;
+    }
+
+    const roles = ((user as UserWithRoles)?.['https://ai-job-hunter/roles'] || []) as string[];
+    if (!roles.includes('admin') && !roles.includes('power_user') && !roles.includes('recruiter')) {
+      router.push('/dashboard');
+      return;
+    }
+  }, [user, authLoading, router]);
+
   // Load prompts on component mount
   useEffect(() => {
+    if (authLoading || !user) return;
     loadPrompts();
-  }, []);
+  }, [authLoading, user]);
 
   const loadPrompts = async () => {
     try {

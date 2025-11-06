@@ -6,18 +6,31 @@ import { getApiBaseUrl } from "@/lib/api";
 async function proxy(request: NextRequest, init?: RequestInit) {
   // Get the user's session
   const session = await getSession(request, new NextResponse());
-  if (!session?.accessToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  
+  const apiBaseUrl = getApiBaseUrl();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  // Try JWT first if available
+  if (session?.accessToken) {
+    headers["Authorization"] = `Bearer ${session.accessToken}`;
+  }
+  
+  // Always include X-Admin-Token as fallback
+  const adminToken = process.env.ADMIN_API_KEY || process.env.NEXT_PUBLIC_ADMIN_TOKEN;
+  if (adminToken) {
+    headers["X-Admin-Token"] = adminToken;
   }
 
-  const apiBaseUrl = getApiBaseUrl();
+  // Add any additional headers from init
+  if (init?.headers) {
+    Object.assign(headers, init.headers as Record<string, string>);
+  }
+
   const response = await fetch(`${apiBaseUrl}/admin/llm/settings`, {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${session.accessToken}`,
-      ...(init?.headers ?? {}),
-    },
+    headers,
     cache: "no-store",
   });
 

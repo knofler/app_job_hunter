@@ -1,18 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@auth0/nextjs-auth0";
-
-import { getApiBaseUrl } from "@/lib/api";
 
 async function proxy(request: NextRequest, init?: RequestInit) {
-  const apiBaseUrl = getApiBaseUrl();
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://backend:8000';
   const url = new URL(request.url);
   const promptId = url.pathname.split('/').pop();
-
-  // Get the user's session
-  const session = await getSession(request, new NextResponse());
-  if (!session?.accessToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
   // Handle different routes
   let endpoint = `${apiBaseUrl}/prompts`;
@@ -20,13 +11,24 @@ async function proxy(request: NextRequest, init?: RequestInit) {
     endpoint += `/${promptId}`;
   }
 
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  // Always include X-Admin-Token as fallback
+  const adminToken = process.env.NEXT_PUBLIC_ADMIN_TOKEN || 'fallback-token-change-in-prod';
+  if (adminToken) {
+    headers["X-Admin-Token"] = adminToken;
+  }
+
+  // Add any additional headers from init
+  if (init?.headers) {
+    Object.assign(headers, init.headers as Record<string, string>);
+  }
+
   const response = await fetch(endpoint, {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${session.accessToken}`,
-      ...(init?.headers ?? {}),
-    },
+    headers,
     cache: "no-store",
   });
 
