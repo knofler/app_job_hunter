@@ -26,12 +26,14 @@ const NAV_ITEMS: Record<Persona, NavItem[]> = {
   ],
   recruiter: [
     { label: "Recruiter Dashboard", href: "/recruiters/dashboard" },
+    { label: "Upload JD", href: "/recruiters/upload-jd" },
     { label: "Recruiter AI", href: "/recruiters/ai-workflow" },
     { label: "Candidates", href: "/candidates" },
     { label: "Jobs", href: "/jobs" },
   ],
   admin: [
     { label: "LLM Settings", href: "/admin/llm" },
+    { label: "AI Prompts", href: "/admin/prompts" },
     { label: "Recruiter Dashboard", href: "/recruiters/dashboard" },
     { label: "Candidates", href: "/candidates" },
   ],
