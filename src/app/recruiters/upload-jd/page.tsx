@@ -274,13 +274,19 @@ export default function RecruiterJobUploadPage() {
                     <p className="text-sm text-green-700 font-medium mb-2">{job.budget}</p>
                   )}
                   <div className="flex flex-wrap gap-1">
-                    {job.skills.slice(0, 3).map(skill => (
-                      <span key={skill} className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
-                        {skill}
-                      </span>
-                    ))}
-                    {job.skills.length > 3 && (
-                      <span className="text-xs text-gray-500">+{job.skills.length - 3} more</span>
+                    {job.skills && job.skills.length > 0 ? (
+                      <>
+                        {job.skills.slice(0, 3).map(skill => (
+                          <span key={skill} className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                            {skill}
+                          </span>
+                        ))}
+                        {job.skills.length > 3 && (
+                          <span className="text-xs text-gray-500">+{job.skills.length - 3} more</span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-xs text-gray-500">No skills specified</span>
                     )}
                   </div>
                 </div>

@@ -216,7 +216,7 @@ export default function ResumePage() {
 
 		try {
 			const formData = new FormData();
-			formData.append("candidate_id", candidateId);
+			formData.append("user_id", candidateId);
 			formData.append("name", uploadName.trim());
 			formData.append("file", uploadFile);
 			if (uploadSummary.trim()) {
