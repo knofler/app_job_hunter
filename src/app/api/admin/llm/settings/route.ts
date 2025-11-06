@@ -1,15 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSession } from "@auth0/nextjs-auth0";
 
 import { getApiBaseUrl } from "@/lib/api";
-const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 
 async function proxy(request: NextRequest, init?: RequestInit) {
+  // Get the user's session
+  const session = await getSession(request, new NextResponse());
+  if (!session?.accessToken) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const apiBaseUrl = getApiBaseUrl();
   const response = await fetch(`${apiBaseUrl}/admin/llm/settings`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      ...(ADMIN_API_KEY ? { "X-Admin-Token": ADMIN_API_KEY } : {}),
+      "Authorization": `Bearer ${session.accessToken}`,
       ...(init?.headers ?? {}),
     },
     cache: "no-store",
