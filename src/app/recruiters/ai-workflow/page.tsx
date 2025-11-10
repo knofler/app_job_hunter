@@ -169,7 +169,7 @@ export default function RecruiterAIWorkflowPage() {
     }
     const selectedJob = jobDescriptions.find(job => job.id === selectedJobId);
     if (selectedJob) {
-      setJobDescription(selectedJob.description);
+      setJobDescription(selectedJob.description || "");
       setJobTitle(selectedJob.title);
       setJobCode(selectedJob.code || "");
     }
@@ -225,9 +225,9 @@ export default function RecruiterAIWorkflowPage() {
     }
     const searchLower = jobDescriptionSearch.toLowerCase();
     return jobDescriptions.filter(job =>
-      job.title.toLowerCase().includes(searchLower) ||
-      job.company.toLowerCase().includes(searchLower) ||
-      job.description.toLowerCase().includes(searchLower)
+      (job.title && typeof job.title === 'string' && job.title.toLowerCase().includes(searchLower)) ||
+      (job.company && typeof job.company === 'string' && job.company.toLowerCase().includes(searchLower)) ||
+      (job.description && typeof job.description === 'string' && job.description.toLowerCase().includes(searchLower))
     );
   }, [jobDescriptions, jobDescriptionSearch]);
 
@@ -241,17 +241,17 @@ export default function RecruiterAIWorkflowPage() {
     return candidates.filter(candidate => {
       // Always check candidate metadata
       const candidateMatches = 
-        candidate.name.toLowerCase().includes(searchLower) ||
-        candidate.primary_role?.toLowerCase().includes(searchLower) ||
-        candidate.candidate_type?.toLowerCase().includes(searchLower) ||
-        candidate.preferred_locations?.some(location => location.toLowerCase().includes(searchLower));
+        (candidate.name && typeof candidate.name === 'string' && candidate.name.toLowerCase().includes(searchLower)) ||
+        (candidate.primary_role && typeof candidate.primary_role === 'string' && candidate.primary_role.toLowerCase().includes(searchLower)) ||
+        (candidate.candidate_type && typeof candidate.candidate_type === 'string' && candidate.candidate_type.toLowerCase().includes(searchLower)) ||
+        (candidate.preferred_locations && candidate.preferred_locations.some(location => location && typeof location === 'string' && location.toLowerCase().includes(searchLower)));
       
       // If this candidate is selected and we have their resumes loaded, also check resume content
       if (candidate.candidate_id === selectedCandidateId) {
         const resumeMatches = resumes.some(resume =>
-          resume.name.toLowerCase().includes(searchLower) ||
-          (resume.summary && resume.summary.toLowerCase().includes(searchLower)) ||
-          (resume.skills && resume.skills.some(skill => skill.toLowerCase().includes(searchLower)))
+          (resume.name && typeof resume.name === 'string' && resume.name.toLowerCase().includes(searchLower)) ||
+          (resume.summary && typeof resume.summary === 'string' && resume.summary.toLowerCase().includes(searchLower)) ||
+          (resume.skills && resume.skills.some(skill => skill && typeof skill === 'string' && skill.toLowerCase().includes(searchLower)))
         );
         return candidateMatches || resumeMatches;
       }
@@ -266,9 +266,9 @@ export default function RecruiterAIWorkflowPage() {
     }
     const searchLower = resumeSearch.toLowerCase();
     return resumes.filter(resume =>
-      resume.name.toLowerCase().includes(searchLower) ||
-      (resume.summary && resume.summary.toLowerCase().includes(searchLower)) ||
-      (resume.skills && resume.skills.some(skill => skill.toLowerCase().includes(searchLower)))
+      (resume.name && typeof resume.name === 'string' && resume.name.toLowerCase().includes(searchLower)) ||
+      (resume.summary && typeof resume.summary === 'string' && resume.summary.toLowerCase().includes(searchLower)) ||
+      (resume.skills && resume.skills.some(skill => skill && typeof skill === 'string' && skill.toLowerCase().includes(searchLower)))
     );
   }, [resumes, resumeSearch]);
 
@@ -622,7 +622,7 @@ export default function RecruiterAIWorkflowPage() {
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-gray-900 truncate">{job.title}</p>
                             <p className="text-xs text-gray-600 truncate">{job.company} • {job.location}</p>
-                            <p className="text-xs text-gray-500 mt-1 overflow-hidden" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>{job.description.substring(0, 150)}{job.description.length > 150 ? '...' : ''}</p>
+                            <p className="text-xs text-gray-500 mt-1 overflow-hidden" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>{job.description ? `${job.description.substring(0, 150)}${job.description.length > 150 ? '...' : ''}` : 'No description available'}</p>
                           </div>
                           <div className="text-right text-xs text-gray-500"><p>{new Date(job.updated_at).toLocaleDateString()}</p></div>
                         </div>
@@ -886,13 +886,15 @@ export default function RecruiterAIWorkflowPage() {
           {markdownAnalysis && (
             <div className="prose prose-sm max-w-none text-gray-800">
               {markdownAnalysis.split('\n').map((line, idx) => {
-                if (line.startsWith('### ')) {
+                if (!line || typeof line !== 'string') return null;
+                
+                if (line.startsWith('### ') && line.length > 4) {
                   return <h3 key={idx} className="text-lg font-semibold text-gray-900 mt-4 mb-2">{line.substring(4)}</h3>;
-                } else if (line.startsWith('## ')) {
+                } else if (line.startsWith('## ') && line.length > 3) {
                   return <h2 key={idx} className="text-xl font-bold text-gray-900 mt-6 mb-3">{line.substring(3)}</h2>;
-                } else if (line.startsWith('# ')) {
+                } else if (line.startsWith('# ') && line.length > 2) {
                   return <h1 key={idx} className="text-2xl font-bold text-gray-900 mt-8 mb-4">{line.substring(2)}</h1>;
-                } else if (line.startsWith('- ')) {
+                } else if (line.startsWith('- ') && line.length > 2) {
                   return <li key={idx} className="ml-4 text-gray-700">{line.substring(2)}</li>;
                 } else if (line.trim() === '') {
                   return <br key={idx} />;

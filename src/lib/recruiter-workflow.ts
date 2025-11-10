@@ -157,7 +157,7 @@ export async function generateRecruiterWorkflow(
 }
 
 export async function listJobDescriptions(page: number = 1, pageSize: number = 25): Promise<JobListResponse> {
-  return fetchFromApi<JobListResponse>(`/jobs?page=${page}&page_size=${pageSize}`);
+  return fetchFromApi<JobListResponse>(`/jobs/descriptions?page=${page}&page_size=${pageSize}`);
 }
 
 export async function getJobDescription(jobId: string): Promise<JobDescription> {
