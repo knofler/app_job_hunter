@@ -36,6 +36,14 @@ function buildHeaders(init?: RequestInit): Headers {
     headers.set("Content-Type", "application/json");
   }
 
+  // Automatically add admin token for admin routes
+  if (!headers.has("X-Admin-Token")) {
+    const adminToken = process.env.NEXT_PUBLIC_ADMIN_TOKEN;
+    if (adminToken) {
+      headers.set("X-Admin-Token", adminToken);
+    }
+  }
+
   return headers;
 }
 

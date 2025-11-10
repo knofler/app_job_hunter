@@ -4,6 +4,8 @@ import { useUser } from '@auth0/nextjs-auth0/client';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useState } from "react";
 
+import { fetchFromApi } from "@/lib/api";
+
 interface UserWithRoles {
   [key: string]: unknown;
   'https://ai-job-hunter/roles'?: string[];
@@ -41,62 +43,28 @@ const CATEGORIES = [
 ];
 
 async function fetchPrompts(): Promise<{ prompts: Prompt[] }> {
-  const response = await fetch('/api/admin/prompts', {
-    headers: {
-      'X-Admin-Token': process.env.NEXT_PUBLIC_ADMIN_TOKEN || '',
-    },
-  });
-  if (!response.ok) {
-    throw new Error('Failed to fetch prompts');
-  }
-  return response.json();
+  return fetchFromApi<{ prompts: Prompt[] }>('/api/admin/prompts');
 }
 
 async function createPrompt(data: PromptFormData): Promise<{ prompt_id: string }> {
-  const response = await fetch('/api/admin/prompts', {
+  return fetchFromApi<{ prompt_id: string }>('/api/admin/prompts', {
     method: 'POST',
-    headers: { 
-      'Content-Type': 'application/json',
-      'X-Admin-Token': process.env.NEXT_PUBLIC_ADMIN_TOKEN || '',
-    },
     body: JSON.stringify(data),
   });
-  if (!response.ok) {
-    throw new Error('Failed to create prompt');
-  }
-  return response.json();
 }
 
 async function updatePrompt(id: string, data: Partial<PromptFormData>): Promise<{ message: string }> {
   console.log('Updating prompt:', id, 'with data:', data);
-  const response = await fetch(`/api/admin/prompts/${id}`, {
+  return fetchFromApi<{ message: string }>(`/api/admin/prompts/${id}`, {
     method: 'PUT',
-    headers: { 
-      'Content-Type': 'application/json',
-      'X-Admin-Token': process.env.NEXT_PUBLIC_ADMIN_TOKEN || '',
-    },
     body: JSON.stringify(data),
   });
-  console.log('Response status:', response.status, 'ok:', response.ok);
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Response error:', errorText);
-    throw new Error(`Failed to update prompt: ${response.status} ${errorText}`);
-  }
-  return response.json();
 }
 
 async function deletePrompt(id: string): Promise<{ message: string }> {
-  const response = await fetch(`/api/admin/prompts/${id}`, {
+  return fetchFromApi<{ message: string }>(`/api/admin/prompts/${id}`, {
     method: 'DELETE',
-    headers: {
-      'X-Admin-Token': process.env.NEXT_PUBLIC_ADMIN_TOKEN || '',
-    },
   });
-  if (!response.ok) {
-    throw new Error('Failed to delete prompt');
-  }
-  return response.json();
 }
 
 export default function AdminPromptsPage() {

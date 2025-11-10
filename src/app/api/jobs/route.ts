@@ -1,21 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL_INTERNAL || "http://backend:8000";
-const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const queryString = searchParams.toString();
-    const backendUrl = `${BACKEND_URL}/candidates${queryString ? `?${queryString}` : ""}`;
+    const backendUrl = `${BACKEND_URL}/jobs${queryString ? `?${queryString}` : ""}`;
 
-    console.log(`[API Proxy] GET /api/candidates -> ${backendUrl}`);
+    console.log(`[API Proxy] GET /api/jobs -> ${backendUrl}`);
 
     const response = await fetch(backendUrl, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        ...(ADMIN_API_KEY ? { "X-Admin-Token": ADMIN_API_KEY } : {}),
+        ...Object.fromEntries(request.headers.entries()),
       },
     });
 
@@ -28,13 +27,13 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
-    console.log(`[API Proxy] Success: ${data.items?.length || 0} candidates returned`);
+    console.log(`[API Proxy] Success: ${data.items?.length || 0} jobs returned`);
 
     return NextResponse.json(data);
   } catch (error) {
     console.error("[API Proxy] Error proxying to backend:", error);
     return NextResponse.json(
-      { error: "Failed to fetch candidates from backend" },
+      { error: "Failed to fetch jobs from backend" },
       { status: 500 }
     );
   }

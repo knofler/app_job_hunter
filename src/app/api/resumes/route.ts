@@ -1,22 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL_INTERNAL || "http://backend:8000";
-const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const queryString = searchParams.toString();
-    const backendUrl = `${BACKEND_URL}/candidates${queryString ? `?${queryString}` : ""}`;
+    const backendUrl = `${BACKEND_URL}/resumes/`;
 
-    console.log(`[API Proxy] GET /api/candidates -> ${backendUrl}`);
+    console.log(`[API Proxy] POST /api/resumes/ -> ${backendUrl}`);
+
+    // Forward the FormData as-is
+    const formData = await request.formData();
 
     const response = await fetch(backendUrl, {
-      method: "GET",
+      method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        ...(ADMIN_API_KEY ? { "X-Admin-Token": ADMIN_API_KEY } : {}),
+        ...(process.env.NEXT_PUBLIC_ADMIN_TOKEN ? { "X-Admin-Token": process.env.NEXT_PUBLIC_ADMIN_TOKEN } : {}),
       },
+      body: formData,
     });
 
     if (!response.ok) {
@@ -28,13 +28,13 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
-    console.log(`[API Proxy] Success: ${data.items?.length || 0} candidates returned`);
+    console.log(`[API Proxy] Success: Resume uploaded`);
 
     return NextResponse.json(data);
   } catch (error) {
     console.error("[API Proxy] Error proxying to backend:", error);
     return NextResponse.json(
-      { error: "Failed to fetch candidates from backend" },
+      { error: "Failed to upload resume" },
       { status: 500 }
     );
   }

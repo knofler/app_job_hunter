@@ -1174,13 +1174,40 @@ export default function RecruiterAIWorkflowPage() {
             </div>
           )}
           {!isGenerating && displayFairness.length === 0 && <p className="text-sm text-gray-500">Run the workflow to receive panel guidance.</p>}
-          {displayFairness.map(item => (
-            <div key={item.label} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-semibold text-gray-900">{item.label}</p>
-              <p className="mt-1 text-sm text-gray-700">{item.value}</p>
-              {item.helper && <p className="mt-2 text-xs text-gray-500">{item.helper}</p>}
-            </div>
-          ))}
+          {displayFairness.map(item => {
+            // Color coding based on content type - using consistent color scheme with skill alignment
+            const getCardStyle = (label: string) => {
+              if (label.toLowerCase().includes('bias') || label.toLowerCase().includes('fairness') || label.toLowerCase().includes('diversity')) {
+                return 'border-emerald-200 bg-emerald-50'; // Green for fairness/bias related (consistent with Yes status)
+              } else if (label.toLowerCase().includes('panel') || label.toLowerCase().includes('guidance')) {
+                return 'border-blue-200 bg-blue-50'; // Blue for guidance
+              } else if (label.toLowerCase().includes('risk') || label.toLowerCase().includes('caution')) {
+                return 'border-amber-200 bg-amber-50'; // Amber for risks/cautions (consistent with Partial status)
+              } else {
+                return 'border-gray-200 bg-white'; // Default gray
+              }
+            };
+
+            const getTextStyle = (label: string) => {
+              if (label.toLowerCase().includes('bias') || label.toLowerCase().includes('fairness') || label.toLowerCase().includes('diversity')) {
+                return 'text-emerald-800'; // Emerald text for fairness/bias (consistent with Yes status)
+              } else if (label.toLowerCase().includes('panel') || label.toLowerCase().includes('guidance')) {
+                return 'text-blue-800'; // Blue text for guidance
+              } else if (label.toLowerCase().includes('risk') || label.toLowerCase().includes('caution')) {
+                return 'text-amber-800'; // Amber text for risks/cautions (consistent with Partial status)
+              } else {
+                return 'text-gray-900'; // Default gray text
+              }
+            };
+
+            return (
+              <div key={item.label} className={`rounded-2xl border p-5 shadow-sm ${getCardStyle(item.label)}`}>
+                <p className={`text-sm font-semibold ${getTextStyle(item.label)}`}>{item.label}</p>
+                <p className={`mt-1 text-sm ${getTextStyle(item.label).replace('800', '700')}`}>{item.value}</p>
+                {item.helper && <p className="mt-2 text-xs text-gray-500">{item.helper}</p>}
+              </div>
+            );
+          })}
         </div>
       </section>
 
