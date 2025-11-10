@@ -52,20 +52,23 @@ async function proxy(request: NextRequest, init?: RequestInit, promptId?: string
   }
 }
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
-  return proxy(request, undefined, params.id);
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return proxy(request, undefined, id);
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const payload = await request.text();
   return proxy(request, {
     method: "PUT",
     body: payload,
-  }, params.id);
+  }, id);
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   return proxy(request, {
     method: "DELETE",
-  }, params.id);
+  }, id);
 }
