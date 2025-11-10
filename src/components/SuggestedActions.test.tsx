@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-require-imports */
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import SuggestedActions from './SuggestedActions';

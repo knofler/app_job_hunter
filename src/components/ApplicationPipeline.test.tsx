@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-require-imports */
 /// <reference types="jest" />
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
@@ -37,7 +35,7 @@ describe('ApplicationPipeline', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseCandidateScope.mockReturnValue({ candidateId: null });
-    // @ts-expect-error
+    // @ts-expect-error: Mocking global fetchFromApi for testing
     global.fetchFromApi = mockFetchFromApi;
   });
 
