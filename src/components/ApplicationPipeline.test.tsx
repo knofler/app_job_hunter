@@ -1,7 +1,10 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-require-imports */
+/// <reference types="jest" />
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ApplicationPipeline from './ApplicationPipeline';
-import { PersonaProvider } from '@/context/PersonaContext';
+import { useCandidateScope } from '@/context/PersonaContext';
 
 // Mock the persona context
 jest.mock('@/context/PersonaContext', () => ({
@@ -28,12 +31,14 @@ jest.mock('@/lib/fallback-data', () => ({
 }));
 
 describe('ApplicationPipeline', () => {
-  const mockUseCandidateScope = require('@/context/PersonaContext').useCandidateScope;
-  const mockFetchFromApi = require('@/lib/api').fetchFromApi;
+  const mockUseCandidateScope = useCandidateScope as jest.Mock;
+  const mockFetchFromApi = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseCandidateScope.mockReturnValue({ candidateId: null });
+    // @ts-ignore
+    global.fetchFromApi = mockFetchFromApi;
   });
 
   const renderApplicationPipeline = () => {

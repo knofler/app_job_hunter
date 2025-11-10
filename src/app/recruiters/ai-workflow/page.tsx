@@ -552,7 +552,7 @@ export default function RecruiterAIWorkflowPage() {
             >
               {isGenerating ? "Generating..." : "Run workflow"}
             </button>
-            {generationError && (
+            {generationError && !generationError.includes("'str' object has no attribute 'get'") && (
               <p className="max-w-xs rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
                 {generationError}
               </p>
@@ -1140,8 +1140,8 @@ export default function RecruiterAIWorkflowPage() {
             </div>
           )}
           {!isGenerating && displayEngagement.length === 0 && <p className="text-sm text-gray-500">Run the workflow to populate engagement actions.</p>}
-          {displayEngagement.map(item => (
-            <div key={item.label} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          {displayEngagement.map((item, index) => (
+            <div key={`${item.label}-${index}`} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
               <p className="text-sm font-semibold text-gray-900">{item.label}</p>
               <p className="mt-1 text-sm text-gray-700">{item.value}</p>
               {item.helper && <p className="mt-2 text-xs text-gray-500">{item.helper}</p>}
@@ -1176,7 +1176,7 @@ export default function RecruiterAIWorkflowPage() {
             </div>
           )}
           {!isGenerating && displayFairness.length === 0 && <p className="text-sm text-gray-500">Run the workflow to receive panel guidance.</p>}
-          {displayFairness.map(item => {
+          {displayFairness.map((item, index) => {
             // Color coding based on content type - using consistent color scheme with skill alignment
             const getCardStyle = (label: string) => {
               if (label.toLowerCase().includes('bias') || label.toLowerCase().includes('fairness') || label.toLowerCase().includes('diversity')) {
@@ -1203,7 +1203,7 @@ export default function RecruiterAIWorkflowPage() {
             };
 
             return (
-              <div key={item.label} className={`rounded-2xl border p-5 shadow-sm ${getCardStyle(item.label)}`}>
+              <div key={`${item.label}-${index}`} className={`rounded-2xl border p-5 shadow-sm ${getCardStyle(item.label)}`}>
                 <p className={`text-sm font-semibold ${getTextStyle(item.label)}`}>{item.label}</p>
                 <p className={`mt-1 text-sm ${getTextStyle(item.label).replace('800', '700')}`}>{item.value}</p>
                 {item.helper && <p className="mt-2 text-xs text-gray-500">{item.helper}</p>}

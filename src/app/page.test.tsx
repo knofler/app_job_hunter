@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { UserProvider } from '@auth0/nextjs-auth0/client';
+import { useUser } from '@auth0/nextjs-auth0/client';
 import Page from './page';
 
 // Mock the useUser hook
@@ -17,7 +17,7 @@ jest.mock('next/navigation', () => ({
 }));
 
 describe('Home Page', () => {
-  const mockUseUser = require('@auth0/nextjs-auth0/client').useUser;
+  const mockUseUser = useUser as jest.Mock;
 
   beforeEach(() => {
     mockUseUser.mockReturnValue({

@@ -1,7 +1,10 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-require-imports */
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { UserProvider } from '@auth0/nextjs-auth0/client';
 import { useRouter, usePathname } from 'next/navigation';
+import { useUser, UserProvider } from '@auth0/nextjs-auth0/client';
+import { usePersona } from '@/context/PersonaContext';
 import NavBar from './NavBar';
 
 // Mock Next.js navigation hooks
@@ -22,9 +25,9 @@ jest.mock('@/context/PersonaContext', () => ({
   PersonaProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
-const mockUsePathname = usePathname as jest.MockedFunction<typeof usePathname>;
-const mockUsePersona = require('@/context/PersonaContext').usePersona;
+const mockUseRouter = useRouter as jest.Mock;
+const mockUsePathname = usePathname as jest.Mock;
+const mockUsePersona = usePersona as jest.Mock;
 
 describe('NavBar', () => {
   const mockRouter = {

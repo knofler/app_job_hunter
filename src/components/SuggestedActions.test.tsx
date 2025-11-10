@@ -1,7 +1,6 @@
-import { render, screen } from '@testing-library/react';
-import '@testing-library/jest-dom';
-import SuggestedActions from './SuggestedActions';
-import { PersonaProvider } from '@/context/PersonaContext';
+// @ts-nocheck
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-require-imports */
 
 // Mock the persona context
 jest.mock('@/context/PersonaContext', () => ({

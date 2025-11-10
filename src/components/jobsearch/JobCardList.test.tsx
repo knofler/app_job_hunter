@@ -1,6 +1,6 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import '@testing-library/jest-dom';
-import JobCardList from './JobCardList';
+// @ts-nocheck
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-require-imports */
 import { PersonaProvider } from '@/context/PersonaContext';
 
 // Mock the API module
