@@ -1,4 +1,3 @@
-// @ts-nocheck
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-require-imports */
 import { render, screen } from '@testing-library/react';
@@ -36,7 +35,7 @@ describe('ResumeHealthCard', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseCandidateScope.mockReturnValue({ candidateId: null });
-    // @ts-ignore
+    // @ts-expect-error
     global.fetchFromApi = mockFetchFromApi;
   });
 

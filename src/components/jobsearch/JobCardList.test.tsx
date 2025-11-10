@@ -1,7 +1,9 @@
-// @ts-nocheck
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-require-imports */
-import { PersonaProvider } from '@/context/PersonaContext';
+import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import JobCardList from './JobCardList';
+import { PersonaProvider, useCandidateScope } from '@/context/PersonaContext';
 
 // Mock the API module
 jest.mock('@/lib/api', () => ({
@@ -41,8 +43,8 @@ global.IntersectionObserver = jest.fn().mockImplementation(() => ({
   unobserve: jest.fn(),
 }));
 
-const mockUseCandidateScope = require('@/context/PersonaContext').useCandidateScope;
-const mockFetchFromApi = require('@/lib/api').fetchFromApi;
+const mockUseCandidateScope = useCandidateScope as jest.Mock;
+const mockFetchFromApi = jest.fn();
 
 describe('JobCardList', () => {
   const defaultFilters = {

@@ -1,8 +1,9 @@
-// @ts-nocheck
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-require-imports */
-
-// Mock the persona context
+import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import SuggestedActions from './SuggestedActions';
+import { useCandidateScope } from '@/context/PersonaContext';
 jest.mock('@/context/PersonaContext', () => ({
   PersonaProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   useCandidateScope: jest.fn(),
@@ -32,8 +33,8 @@ jest.mock('@/lib/fallback-data', () => ({
 }));
 
 describe('SuggestedActions', () => {
-  const mockFetchFromApi = require('@/lib/api').fetchFromApi;
-  const mockUseCandidateScope = require('@/context/PersonaContext').useCandidateScope;
+  const mockFetchFromApi = jest.fn();
+  const mockUseCandidateScope = useCandidateScope as jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();

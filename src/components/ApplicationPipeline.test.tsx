@@ -37,7 +37,7 @@ describe('ApplicationPipeline', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseCandidateScope.mockReturnValue({ candidateId: null });
-    // @ts-ignore
+    // @ts-expect-error
     global.fetchFromApi = mockFetchFromApi;
   });
 
