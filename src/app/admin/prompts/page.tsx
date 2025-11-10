@@ -2,7 +2,7 @@
 
 import { useUser } from '@auth0/nextjs-auth0/client';
 import { useRouter } from 'next/navigation';
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 
 interface UserWithRoles {
   [key: string]: unknown;
@@ -68,6 +68,7 @@ async function createPrompt(data: PromptFormData): Promise<{ prompt_id: string }
 }
 
 async function updatePrompt(id: string, data: Partial<PromptFormData>): Promise<{ message: string }> {
+  console.log('Updating prompt:', id, 'with data:', data);
   const response = await fetch(`/api/admin/prompts/${id}`, {
     method: 'PUT',
     headers: { 
@@ -76,8 +77,11 @@ async function updatePrompt(id: string, data: Partial<PromptFormData>): Promise<
     },
     body: JSON.stringify(data),
   });
+  console.log('Response status:', response.status, 'ok:', response.ok);
   if (!response.ok) {
-    throw new Error('Failed to update prompt');
+    const errorText = await response.text();
+    console.error('Response error:', errorText);
+    throw new Error(`Failed to update prompt: ${response.status} ${errorText}`);
   }
   return response.json();
 }
@@ -112,6 +116,9 @@ export default function AdminPromptsPage() {
     variables: {},
     metadata: {},
   });
+
+  // Add ref for scrolling to edit form
+  const editFormRef = useRef<HTMLDivElement>(null);
 
   // Auth check
   useEffect(() => {
@@ -219,6 +226,10 @@ export default function AdminPromptsPage() {
       variables: prompt.variables,
       metadata: prompt.metadata,
     });
+    // Scroll to the edit form after a brief delay to allow DOM update
+    setTimeout(() => {
+      editFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
   };
 
   const cancelEdit = () => {
@@ -268,9 +279,9 @@ export default function AdminPromptsPage() {
       </div>
 
       {(showCreateForm || editingPrompt) && (
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div ref={editFormRef} className="rounded-2xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            {editingPrompt ? 'Edit Prompt' : 'Create New Prompt'}
+            {editingPrompt ? `Edit Prompt: ${editingPrompt.name}` : 'Create New Prompt'}
           </h3>
           <form onSubmit={editingPrompt ? handleUpdate : handleCreate} className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
@@ -279,7 +290,7 @@ export default function AdminPromptsPage() {
                 <input
                   type="text"
                   required
-                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="core_skill_analysis"
@@ -289,7 +300,7 @@ export default function AdminPromptsPage() {
                 Category
                 <select
                   required
-                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   value={formData.category}
                   onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
                 >
@@ -303,8 +314,8 @@ export default function AdminPromptsPage() {
               Content
               <textarea
                 required
-                rows={10}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono"
+                rows={12}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 value={formData.content}
                 onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
                 placeholder="Enter the AI prompt content..."
@@ -313,14 +324,14 @@ export default function AdminPromptsPage() {
             <div className="flex gap-3">
               <button
                 type="submit"
-                className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+                className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
                 {editingPrompt ? 'Update Prompt' : 'Create Prompt'}
               </button>
               <button
                 type="button"
                 onClick={cancelEdit}
-                className="inline-flex items-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
+                className="inline-flex items-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
               >
                 Cancel
               </button>
@@ -331,19 +342,30 @@ export default function AdminPromptsPage() {
 
       <div className="space-y-4">
         {prompts.map(prompt => (
-          <div key={prompt.id} className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div key={prompt.id} className={`rounded-2xl border bg-white p-6 shadow-sm transition-all ${
+            editingPrompt?.id === prompt.id ? 'ring-2 ring-blue-500 border-blue-300' : 'border-gray-200'
+          }`}>
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">{prompt.name}</h3>
                 <p className="text-sm text-gray-600">Category: {prompt.category}</p>
                 <p className="text-xs text-gray-500">Version: {prompt.version} | Updated: {new Date(prompt.updated_at).toLocaleDateString()}</p>
+                {editingPrompt?.id === prompt.id && (
+                  <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 mt-2">
+                    Currently Editing
+                  </span>
+                )}
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => startEdit(prompt)}
-                  className="inline-flex items-center rounded-lg border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
+                  className={`inline-flex items-center rounded-lg border px-3 py-1 text-xs font-semibold shadow-sm transition ${
+                    editingPrompt?.id === prompt.id
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
                 >
-                  Edit
+                  {editingPrompt?.id === prompt.id ? 'Editing...' : 'Edit'}
                 </button>
                 <button
                   onClick={() => handleDelete(prompt.id)}

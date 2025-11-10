@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 
-async function proxy(request: NextRequest, init?: RequestInit) {
+async function proxy(request: NextRequest, init?: RequestInit, promptId?: string) {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://backend:8000';
   
-  // Build the backend endpoint for the base prompts path
-  const endpoint = `${apiBaseUrl}/api/admin/prompts`;
+  // Build the backend endpoint
+  let endpoint = `${apiBaseUrl}/api/admin/prompts`;
+  if (promptId) {
+    endpoint += `/${promptId}`;
+  }
 
   console.log('Proxy request:', {
     method: init?.method || 'GET',
     frontendUrl: request.url,
     backendEndpoint: endpoint,
+    promptId,
     apiBaseUrl
   });
 
@@ -48,14 +52,20 @@ async function proxy(request: NextRequest, init?: RequestInit) {
   }
 }
 
-export async function GET(request: NextRequest) {
-  return proxy(request);
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+  return proxy(request, undefined, params.id);
 }
 
-export async function POST(request: NextRequest) {
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   const payload = await request.text();
   return proxy(request, {
-    method: "POST",
+    method: "PUT",
     body: payload,
-  });
+  }, params.id);
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  return proxy(request, {
+    method: "DELETE",
+  }, params.id);
 }
