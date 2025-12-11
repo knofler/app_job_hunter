@@ -7,6 +7,12 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get('state');
 
   console.log('Auth0 callback received:', { code: !!code, error, state });
+  console.log('Environment check:', {
+    AUTH0_BASE_URL: process.env.AUTH0_BASE_URL,
+    AUTH0_ISSUER_BASE_URL: process.env.AUTH0_ISSUER_BASE_URL,
+    AUTH0_CLIENT_ID: !!process.env.AUTH0_CLIENT_ID,
+    AUTH0_CLIENT_SECRET: !!process.env.AUTH0_CLIENT_SECRET,
+  });
 
   if (error) {
     console.error('Auth0 callback error:', error);
@@ -18,6 +24,13 @@ export async function GET(request: NextRequest) {
     console.error('No authorization code received');
     const redirectUrl = process.env.AUTH0_BASE_URL || 'http://localhost:3010';
     return NextResponse.redirect(`${redirectUrl}/`);
+  }
+
+  // Check required environment variables
+  if (!process.env.AUTH0_ISSUER_BASE_URL || !process.env.AUTH0_CLIENT_ID || !process.env.AUTH0_CLIENT_SECRET) {
+    console.error('Missing required Auth0 environment variables');
+    const redirectUrl = process.env.AUTH0_BASE_URL || 'http://localhost:3010';
+    return NextResponse.redirect(`${redirectUrl}/?error=missing_env_vars`);
   }
 
   try {
