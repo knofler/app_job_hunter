@@ -14,32 +14,29 @@ export async function GET(request: NextRequest) {
     AUTH0_CLIENT_SECRET: !!process.env.AUTH0_CLIENT_SECRET,
   });
 
+  // Ensure base URL has protocol
+  let baseUrl = process.env.AUTH0_BASE_URL || 'http://localhost:3000';
+  if (!baseUrl.startsWith('http')) {
+    baseUrl = `https://${baseUrl}`;
+  }
+
   if (error) {
     console.error('Auth0 callback error:', error);
-    const redirectUrl = process.env.AUTH0_BASE_URL || 'http://localhost:3010';
-    return NextResponse.redirect(`${redirectUrl}/`);
+    return NextResponse.redirect(`${baseUrl}/`);
   }
 
   if (!code) {
     console.error('No authorization code received');
-    const redirectUrl = process.env.AUTH0_BASE_URL || 'http://localhost:3010';
-    return NextResponse.redirect(`${redirectUrl}/`);
+    return NextResponse.redirect(`${baseUrl}/`);
   }
 
   // Check required environment variables
   if (!process.env.AUTH0_ISSUER_BASE_URL || !process.env.AUTH0_CLIENT_ID || !process.env.AUTH0_CLIENT_SECRET) {
     console.error('Missing required Auth0 environment variables');
-    const redirectUrl = process.env.AUTH0_BASE_URL || 'http://localhost:3010';
-    return NextResponse.redirect(`${redirectUrl}/?error=missing_env_vars`);
+    return NextResponse.redirect(`${baseUrl}/?error=missing_env_vars`);
   }
 
   try {
-    // Ensure base URL has protocol
-    let baseUrl = process.env.AUTH0_BASE_URL || 'http://localhost:3000';
-    if (!baseUrl.startsWith('http')) {
-      baseUrl = `https://${baseUrl}`;
-    }
-
     const redirectUri = `${baseUrl}/api/auth/callback`;
     console.log('Using redirect URI:', redirectUri);
 
@@ -108,8 +105,7 @@ export async function GET(request: NextRequest) {
     console.log('Final user object:', { sub: user.sub, email: user.email, roles: user['https://ai-job-hunter/roles'] });
 
     // Create response with redirect to dashboard
-    const redirectUrl = process.env.AUTH0_BASE_URL || 'http://localhost:3010';
-    const response = NextResponse.redirect(`${redirectUrl}/dashboard`);
+    const response = NextResponse.redirect(`${baseUrl}/dashboard`);
 
     // Set session cookies
     response.cookies.set('auth-token', tokens.access_token, {
@@ -134,7 +130,6 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Auth callback error:', error);
     // Redirect to home with error
-    const redirectUrl = process.env.AUTH0_BASE_URL || 'http://localhost:3010';
-    return NextResponse.redirect(`${redirectUrl}/`);
+    return NextResponse.redirect(`${baseUrl}/`);
   }
 }
