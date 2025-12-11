@@ -26,7 +26,13 @@ export async function GET(request: NextRequest) {
         client_id: process.env.AUTH0_CLIENT_ID,
         client_secret: process.env.AUTH0_CLIENT_SECRET,
         code: code,
-        redirect_uri: `${process.env.AUTH0_BASE_URL || 'http://localhost:3000'}/api/auth/callback`,
+        redirect_uri: (() => {
+          let baseUrl = process.env.AUTH0_BASE_URL || 'http://localhost:3000';
+          if (!baseUrl.startsWith('http')) {
+            baseUrl = `https://${baseUrl}`;
+          }
+          return `${baseUrl}/api/auth/callback`;
+        })(),
       }),
     });
 

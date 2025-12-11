@@ -5,7 +5,12 @@ export async function GET(request: NextRequest) {
   const auth0Domain = process.env.AUTH0_ISSUER_BASE_URL?.replace('https://', '') || 'your-domain.auth0.com';
   const clientId = process.env.AUTH0_CLIENT_ID || '';
   const audience = process.env.AUTH0_AUDIENCE || 'https://ai-job-hunter-api';
-  const baseUrl = process.env.AUTH0_BASE_URL || 'http://localhost:3000';
+  let baseUrl = process.env.AUTH0_BASE_URL || 'http://localhost:3000';
+
+  // Ensure baseUrl has protocol for production
+  if (!baseUrl.startsWith('http')) {
+    baseUrl = `https://${baseUrl}`;
+  }
 
   const loginUrl = `https://${auth0Domain}/authorize?` +
     new URLSearchParams({
