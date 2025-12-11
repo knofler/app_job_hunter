@@ -1,6 +1,6 @@
 'use client';
 
-import { useUser } from '@auth0/nextjs-auth0/client';
+import { useUser } from '@/context/UserContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -23,7 +23,14 @@ export default function AdminOrgsPage() {
 
   useEffect(() => {
     const roles = ((user as UserWithRoles)?.['https://ai-job-hunter/roles'] || []) as string[];
-    if (!roles.includes('admin') && !roles.includes('power_user')) {
+    
+    // Temporary fallback: allow admin access for specific email domains or users
+    const isAdmin = roles.includes('admin') || 
+                   roles.includes('power_user') ||
+                   (user?.email?.endsWith('@yourdomain.com')) || // Replace with your admin domain
+                   user?.sub === 'auth0|your-user-id'; // Replace with specific user ID
+    
+    if (!isAdmin) {
       router.push('/');
       return;
     }

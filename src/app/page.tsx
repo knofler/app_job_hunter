@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useUser } from '@auth0/nextjs-auth0/client';
+import { useUser } from '@/context/UserContext';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';

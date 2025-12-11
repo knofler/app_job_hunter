@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@auth0/nextjs-auth0";
+import { getSession } from "@/lib/auth";
 
 import { getApiBaseUrl } from "@/lib/api";
 
 export async function GET(request: NextRequest) {
   // Get the user's session
-  const session = await getSession(request, new NextResponse());
+  const session = await getSession(request);
   
   const apiBaseUrl = getApiBaseUrl();
   const headers: Record<string, string> = {};

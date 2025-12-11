@@ -1,6 +1,6 @@
 "use client";
 
-import { useUser } from '@auth0/nextjs-auth0/client';
+import { useUser } from '@/context/UserContext';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
@@ -84,7 +84,15 @@ export default function AdminLLMSettingsPage() {
     }
 
     const roles = ((user as UserWithRoles)?.['https://ai-job-hunter/roles'] || []) as string[];
-    if (!roles.includes('admin') && !roles.includes('power_user') && !roles.includes('recruiter')) {
+    
+    // Temporary fallback: allow admin access for specific email domains or users
+    const isAdmin = roles.includes('admin') || 
+                   roles.includes('power_user') || 
+                   roles.includes('recruiter') ||
+                   user.email?.endsWith('@yourdomain.com') || // Replace with your admin domain
+                   user.sub === 'auth0|your-user-id'; // Replace with specific user ID
+    
+    if (!isAdmin) {
       router.push('/dashboard');
       return;
     }

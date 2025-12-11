@@ -1,10 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { useUser } from '@auth0/nextjs-auth0/client';
+import { useUser } from '@/context/UserContext';
 import Page from './page';
 
 // Mock the useUser hook
-jest.mock('@auth0/nextjs-auth0/client', () => ({
+jest.mock('@/context/UserContext', () => ({
   UserProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   useUser: jest.fn(),
 }));

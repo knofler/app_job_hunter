@@ -3,7 +3,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { useRouter, usePathname } from 'next/navigation';
-import { useUser, UserProvider } from '@auth0/nextjs-auth0/client';
+import { useUser, UserProvider } from '@/context/UserContext';
 import { usePersona } from '@/context/PersonaContext';
 import NavBar from './NavBar';
 
@@ -14,7 +14,7 @@ jest.mock('next/navigation', () => ({
 }));
 
 // Mock Auth0 hook
-jest.mock('@auth0/nextjs-auth0/client', () => ({
+jest.mock('@/context/UserContext', () => ({
   useUser: jest.fn(),
   UserProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
@@ -41,7 +41,7 @@ describe('NavBar', () => {
   });
 
   const renderNavBar = (user = null, isLoading = false, persona = 'candidate') => {
-    const mockUseUser = require('@auth0/nextjs-auth0/client').useUser;
+    const mockUseUser = require('@/context/UserContext').useUser;
     mockUseUser.mockReturnValue({ user, isLoading });
 
     mockUsePersona.mockReturnValue({
@@ -103,7 +103,7 @@ describe('NavBar', () => {
 
   it('changes persona and navigates when persona select changes', () => {
     const mockSetPersona = jest.fn();
-    const mockUseUser = require('@auth0/nextjs-auth0/client').useUser;
+    const mockUseUser = require('@/context/UserContext').useUser;
     mockUseUser.mockReturnValue({ user: null, isLoading: false });
 
     mockUsePersona.mockReturnValue({

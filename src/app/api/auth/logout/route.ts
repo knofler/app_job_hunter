@@ -1,15 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
-  // Redirect to Auth0 logout
-  const auth0Domain = process.env.AUTH0_ISSUER_BASE_URL?.replace('https://', '') || 'your-domain.auth0.com';
-  const baseUrl = process.env.AUTH0_BASE_URL || 'http://localhost:3000';
+  // Create response that clears cookies and redirects to home
+  const baseUrl = process.env.AUTH0_BASE_URL || 'http://localhost:3010';
+  const response = NextResponse.redirect(`${baseUrl}/`);
 
-  const logoutUrl = `https://${auth0Domain}/v2/logout?` +
-    new URLSearchParams({
-      client_id: process.env.AUTH0_CLIENT_ID || '',
-      returnTo: baseUrl,
-    });
+  // Clear the auth cookies
+  response.cookies.set('auth-token', '', {
+    httpOnly: true,
+    secure: false,
+    sameSite: 'lax',
+    maxAge: 0, // Expire immediately
+    path: '/',
+  });
 
-  return NextResponse.redirect(logoutUrl);
+  response.cookies.set('user-info', '', {
+    httpOnly: false,
+    secure: false,
+    sameSite: 'lax',
+    maxAge: 0, // Expire immediately
+    path: '/',
+  });
+
+  return response;
 }

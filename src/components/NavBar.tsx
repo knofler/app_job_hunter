@@ -1,6 +1,6 @@
 "use client";
 
-import { useUser } from '@auth0/nextjs-auth0/client';
+import { useUser } from '@/context/UserContext';
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo } from "react";
