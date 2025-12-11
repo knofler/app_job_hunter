@@ -33,6 +33,9 @@ COPY package-lock.json* ./
 # Install dependencies, including devDependencies
 RUN npm install
 
+# Force the correct Next.js version
+RUN npm install next@16.0.8 eslint-config-next@16.0.8
+
 # Copy the rest of the application code
 COPY . .
 
