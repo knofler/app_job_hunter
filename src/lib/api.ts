@@ -2,6 +2,9 @@ const DEFAULT_LOCAL_API_URL = process.env.NEXT_PUBLIC_API_URL_LOCAL ?? "http://l
 const INTERNAL_API_URL = process.env.NEXT_PUBLIC_API_URL_INTERNAL;
 const FORCE_REMOTE = process.env.NEXT_PUBLIC_API_FORCE_REMOTE === "1" || process.env.NEXT_PUBLIC_API_FORCE_REMOTE === "true";
 
+// Control whether to show dummy data (default: enabled for development)
+export const USE_DUMMY_DATA = process.env.NEXT_PUBLIC_USE_DUMMY_DATA !== "false" && process.env.NEXT_PUBLIC_USE_DUMMY_DATA !== "0";
+
 function resolveBaseUrl(): string {
   const remoteBase = process.env.NEXT_PUBLIC_API_URL;
 

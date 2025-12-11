@@ -11,6 +11,7 @@ import {
   fetchProviders,
   fetchSettings,
   updateSettings,
+  getProviderDefaults,
 } from "@/lib/admin-llm";
 
 interface UserWithRoles {
@@ -135,20 +136,45 @@ export default function AdminLLMSettingsPage() {
   }, [authLoading, user]);
 
   const handleDefaultChange = (key: keyof ConfigFormState, value: string) => {
-    setDefaultConfig(current => ({ ...current, [key]: value }));
+    setDefaultConfig(current => {
+      const updated = { ...current, [key]: value };
+      
+      // Auto-populate model and settings when provider changes
+      if (key === "provider") {
+        const defaults = getProviderDefaults(value);
+        return {
+          ...updated,
+          model: defaults.model || "",
+          temperature: defaults.temperature?.toString() || "",
+          max_tokens: defaults.max_tokens?.toString() || "",
+        };
+      }
+      
+      return updated;
+    });
   };
 
   const handleStepChange = (stepId: string, key: keyof ConfigFormState, value: string) => {
-    setStepConfigs(current => ({
-      ...current,
-      [stepId]: {
-        useCustom: current[stepId]?.useCustom ?? false,
-        config: {
-          ...(current[stepId]?.config ?? toFormConfig()),
-          [key]: value,
+    setStepConfigs(current => {
+      const currentStep = current[stepId] || { useCustom: false, config: toFormConfig() };
+      const updatedConfig = { ...currentStep.config, [key]: value };
+      
+      // Auto-populate model and settings when provider changes
+      if (key === "provider") {
+        const defaults = getProviderDefaults(value);
+        updatedConfig.model = defaults.model || "";
+        updatedConfig.temperature = defaults.temperature?.toString() || "";
+        updatedConfig.max_tokens = defaults.max_tokens?.toString() || "";
+      }
+      
+      return {
+        ...current,
+        [stepId]: {
+          ...currentStep,
+          config: updatedConfig,
         },
-      },
-    }));
+      };
+    });
   };
 
   const toggleStepCustom = (stepId: string, useCustom: boolean) => {

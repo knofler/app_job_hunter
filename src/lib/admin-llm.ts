@@ -74,3 +74,37 @@ export function updateSettings(payload: LLMSettingsPayload): Promise<LLMSettings
     body: JSON.stringify(payload),
   });
 }
+
+// Default configurations for each provider
+export const PROVIDER_DEFAULTS: Record<string, Partial<LLMProviderConfigInput>> = {
+  openai: {
+    model: "gpt-4o-mini",
+    temperature: 0.7,
+    max_tokens: 4000,
+  },
+  anthropic: {
+    model: "claude-3-haiku-20240307",
+    temperature: 0.7,
+    max_tokens: 4000,
+  },
+  google: {
+    model: "gemini-1.5-flash",
+    temperature: 0.7,
+    max_tokens: 4000,
+  },
+  deepseek: {
+    model: "deepseek-chat",
+    temperature: 0.7,
+    max_tokens: 4000,
+  },
+  bedrock: {
+    model: "anthropic.claude-3-haiku-20240307-v1:0",
+    temperature: 0.7,
+    max_tokens: 4000,
+  },
+};
+
+// Function to get default config for a provider
+export function getProviderDefaults(provider: string): Partial<LLMProviderConfigInput> {
+  return PROVIDER_DEFAULTS[provider] || PROVIDER_DEFAULTS.openai;
+}

@@ -66,8 +66,7 @@ describe('NavBar', () => {
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
     expect(screen.getByText('Jobs')).toBeInTheDocument();
     expect(screen.getByText('My Jobs')).toBeInTheDocument();
-    expect(screen.getByText('Resumes')).toBeInTheDocument();
-    expect(screen.getByText('Candidates')).toBeInTheDocument();
+    expect(screen.getByText('My Resumes')).toBeInTheDocument();
     expect(screen.getByText('Recruiters')).toBeInTheDocument();
   });
 
