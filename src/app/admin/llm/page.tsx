@@ -11,7 +11,7 @@ import {
   fetchProviders,
   fetchSettings,
   updateSettings,
-  getProviderDefaults,
+  fetchProviderDefaults,
 } from "@/lib/admin-llm";
 
 interface UserWithRoles {
@@ -135,19 +135,24 @@ export default function AdminLLMSettingsPage() {
     };
   }, [authLoading, user]);
 
-  const handleDefaultChange = (key: keyof ConfigFormState, value: string) => {
+  const handleDefaultChange = async (key: keyof ConfigFormState, value: string) => {
     setDefaultConfig(current => {
       const updated = { ...current, [key]: value };
       
       // Auto-populate model and settings when provider changes
       if (key === "provider") {
-        const defaults = getProviderDefaults(value);
-        return {
-          ...updated,
-          model: defaults.model || "",
-          temperature: defaults.temperature?.toString() || "",
-          max_tokens: defaults.max_tokens?.toString() || "",
-        };
+        // Fetch provider defaults from backend
+        fetchProviderDefaults(value).then((defaults: Partial<LLMProviderConfigInput>) => {
+          setDefaultConfig(current => ({
+            ...current,
+            model: defaults.model || "",
+            temperature: defaults.temperature?.toString() || "",
+            max_tokens: defaults.max_tokens?.toString() || "",
+            base_url: defaults.base_url || "",
+          }));
+        }).catch((err: Error) => {
+          console.error("Failed to fetch provider defaults:", err);
+        });
       }
       
       return updated;
@@ -161,10 +166,24 @@ export default function AdminLLMSettingsPage() {
       
       // Auto-populate model and settings when provider changes
       if (key === "provider") {
-        const defaults = getProviderDefaults(value);
-        updatedConfig.model = defaults.model || "";
-        updatedConfig.temperature = defaults.temperature?.toString() || "";
-        updatedConfig.max_tokens = defaults.max_tokens?.toString() || "";
+        // Fetch provider defaults from backend
+        fetchProviderDefaults(value).then((defaults: Partial<LLMProviderConfigInput>) => {
+          setStepConfigs(current => ({
+            ...current,
+            [stepId]: {
+              ...current[stepId],
+              config: {
+                ...current[stepId].config,
+                model: defaults.model || "",
+                temperature: defaults.temperature?.toString() || "",
+                max_tokens: defaults.max_tokens?.toString() || "",
+                base_url: defaults.base_url || "",
+              },
+            },
+          }));
+        }).catch((err: Error) => {
+          console.error("Failed to fetch provider defaults:", err);
+        });
       }
       
       return {

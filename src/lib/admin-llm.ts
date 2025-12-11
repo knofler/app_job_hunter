@@ -104,7 +104,6 @@ export const PROVIDER_DEFAULTS: Record<string, Partial<LLMProviderConfigInput>> 
   },
 };
 
-// Function to get default config for a provider
-export function getProviderDefaults(provider: string): Partial<LLMProviderConfigInput> {
-  return PROVIDER_DEFAULTS[provider] || PROVIDER_DEFAULTS.openai;
+export function fetchProviderDefaults(provider: string): Promise<Partial<LLMProviderConfigInput>> {
+  return request<Partial<LLMProviderConfigInput>>(`/api/admin/llm/providers/${provider}/defaults`);
 }

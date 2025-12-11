@@ -17,6 +17,8 @@ import {
   JobDescription,
   listJobDescriptions,
   updateJobDescription,
+  saveWorkflowResult,
+  getLastWorkflow,
 } from "@/lib/recruiter-workflow";
 
 const fallback = fallbackRecruiterWorkflow;
@@ -133,6 +135,24 @@ export default function RecruiterAIWorkflowPage() {
       }
     };
     loadCandidates();
+  }, []);
+
+  // Load last workflow result
+  useEffect(() => {
+    const loadLastWorkflow = async () => {
+      try {
+        const result = await getLastWorkflow();
+        if ('job' in result) {
+          // It's a valid workflow response
+          setWorkflowResult(result);
+          setLastAnalyzedAt(new Date()); // Set to current time since we don't have the exact timestamp
+        }
+      } catch (error) {
+        console.error("Failed to load last workflow:", error);
+        // Don't show error to user, just continue with empty state
+      }
+    };
+    loadLastWorkflow();
   }, []);
 
   // Load resumes when candidate changes
@@ -427,10 +447,16 @@ export default function RecruiterAIWorkflowPage() {
           });
         },
         onComplete: (data) => {
-          setWorkflowResult(data as RecruiterWorkflowResponse);
+          const workflowData = data as RecruiterWorkflowResponse;
+          setWorkflowResult(workflowData);
           setLastAnalyzedAt(new Date());
           setStreamingStep(null);
           setStreamingMessage(null);
+          
+          // Save the workflow result to the database (fire and forget)
+          saveWorkflowResult(workflowData).catch(saveError => {
+            console.error("Failed to save workflow result:", saveError);
+          });
         },
         onError: (error) => {
           setGenerationError(error);

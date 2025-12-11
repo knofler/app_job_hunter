@@ -156,6 +156,19 @@ export async function generateRecruiterWorkflow(
   });
 }
 
+export async function saveWorkflowResult(
+  payload: RecruiterWorkflowResponse,
+): Promise<{ success: boolean; workflow_id: string }> {
+  return fetchFromApi<{ success: boolean; workflow_id: string }>(`/recruiter-workflow/save`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getLastWorkflow(): Promise<RecruiterWorkflowResponse | { message: string }> {
+  return fetchFromApi<RecruiterWorkflowResponse | { message: string }>(`/recruiter-workflow/last`);
+}
+
 export async function listJobDescriptions(page: number = 1, pageSize: number = 25): Promise<JobListResponse> {
   return fetchFromApi<JobListResponse>(`/jobs/descriptions?page=${page}&page_size=${pageSize}`);
 }
