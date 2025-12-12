@@ -26,6 +26,7 @@ export async function streamRecruiterWorkflow(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "X-Admin-Token": process.env.NEXT_PUBLIC_ADMIN_TOKEN || "changeme-admin-token",
     },
     body: JSON.stringify(payload),
   });
