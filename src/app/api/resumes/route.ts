@@ -4,7 +4,7 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL_INTERNAL || "http://backend:
 
 export async function POST(request: NextRequest) {
   try {
-    const backendUrl = `${BACKEND_URL}/resumes/`;
+    const backendUrl = `${BACKEND_URL}/resumes/upload-resume`;
 
     console.log(`[API Proxy] POST /api/resumes/ -> ${backendUrl}`);
 
