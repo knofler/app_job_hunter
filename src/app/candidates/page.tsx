@@ -546,7 +546,7 @@ export default function CandidatesPage() {
                   Resume Library
                 </h3>
               </div>
-              <div className="max-h-96 overflow-y-auto">
+              <div className="max-h-[600px] overflow-y-auto">
                 {resumes.length === 0 && !loading && (
                   <div className="p-6 text-center text-gray-500">
                     <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -559,7 +559,7 @@ export default function CandidatesPage() {
                 {resumes.map(resume => (
                   <div
                     key={resume.id}
-                    className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-blue-50 transition-all duration-200 ${
+                    className={`p-3 border-b border-gray-100 cursor-pointer hover:bg-blue-50 transition-all duration-200 group ${
                       selectedResume?.id === resume.id
                         ? 'bg-blue-100 border-blue-200 shadow-sm'
                         : ''
