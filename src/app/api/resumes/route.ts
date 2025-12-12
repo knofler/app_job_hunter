@@ -4,7 +4,7 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL_INTERNAL || "http://backend:
 
 export async function POST(request: NextRequest) {
   try {
-    const backendUrl = `${BACKEND_URL}/resumes/upload-resume`;
+    const backendUrl = `${BACKEND_URL}/resumes/`;
 
     console.log(`[API Proxy] POST /api/resumes/ -> ${backendUrl}`);
 
@@ -21,14 +21,16 @@ export async function POST(request: NextRequest) {
 
     if (!response.ok) {
       console.error(`[API Proxy] Backend error: ${response.status} ${response.statusText}`);
+      const errorData = await response.json().catch(() => ({ error: response.statusText }));
+      console.error(`[API Proxy] Error details:`, errorData);
       return NextResponse.json(
-        { error: `Backend error: ${response.status} ${response.statusText}` },
+        { error: `Backend error: ${response.status}`, details: errorData },
         { status: response.status }
       );
     }
 
     const data = await response.json();
-    console.log(`[API Proxy] Success: Resume uploaded`);
+    console.log(`[API Proxy] Success: Resume uploaded`, data);
 
     return NextResponse.json(data);
   } catch (error) {
