@@ -121,6 +121,20 @@ export type CandidateResumesResponse = {
   resumes: ResumeSummary[];
 };
 
+export type SearchResult = {
+  candidate: CandidateSummary;
+  matching_resumes: (ResumeSummary & { _search_match?: boolean })[];
+  resume_count: number;
+};
+
+export type CandidateSearchResponse = {
+  query: string;
+  results: SearchResult[];
+  total: number;
+  page: number;
+  page_size: number;
+};
+
 export type JobDescription = {
   id: string;
   title: string;
@@ -141,6 +155,15 @@ export type JobListResponse = {
 
 export async function listCandidates(): Promise<CandidateListResponse> {
   return fetchFromApi<CandidateListResponse>(`/candidates?page=1&page_size=25`);
+}
+
+export async function searchCandidatesAndResumes(query: string, page: number = 1, pageSize: number = 20): Promise<CandidateSearchResponse> {
+  const params = new URLSearchParams({
+    q: query,
+    page: page.toString(),
+    page_size: pageSize.toString(),
+  });
+  return fetchFromApi<CandidateSearchResponse>(`/candidates/search?${params}`);
 }
 
 export async function listCandidateResumes(candidateId: string): Promise<CandidateResumesResponse> {
