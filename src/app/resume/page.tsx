@@ -192,9 +192,11 @@ export default function ResumePage() {
 	const [uploadCandidateName, setUploadCandidateName] = useState("");
 	const [extractingCandidateName, setExtractingCandidateName] = useState(false);
 	const [previewResume, setPreviewResume] = useState<Resume | null>(null);
+	const [previewExpanded, setPreviewExpanded] = useState(false);
 
 	const handlePreview = (resume: Resume) => {
 		setPreviewResume(resume);
+		setPreviewExpanded(false); // Reset expanded state when selecting a new resume
 	};
 
 	const loadResumes = useCallback(async () => {
@@ -837,7 +839,17 @@ export default function ResumePage() {
 						</div>
 						<div className="mb-2 font-semibold text-blue-900">Full Resume</div>
 						<div className="bg-gray-50 border border-gray-200 rounded p-3 text-xs text-gray-700 whitespace-pre-line overflow-x-auto leading-relaxed">
-							{selectedResume.preview ? formatPreviewText(selectedResume.preview) : "Preview not available."}
+							<div className={`${!previewExpanded ? 'max-h-48 overflow-hidden' : ''}`}>
+								{selectedResume.preview ? formatPreviewText(selectedResume.preview) : "Preview not available."}
+							</div>
+							{selectedResume.preview && selectedResume.preview.length > 500 && (
+								<button
+									onClick={() => setPreviewExpanded(!previewExpanded)}
+									className="mt-2 text-blue-600 hover:text-blue-800 text-xs font-medium focus:outline-none"
+								>
+									{previewExpanded ? 'Read Less' : 'Read More'}
+								</button>
+							)}
 						</div>
 					</div>
 				) : (
