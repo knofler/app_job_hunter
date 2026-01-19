@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test File Input</title>
+</head>
+<body>
+    <h1>Test File Input</h1>
+    <form>
+        <label>
+            Select a file:
+            <input type="file" accept=".pdf,.docx,.txt" onchange="alert('File selected: ' + (this.files[0] ? this.files[0].name : 'none'))">
+        </label>
+        <br><br>
+        <button type="submit">Submit</button>
+    </form>
+</body>
+</html>

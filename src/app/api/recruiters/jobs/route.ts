@@ -12,10 +12,10 @@ export async function GET(request: NextRequest) {
     const page = searchParams.get('page') || '1';
     const pageSize = searchParams.get('page_size') || '10';
 
-    // Forward to backend API - use /jobs/descriptions for recruiter dashboard
+    // Forward to backend API - use /recruiters/jobs to get jobs for the authenticated recruiter
     const backendUrl = process.env.NEXT_PUBLIC_API_URL_INTERNAL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8010';
 
-    const response = await fetch(`${backendUrl}/jobs/descriptions?page=${page}&page_size=${pageSize}`, {
+    const response = await fetch(`${backendUrl}/recruiters/jobs?page=${page}&page_size=${pageSize}`, {
       headers: {
         'X-Admin-Token': adminToken,
       },

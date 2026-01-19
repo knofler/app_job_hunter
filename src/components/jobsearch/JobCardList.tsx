@@ -6,6 +6,7 @@ import { useCandidateScope } from "@/context/PersonaContext";
 import { fetchFromApi } from "@/lib/api";
 import { fallbackJobs } from "@/lib/fallback-data";
 import JobCard from "./JobCard";
+import JobListingCard from "./JobListingCard";
 import type { JobFilters } from "./JobSearchFilters";
 
 type Job = {
@@ -17,14 +18,17 @@ type Job = {
   salary_range?: string;
   employment_type?: string;
   posted_at?: string;
+  description?: string;
+  code?: string;
 };
 
 interface JobCardListProps {
   filters: JobFilters;
   pageSize?: number;
+  mode?: "personalized" | "listings";
 }
 
-export default function JobCardList({ filters, pageSize = 10 }: JobCardListProps) {
+export default function JobCardList({ filters, pageSize = 10, mode = "personalized" }: JobCardListProps) {
   const { candidateId } = useCandidateScope();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [page, setPage] = useState<number>(1);
@@ -182,23 +186,27 @@ export default function JobCardList({ filters, pageSize = 10 }: JobCardListProps
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className={mode === "listings" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "flex flex-col gap-4"}>
       {usingFallback && (
-        <div className="text-xs text-gray-400">Showing cached job listings while the API is unavailable.</div>
+        <div className="text-xs text-gray-400 col-span-full">Showing cached job listings while the API is unavailable.</div>
       )}
       {sortedJobs.map(job => (
-        <JobCard key={job.id} job={job} />
+        mode === "listings" ? (
+          <JobListingCard key={job.id} job={job} />
+        ) : (
+          <JobCard key={job.id} job={job} />
+        )
       ))}
       {!usingFallback && hasMore && (
         <div ref={loaderRef} className="h-1" aria-hidden />
       )}
       {loading && jobs.length > 0 && (
-        <div className="text-xs text-gray-400">Loading more jobs…</div>
+        <div className="text-xs text-gray-400 col-span-full">Loading more jobs…</div>
       )}
       {!hasMore && !usingFallback && (
-        <div className="text-xs text-gray-400">You’ve reached the end of the job list.</div>
+        <div className="text-xs text-gray-400 col-span-full">You’ve reached the end of the job list.</div>
       )}
-      {error && <div className="text-xs text-red-500">{error}</div>}
+      {error && <div className="text-xs text-red-500 col-span-full">{error}</div>}
     </div>
   );
 }

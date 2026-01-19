@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useUser } from '@/context/UserContext';
+import { useRouter } from 'next/navigation';
+import { FormEvent, useEffect, useId, useRef, useState, ChangeEvent } from "react";
+
+interface UserWithRoles {
+  [key: string]: unknown;
+  'https://ai-job-hunter/roles'?: string[];
+}
 
 interface JobDescription {
   id: string;
@@ -8,10 +15,22 @@ interface JobDescription {
   company: string;
   description: string;
   skills: string[];
+  responsibilities: string[];
+  requirements: string[];
+  budget?: string;
+  job_brief?: string;
   uploaded_at: string;
+  uploaded_by: string;
 }
 
-async function fetchJobDescriptions(): Promise<{ items: JobDescription[]; total: number }> {
+interface JobUploadFormData {
+  title: string;
+  company: string;
+  budget?: string;
+  job_brief?: string;
+}
+
+async function fetchJobDescriptions(): Promise<{ items: JobDescription[]; total: number; page: number; page_size: number }> {
   const response = await fetch('/api/recruiters/jobs');
   if (!response.ok) {
     throw new Error('Failed to fetch job descriptions');
@@ -31,29 +50,91 @@ async function uploadJobDescription(formData: FormData): Promise<{ job_id: strin
 }
 
 export default function RecruiterJobUploadPage() {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const { user, isLoading: authLoading } = useUser();
+  const router = useRouter();
   const [jobDescriptions, setJobDescriptions] = useState<JobDescription[]>([]);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
+  const [uploading, setUploading] = useState(false);
+  const [formData, setFormData] = useState<JobUploadFormData>({
     title: '',
     company: '',
     budget: '',
     job_brief: '',
   });
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load job descriptions on mount
+  console.log('RecruiterJobUploadPage rendered, loading:', loading, 'authLoading:', authLoading);
+
   useEffect(() => {
-    loadJobDescriptions();
+    if (fileInputRef.current) {
+      console.log('File input element found:', fileInputRef.current);
+      console.log('File input disabled:', fileInputRef.current.disabled);
+      console.log('File input style:', fileInputRef.current.style);
+    } else {
+      console.log('File input ref is null');
+    }
   }, []);
+
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const files = event.target.files;
+    if (!files || files.length === 0) {
+      setUploadFile(null);
+      return;
+    }
+
+    // Single file validation
+    const file = files[0];
+    const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'];
+    const allowedExtensions = ['.pdf', '.docx', '.doc', '.txt'];
+    const fileName = file.name.toLowerCase();
+
+    const isValidType = allowedTypes.includes(file.type);
+    const isValidExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
+
+    if (!isValidType && !isValidExtension) {
+      setError("Only PDF, Word documents (.pdf, .docx, .doc), and text files (.txt) are allowed.");
+      setUploadFile(null);
+      event.target.value = '';
+      return;
+    }
+
+    setError(null);
+    setUploadFile(file);
+  }
+
+  // Remove the conflicting useEffect with addEventListener
+
+  // Auth check - temporarily disabled for testing
+  // useEffect(() => {
+  //   if (authLoading) return;
+
+  //   if (!user) {
+  //     router.push('/api/auth/login?returnTo=/recruiters/upload-jd');
+  //     return;
+  //   }
+
+  //   const roles = ((user as UserWithRoles)?.['https://ai-job-hunter/roles'] || []) as string[];
+  //   if (!roles.includes('recruiter')) {
+  //     router.push('/dashboard');
+  //     return;
+  //   }
+  // }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (authLoading || !user) return;
+
+    loadJobDescriptions();
+  }, [authLoading, user]);
 
   const loadJobDescriptions = async () => {
     try {
       setLoading(true);
       const data = await fetchJobDescriptions();
       setJobDescriptions(data.items);
+      setError(null);
     } catch (err) {
       console.error(err);
       setError((err as Error).message || "Failed to load job descriptions");
@@ -62,8 +143,8 @@ export default function RecruiterJobUploadPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleUpload = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setError(null);
     setSuccessMessage(null);
 
@@ -75,7 +156,7 @@ export default function RecruiterJobUploadPage() {
       setError("Company name is required");
       return;
     }
-    if (!selectedFile) {
+    if (!uploadFile) {
       setError("Please select a job description file");
       return;
     }
@@ -86,7 +167,7 @@ export default function RecruiterJobUploadPage() {
       const uploadFormData = new FormData();
       uploadFormData.append('title', formData.title.trim());
       uploadFormData.append('company', formData.company.trim());
-      uploadFormData.append('file', selectedFile);
+      uploadFormData.append('file', uploadFile);
 
       if (formData.budget?.trim()) {
         uploadFormData.append('budget', formData.budget.trim());
@@ -105,7 +186,7 @@ export default function RecruiterJobUploadPage() {
         budget: '',
         job_brief: '',
       });
-      setSelectedFile(null);
+      setUploadFile(null);
 
       // Reload job descriptions
       await loadJobDescriptions();
@@ -145,7 +226,7 @@ export default function RecruiterJobUploadPage() {
         {/* Upload Form */}
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           <h2 className="text-xl font-semibold text-gray-900 mb-6">Upload New Job Description</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleUpload} className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="flex flex-col gap-1 text-sm text-gray-700">
                 Job Title *
@@ -193,22 +274,19 @@ export default function RecruiterJobUploadPage() {
             <div className="flex flex-col gap-1 text-sm text-gray-700">
               <span>Job Description File *</span>
               <input
+                ref={fileInputRef}
+                className="border border-gray-300 rounded px-2 py-2"
+                required
                 type="file"
                 accept=".pdf,.docx,.txt"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    setSelectedFile(file);
-                  }
-                }}
-                className="border border-gray-300 rounded px-2 py-2"
+                onChange={handleFileChange}
               />
-              {selectedFile && (
+              {uploadFile && (
                 <span className="text-xs text-gray-500 mt-1">
-                  Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                  Selected: {uploadFile.name} ({(uploadFile.size / 1024 / 1024).toFixed(2)} MB)
                 </span>
               )}
-              {!selectedFile && (
+              {!uploadFile && (
                 <span className="text-xs text-gray-500 mt-1">
                   Choose a PDF/DOCX/TXT file — the selected file name will appear here.
                 </span>
@@ -240,6 +318,9 @@ export default function RecruiterJobUploadPage() {
                     </span>
                   </div>
                   <p className="text-sm text-gray-600 mb-2">{job.company}</p>
+                  {job.budget && (
+                    <p className="text-sm text-green-700 font-medium mb-2">{job.budget}</p>
+                  )}
                   <div className="flex flex-wrap gap-1">
                     {job.skills && job.skills.length > 0 ? (
                       <>
