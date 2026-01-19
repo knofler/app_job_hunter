@@ -28,7 +28,6 @@ const NAV_ITEMS: Record<Persona, NavItem[]> = {
     { label: "My Job Descriptions", href: "/recruiters/jobs" },
     { label: "Upload JD", href: "/recruiters/upload-jd" },
     { label: "Recruiter AI", href: "/recruiters/ai-workflow" },
-    { label: "Jobs", href: "/jobs" },
   ],
   admin: [
     { label: "LLM Settings", href: "/admin/llm" },
