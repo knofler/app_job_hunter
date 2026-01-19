@@ -15,6 +15,7 @@ interface UserContextType {
   user: User | null;
   isLoading: boolean;
   error: string | null;
+  logout: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -23,6 +24,26 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const logout = async () => {
+    try {
+      // Clear local state first
+      setUser(null);
+      setError(null);
+      
+      // Then call the API to clear server-side cookies
+      await fetch('/api/auth/logout', { method: 'GET' });
+      
+      // Force a page reload to ensure all state is cleared
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Even if the API call fails, clear local state
+      setUser(null);
+      setError(null);
+      window.location.href = '/';
+    }
+  };
 
   useEffect(() => {
     const loadUser = () => {
@@ -61,7 +82,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <UserContext.Provider value={{ user, isLoading, error }}>
+    <UserContext.Provider value={{ user, isLoading, error, logout }}>
       {children}
     </UserContext.Provider>
   );

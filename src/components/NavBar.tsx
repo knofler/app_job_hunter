@@ -48,7 +48,7 @@ const personaOptions: Array<{ id: Persona; label: string }> = [
 ];
 
 export default function NavBar() {
-  const { user, isLoading } = useUser();
+  const { user, isLoading, logout } = useUser();
   const { persona, setPersona } = usePersona();
   const router = useRouter();
   const pathname = usePathname();
@@ -108,12 +108,12 @@ export default function NavBar() {
               <Link href="/profile" className="text-sm text-gray-700 hover:text-blue-700">
                 {user.name || user.email || 'Profile'}
               </Link>
-              <Link 
-                href="/api/auth/logout" 
-                className="text-sm text-red-600 hover:text-red-700 font-medium"
+              <button
+                onClick={logout}
+                className="text-sm text-red-600 hover:text-red-700 font-medium cursor-pointer"
               >
                 Logout
-              </Link>
+              </button>
             </>
           ) : (
             <>
