@@ -38,6 +38,25 @@ type ResumeApiResponse = {
 const SECTION_ORDER: string[] = ["Technical", "Business", "Creative"];
 const RESUME_TYPES = ["Technical", "Business", "Creative", "General"] as const;
 
+function formatPreviewText(text: string): string {
+  if (!text) return "";
+
+  return text
+    // Remove excessive whitespace and normalize line breaks
+    .replace(/\n\s*\n\s*\n/g, '\n\n')
+    // Fix spacing around punctuation
+    .replace(/\s+([.!?])/g, '$1')
+    // Ensure proper spacing after punctuation
+    .replace(/([.!?])([A-Z])/g, '$1\n\n$2')
+    // Clean up bullet points and lists
+    .replace(/•/g, '• ')
+    .replace(/\*\s*/g, '• ')
+    .replace(/-\s*/g, '• ')
+    // Remove excessive spaces
+    .replace(/ {2,}/g, ' ')
+    .trim();
+}
+
 interface ResumePreviewModalProps {
   resume: Resume | null;
   onClose: () => void;
@@ -102,9 +121,11 @@ function ResumePreviewModal({ resume, onClose }: ResumePreviewModalProps) {
 
             {resume.preview && (
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Full Resume Content</h3>
-                <div className="bg-gray-50 p-4 rounded border max-h-96 overflow-y-auto">
-                  <pre className="text-sm text-gray-700 whitespace-pre-wrap">{resume.preview}</pre>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Full Resume Content</h3>
+                <div className="bg-gray-50 p-6 rounded-lg border max-h-96 overflow-y-auto">
+                  <div className="text-base text-gray-800 leading-relaxed whitespace-pre-line">
+                    {formatPreviewText(resume.preview)}
+                  </div>
                 </div>
               </div>
             )}

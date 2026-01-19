@@ -24,6 +24,25 @@ interface JobPreviewModalProps {
   onClose: () => void;
 }
 
+function formatPreviewText(text: string): string {
+  if (!text) return "";
+
+  return text
+    // Remove excessive whitespace and normalize line breaks
+    .replace(/\n\s*\n\s*\n/g, '\n\n')
+    // Fix spacing around punctuation
+    .replace(/\s+([.!?])/g, '$1')
+    // Ensure proper spacing after punctuation
+    .replace(/([.!?])([A-Z])/g, '$1\n\n$2')
+    // Clean up bullet points and lists
+    .replace(/•/g, '• ')
+    .replace(/\*\s*/g, '• ')
+    .replace(/-\s*/g, '• ')
+    // Remove excessive spaces
+    .replace(/ {2,}/g, ' ')
+    .trim();
+}
+
 function JobPreviewModal({ job, onClose }: JobPreviewModalProps) {
   if (!job) return null;
 
@@ -117,9 +136,11 @@ function JobPreviewModal({ job, onClose }: JobPreviewModalProps) {
 
             {job.jd_content && (
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Full Job Description Content</h3>
-                <div className="bg-gray-50 p-4 rounded border max-h-96 overflow-y-auto">
-                  <pre className="text-sm text-gray-700 whitespace-pre-wrap">{job.jd_content}</pre>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Full Job Description Content</h3>
+                <div className="bg-gray-50 p-6 rounded-lg border max-h-96 overflow-y-auto">
+                  <div className="text-base text-gray-800 leading-relaxed whitespace-pre-line">
+                    {formatPreviewText(job.jd_content)}
+                  </div>
                 </div>
               </div>
             )}
