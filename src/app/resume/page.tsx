@@ -836,9 +836,9 @@ export default function ResumePage() {
 							)}
 						</div>
 						<div className="mb-2 font-semibold text-blue-900">Full Resume</div>
-						<pre className="bg-gray-50 border border-gray-200 rounded p-3 text-xs text-gray-700 whitespace-pre-line overflow-x-auto">
-							{selectedResume.preview || "Preview not available."}
-						</pre>
+						<div className="bg-gray-50 border border-gray-200 rounded p-3 text-xs text-gray-700 whitespace-pre-line overflow-x-auto leading-relaxed">
+							{selectedResume.preview ? formatPreviewText(selectedResume.preview) : "Preview not available."}
+						</div>
 					</div>
 				) : (
 					<div className="text-sm text-gray-500">No resume selected.</div>

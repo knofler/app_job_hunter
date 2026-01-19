@@ -26,6 +26,25 @@ interface JobPreviewModalProps {
   onClose: () => void;
 }
 
+function formatPreviewText(text: string): string {
+  if (!text) return "";
+  
+  return text
+    // Remove excessive whitespace and normalize line breaks
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    // Remove excessive spaces
+    .replace(/[ \t]+/g, ' ')
+    // Clean up bullet points and formatting
+    .replace(/•/g, '• ')
+    .replace(/•  +/g, '• ')
+    // Ensure proper spacing after punctuation
+    .replace(/([.!?])([A-Z])/g, '$1\n\n$2')
+    // Clean up any remaining formatting issues
+    .trim();
+}
+
 function JobPreviewModal({ job, onClose }: JobPreviewModalProps) {
   if (!job) return null;
 
@@ -121,7 +140,9 @@ function JobPreviewModal({ job, onClose }: JobPreviewModalProps) {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Full Job Description Content</h3>
                 <div className="bg-gray-50 p-4 rounded border max-h-96 overflow-y-auto">
-                  <pre className="text-sm text-gray-700 whitespace-pre-wrap">{job.jd_content}</pre>
+                  <div className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
+                    {formatPreviewText(job.jd_content)}
+                  </div>
                 </div>
               </div>
             )}

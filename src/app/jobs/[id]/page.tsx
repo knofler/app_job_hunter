@@ -22,6 +22,25 @@ interface JobDetail {
   match_score?: number;
 }
 
+function formatPreviewText(text: string): string {
+  if (!text) return "";
+  
+  return text
+    // Remove excessive whitespace and normalize line breaks
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    // Remove excessive spaces
+    .replace(/[ \t]+/g, ' ')
+    // Clean up bullet points and formatting
+    .replace(/•/g, '• ')
+    .replace(/•  +/g, '• ')
+    // Ensure proper spacing after punctuation
+    .replace(/([.!?])([A-Z])/g, '$1\n\n$2')
+    // Clean up any remaining formatting issues
+    .trim();
+}
+
 export default function JobDetailPage() {
   const params = useParams();
   const jobId = params.id as string;
@@ -177,9 +196,9 @@ export default function JobDetailPage() {
             <div className="mb-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Full Job Posting</h2>
               <div className="bg-gray-50 p-6 rounded-lg border">
-                <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans">
-                  {job.jd_content}
-                </pre>
+                <div className="text-sm text-gray-700 whitespace-pre-line font-sans leading-relaxed">
+                  {formatPreviewText(job.jd_content)}
+                </div>
               </div>
             </div>
           )}
