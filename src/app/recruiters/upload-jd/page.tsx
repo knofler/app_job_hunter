@@ -6,9 +6,128 @@ interface JobDescription {
   id: string;
   title: string;
   company: string;
+  location: string;
   description: string;
+  jd_content: string;
+  responsibilities: string[];
+  requirements: string[];
   skills: string[];
+  employment_type?: string;
+  salary_range?: string;
+  code: string;
   uploaded_at: string;
+  updated_at?: string;
+}
+
+interface JobPreviewModalProps {
+  job: JobDescription | null;
+  onClose: () => void;
+}
+
+function JobPreviewModal({ job, onClose }: JobPreviewModalProps) {
+  if (!job) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">{job.title}</h2>
+              <p className="text-lg text-gray-600 mt-1">{job.company}</p>
+              <p className="text-sm text-gray-500 mt-1">Job Code: {job.code}</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 text-2xl"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="space-y-6">
+            {job.description && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Description</h3>
+                <p className="text-gray-700 whitespace-pre-wrap">{job.description}</p>
+              </div>
+            )}
+
+            {job.responsibilities && job.responsibilities.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Responsibilities</h3>
+                <ul className="list-disc list-inside text-gray-700 space-y-1">
+                  {job.responsibilities.map((resp, index) => (
+                    <li key={index}>{resp}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {job.requirements && job.requirements.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Requirements</h3>
+                <ul className="list-disc list-inside text-gray-700 space-y-1">
+                  {job.requirements.map((req, index) => (
+                    <li key={index}>{req}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {job.skills && job.skills.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Skills</h3>
+                <div className="flex flex-wrap gap-2">
+                  {job.skills.map((skill, index) => (
+                    <span
+                      key={index}
+                      className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="border-t pt-4">
+              <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                {job.location && (
+                  <div>
+                    <span className="font-medium">Location:</span> {job.location}
+                  </div>
+                )}
+                {job.employment_type && (
+                  <div>
+                    <span className="font-medium">Employment Type:</span> {job.employment_type}
+                  </div>
+                )}
+                {job.salary_range && (
+                  <div>
+                    <span className="font-medium">Salary Range:</span> {job.salary_range}
+                  </div>
+                )}
+                <div>
+                  <span className="font-medium">Uploaded:</span>{" "}
+                  {new Date(job.uploaded_at).toLocaleDateString()}
+                </div>
+              </div>
+            </div>
+
+            {job.jd_content && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Full Job Description Content</h3>
+                <div className="bg-gray-50 p-4 rounded border max-h-96 overflow-y-auto">
+                  <pre className="text-sm text-gray-700 whitespace-pre-wrap">{job.jd_content}</pre>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 async function fetchJobDescriptions(): Promise<{ items: JobDescription[]; total: number }> {
@@ -37,6 +156,7 @@ export default function RecruiterJobUploadPage() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [selectedJob, setSelectedJob] = useState<JobDescription | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     company: '',
@@ -62,8 +182,11 @@ export default function RecruiterJobUploadPage() {
     }
   };
 
+  const handlePreview = (job: JobDescription) => {
+    setSelectedJob(job);
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
     setError(null);
     setSuccessMessage(null);
 
@@ -240,7 +363,7 @@ export default function RecruiterJobUploadPage() {
                     </span>
                   </div>
                   <p className="text-sm text-gray-600 mb-2">{job.company}</p>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1 mb-3">
                     {job.skills && job.skills.length > 0 ? (
                       <>
                         {job.skills.slice(0, 3).map(skill => (
@@ -256,12 +379,28 @@ export default function RecruiterJobUploadPage() {
                       <span className="text-xs text-gray-500">No skills specified</span>
                     )}
                   </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handlePreview(job)}
+                      className="text-blue-600 hover:text-blue-900 text-sm font-medium"
+                    >
+                      Preview
+                    </button>
+                    <a
+                      href={`/jobs/${job.id}`}
+                      className="text-green-600 hover:text-green-900 text-sm font-medium"
+                    >
+                      View Details
+                    </a>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
       </div>
+
+      <JobPreviewModal job={selectedJob} onClose={() => setSelectedJob(null)} />
     </div>
   );
 }

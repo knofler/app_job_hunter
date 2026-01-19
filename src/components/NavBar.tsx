@@ -25,6 +25,7 @@ const NAV_ITEMS: Record<Persona, NavItem[]> = {
   ],
   recruiter: [
     { label: "Recruiter Dashboard", href: "/recruiters/dashboard" },
+    { label: "My Job Descriptions", href: "/recruiters/jobs" },
     { label: "Upload JD", href: "/recruiters/upload-jd" },
     { label: "Recruiter AI", href: "/recruiters/ai-workflow" },
     { label: "Jobs", href: "/jobs" },
