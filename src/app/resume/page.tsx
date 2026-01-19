@@ -38,6 +38,83 @@ type ResumeApiResponse = {
 const SECTION_ORDER: string[] = ["Technical", "Business", "Creative"];
 const RESUME_TYPES = ["Technical", "Business", "Creative", "General"] as const;
 
+interface ResumePreviewModalProps {
+  resume: Resume | null;
+  onClose: () => void;
+}
+
+function ResumePreviewModal({ resume, onClose }: ResumePreviewModalProps) {
+  if (!resume) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">{resume.name}</h2>
+              <p className="text-lg text-gray-600 mt-1">{resume.type} Resume</p>
+              <p className="text-sm text-gray-500 mt-1">Last updated: {new Date(resume.lastUpdated).toLocaleDateString()}</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 text-2xl"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="space-y-6">
+            {resume.summary && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Summary</h3>
+                <p className="text-gray-700">{resume.summary}</p>
+              </div>
+            )}
+
+            {resume.skills && resume.skills.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Skills</h3>
+                <div className="flex flex-wrap gap-2">
+                  {resume.skills.map((skill, index) => (
+                    <span
+                      key={index}
+                      className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="border-t pt-4">
+              <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                <div>
+                  <span className="font-medium">Type:</span> {resume.type}
+                </div>
+                <div>
+                  <span className="font-medium">Last Updated:</span>{" "}
+                  {new Date(resume.lastUpdated).toLocaleDateString()}
+                </div>
+              </div>
+            </div>
+
+            {resume.preview && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Full Resume Content</h3>
+                <div className="bg-gray-50 p-4 rounded border max-h-96 overflow-y-auto">
+                  <pre className="text-sm text-gray-700 whitespace-pre-wrap">{resume.preview}</pre>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function mapResume(apiResume: ResumeApiResponse): Resume {
 	return {
 		id: apiResume.id,
@@ -93,6 +170,11 @@ export default function ResumePage() {
 	const [statusMessage, setStatusMessage] = useState<string | null>(null);
 	const [uploadCandidateName, setUploadCandidateName] = useState("");
 	const [extractingCandidateName, setExtractingCandidateName] = useState(false);
+	const [previewResume, setPreviewResume] = useState<Resume | null>(null);
+
+	const handlePreview = (resume: Resume) => {
+		setPreviewResume(resume);
+	};
 
 	const loadResumes = useCallback(async () => {
 		if (!user?.name) {
@@ -570,6 +652,16 @@ export default function ResumePage() {
 												<>
 													<span className="font-semibold flex-1 text-gray-900">{resume.name}</span>
 													<div className="flex items-center gap-3">
+														<button
+															className="text-xs text-blue-600 hover:text-blue-700"
+															type="button"
+															onClick={event => {
+																event.stopPropagation();
+																handlePreview(resume);
+															}}
+														>
+															Preview
+														</button>
 														<EditIcon
 															onClick={event => {
 																event.stopPropagation();
@@ -734,6 +826,8 @@ export default function ResumePage() {
 		</div>
 	</div>
 </div>
+
+<ResumePreviewModal resume={previewResume} onClose={() => setPreviewResume(null)} />
 </div>
 	);
 }
