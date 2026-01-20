@@ -298,18 +298,32 @@ export default function RecruiterRankingPage() {
               value={jobSearch}
               onChange={event => setJobSearch(event.target.value)}
             />
-            <select
-              className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-              value={selectedJobId}
-              onChange={event => setSelectedJobId(event.target.value)}
-            >
-              <option value="">Select a job</option>
-              {filteredJobs.map(job => (
-                <option key={job.id} value={job.id}>
-                  {job.title} — {job.company} {formatDate(job.uploaded_at || job.updated_at || job.created_at)}
-                </option>
-              ))}
-            </select>
+            <div className="relative mt-3">
+              <select
+                className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-medium text-slate-700 shadow-sm transition focus:border-emerald-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                value={selectedJobId}
+                onChange={event => setSelectedJobId(event.target.value)}
+              >
+                <option value="">Select a job</option>
+                {filteredJobs.map(job => (
+                  <option key={job.id} value={job.id}>
+                    {job.title} — {job.company} · {formatDate(job.uploaded_at || job.updated_at || job.created_at)}
+                  </option>
+                ))}
+              </select>
+              <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-400">
+                <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path
+                    fillRule="evenodd"
+                    d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </span>
+            </div>
+            <div className="mt-2 text-[11px] text-slate-500">
+              Showing newest uploads first. Use search to narrow the list.
+            </div>
             {selectedJob ? (
               <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-sm text-slate-600">
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Selected JD</div>
