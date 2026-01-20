@@ -30,6 +30,18 @@ export type RankedResumeScore = {
   status?: string | null;
   availability?: string | null;
   notes?: string | null;
+  summary?: string | null;
+  confidence?: number | null;
+  positive_signals?: string[];
+  negative_signals?: string[];
+  breakdown?: Array<{ label: string; score: number }>;
+  missing_keywords?: string[];
+  matched_keywords?: string[];
+  improvement_suggestions?: string[];
+  skills_analysis?: {
+    found?: string[];
+    missing?: string[];
+  };
 };
 
 export type RecruiterRankingResponse = {
