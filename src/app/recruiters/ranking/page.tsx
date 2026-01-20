@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type DragEvent } from "react";
+import { Listbox } from "@headlessui/react";
 import type { JobDescription } from "@/lib/recruiter-workflow";
 import {
   generateRecruiterRanking,
@@ -298,29 +299,48 @@ export default function RecruiterRankingPage() {
               value={jobSearch}
               onChange={event => setJobSearch(event.target.value)}
             />
-            <div className="relative mt-3">
-              <select
-                className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-medium text-slate-700 shadow-sm transition focus:border-emerald-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                value={selectedJobId}
-                onChange={event => setSelectedJobId(event.target.value)}
-              >
-                <option value="">Select a job</option>
-                {filteredJobs.map(job => (
-                  <option key={job.id} value={job.id}>
-                    {job.title} — {job.company} · {formatDate(job.uploaded_at || job.updated_at || job.created_at)}
-                  </option>
-                ))}
-              </select>
-              <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-400">
-                <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path
-                    fillRule="evenodd"
-                    d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </span>
-            </div>
+            <Listbox value={selectedJobId} onChange={setSelectedJobId}>
+              <div className="relative mt-3">
+                <Listbox.Button className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-left text-sm font-medium text-slate-700 shadow-sm transition focus:border-emerald-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                  <span>
+                    {selectedJob
+                      ? `${selectedJob.title} — ${selectedJob.company} · ${formatDate(
+                          selectedJob.uploaded_at || selectedJob.updated_at || selectedJob.created_at,
+                        )}`
+                      : "Select a job"}
+                  </span>
+                  <svg className="h-4 w-4 text-slate-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path
+                      fillRule="evenodd"
+                      d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </Listbox.Button>
+                <Listbox.Options className="absolute z-10 mt-2 max-h-72 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2 text-sm shadow-xl">
+                  {filteredJobs.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-slate-400">No job descriptions found.</div>
+                  ) : (
+                    filteredJobs.map(job => (
+                      <Listbox.Option
+                        key={job.id}
+                        value={job.id}
+                        className={({ active }) =>
+                          `cursor-pointer rounded-xl px-3 py-2 transition ${
+                            active ? "bg-emerald-50 text-emerald-800" : "text-slate-700"
+                          }`
+                        }
+                      >
+                        <div className="text-sm font-semibold">{job.title}</div>
+                        <div className="text-xs text-slate-500">
+                          {job.company} · {formatDate(job.uploaded_at || job.updated_at || job.created_at)}
+                        </div>
+                      </Listbox.Option>
+                    ))
+                  )}
+                </Listbox.Options>
+              </div>
+            </Listbox>
             <div className="mt-2 text-[11px] text-slate-500">
               Showing newest uploads first. Use search to narrow the list.
             </div>
