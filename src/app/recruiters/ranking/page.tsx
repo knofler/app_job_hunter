@@ -6,27 +6,19 @@ import {
   generateRecruiterRanking,
   listJobDescriptions,
   listResumeOptions,
-  parseJobDescriptionFile,
+  uploadJobDescriptionFile,
   uploadResumeFile,
   type RankedResumeScore,
   type ResumeOption,
 } from "@/lib/recruiter-ranking";
 
-type JobOption = {
-  id: string;
-  title: string;
-  description: string;
-  company?: string | null;
-  isCustom?: boolean;
-  sourceLabel?: string | null;
-};
-
 export default function RecruiterRankingPage() {
   const [jobDescriptions, setJobDescriptions] = useState<JobDescription[]>([]);
-  const [customJobOptions, setCustomJobOptions] = useState<JobOption[]>([]);
   const [resumes, setResumes] = useState<ResumeOption[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string>("");
   const [selectedResumeIds, setSelectedResumeIds] = useState<string[]>([]);
+  const [jobSearch, setJobSearch] = useState("");
+  const [resumeSearch, setResumeSearch] = useState("");
   const [rankedResults, setRankedResults] = useState<RankedResumeScore[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,26 +42,68 @@ export default function RecruiterRankingPage() {
     loadData();
   }, []);
 
-  const jobOptions = useMemo<JobOption[]>(
-    () => [
-      ...customJobOptions,
-      ...jobDescriptions.map(job => ({
-        id: job.id,
-        title: job.title,
-        description: job.description,
-        company: job.company,
-      })),
-    ],
-    [customJobOptions, jobDescriptions],
-  );
-
   const selectedJob = useMemo(
-    () => jobOptions.find(job => job.id === selectedJobId),
-    [jobOptions, selectedJobId],
+    () => jobDescriptions.find(job => job.id === selectedJobId),
+    [jobDescriptions, selectedJobId],
   );
 
   const jobDescriptionText = selectedJob?.description ?? "";
   const jobTitle = selectedJob?.title ?? "";
+
+  const formatDate = (value?: string | null) => {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleDateString();
+  };
+
+  const sortedJobs = useMemo(() => {
+    return [...jobDescriptions].sort((a, b) => {
+      const left = new Date(a.uploaded_at || a.updated_at || a.created_at).getTime();
+      const right = new Date(b.uploaded_at || b.updated_at || b.created_at).getTime();
+      return right - left;
+    });
+  }, [jobDescriptions]);
+
+  const sortedResumes = useMemo(() => {
+    return [...resumes].sort((a, b) => {
+      const left = new Date(a.uploaded_at || a.last_updated || "").getTime();
+      const right = new Date(b.uploaded_at || b.last_updated || "").getTime();
+      return right - left;
+    });
+  }, [resumes]);
+
+  const filteredJobs = useMemo(() => {
+    const query = jobSearch.trim().toLowerCase();
+    if (!query) return sortedJobs;
+    return sortedJobs.filter(job =>
+      [job.title, job.company, job.location]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(query)
+    );
+  }, [jobSearch, sortedJobs]);
+
+  const filteredResumes = useMemo(() => {
+    const query = resumeSearch.trim().toLowerCase();
+    if (!query) return sortedResumes;
+    return sortedResumes.filter(resume =>
+      [resume.candidate_name, resume.name]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(query)
+    );
+  }, [resumeSearch, sortedResumes]);
+
+  const toggleResumeSelection = (resumeId: string) => {
+    setSelectedResumeIds(current =>
+      current.includes(resumeId)
+        ? current.filter(id => id !== resumeId)
+        : [...current, resumeId]
+    );
+  };
 
   const handleDragStart = (payload: { type: "job" | "resume"; id: string }) => (event: DragEvent) => {
     event.dataTransfer.setData("application/json", JSON.stringify(payload));
@@ -80,22 +114,16 @@ export default function RecruiterRankingPage() {
     if (!files || files.length === 0) return;
     setIsUploading(true);
     try {
-      const uploaded: JobOption[] = [];
+      let lastUploadedId: string | null = null;
       for (const file of Array.from(files)) {
-        const result = await parseJobDescriptionFile(file);
         const title = file.name.replace(/\.[^.]+$/, "");
-        uploaded.push({
-          id: `custom-${Date.now()}-${uploaded.length}`,
-          title,
-          description: result.text || "",
-          company: "Uploaded JD",
-          isCustom: true,
-          sourceLabel: file.name,
-        });
+        const result = await uploadJobDescriptionFile(file, title);
+        lastUploadedId = result.job_id;
       }
-      if (uploaded.length > 0) {
-        setCustomJobOptions(current => [...uploaded, ...current]);
-        setSelectedJobId(uploaded[0].id);
+      if (lastUploadedId) {
+        const jobsResponse = await listJobDescriptions();
+        setJobDescriptions(jobsResponse.items ?? []);
+        setSelectedJobId(lastUploadedId);
       }
     } catch (err) {
       setError((err as Error).message || "Failed to parse job description file");
@@ -107,21 +135,18 @@ export default function RecruiterRankingPage() {
   const handleResumeFileDrop = async (files: FileList) => {
     setIsUploading(true);
     try {
-      const uploaded: ResumeOption[] = [];
+      const uploadedIds: string[] = [];
       for (const file of Array.from(files)) {
         const candidateName = file.name.replace(/\.[^.]+$/, "");
         const result = await uploadResumeFile(file, candidateName);
-        uploaded.push({
-          id: result.resume_id,
-          name: candidateName,
-          candidate_name: candidateName,
-        });
+        uploadedIds.push(result.resume_id);
       }
-      if (uploaded.length > 0) {
-        setResumes(current => [...uploaded, ...current]);
+      if (uploadedIds.length > 0) {
+        const resumeResponse = await listResumeOptions();
+        setResumes(resumeResponse.items ?? []);
         setSelectedResumeIds(current => [
           ...current,
-          ...uploaded.map(item => item.id).filter(id => !current.includes(id)),
+          ...uploadedIds.filter(id => !current.includes(id)),
         ]);
       }
     } catch (err) {
@@ -196,7 +221,7 @@ export default function RecruiterRankingPage() {
       });
       const response = await generateRecruiterRanking({
         job_description: jobDescriptionText,
-        job_id: selectedJob?.isCustom ? null : selectedJob?.id ?? null,
+        job_id: selectedJob?.id ?? null,
         job_title: jobTitle,
         resumes: selectedResumes,
       });
@@ -216,13 +241,20 @@ export default function RecruiterRankingPage() {
   const formatPercent = (value?: number | null) => `${clampPercent(value)}%`;
 
   return (
-    <div className="min-h-screen bg-slate-50 px-6 py-10">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/40 px-6 py-10">
       <div className="mx-auto max-w-6xl">
-        <header className="mb-8">
-          <h1 className="text-2xl font-semibold text-slate-900">Recruiter Ranking (MVP)</h1>
-          <p className="mt-2 text-sm text-slate-600">
-            Select one job description and multiple resumes to generate a ranked shortlist with scores.
-          </p>
+        <header className="mb-8 rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-semibold text-slate-900">Recruiter Ranking</h1>
+              <p className="mt-2 text-sm text-slate-600">
+                Compare curated job descriptions with multiple resumes and generate a ranked shortlist.
+              </p>
+            </div>
+            <div className="rounded-full bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-700">
+              AI Ranking Workspace
+            </div>
+          </div>
         </header>
 
         {error ? (
@@ -231,15 +263,18 @@ export default function RecruiterRankingPage() {
           </div>
         ) : null}
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-semibold text-slate-800">Job Descriptions</h2>
-            <p className="mt-1 text-xs text-slate-500">Pick one job description.</p>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold text-slate-900">Job Description</h2>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-medium text-slate-600">Single select</span>
+            </div>
+            <p className="mt-2 text-sm text-slate-500">Upload a JD or pick one from your saved list.</p>
             <div
-              className={`mt-3 rounded-xl border-2 border-dashed px-4 py-6 text-sm transition ${
+              className={`mt-4 rounded-2xl border-2 border-dashed px-5 py-6 text-sm transition ${
                 jobDragActive
                   ? "border-emerald-400 bg-emerald-50 text-emerald-700 shadow-sm"
-                  : "border-slate-300 bg-gradient-to-br from-slate-50 to-white text-slate-500"
+                  : "border-slate-200 bg-gradient-to-br from-white to-slate-50 text-slate-500"
               }`}
               onDragOver={event => {
                 event.preventDefault();
@@ -248,82 +283,59 @@ export default function RecruiterRankingPage() {
               onDragLeave={() => setJobDragActive(false)}
               onDrop={handleJobDrop}
             >
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-lg shadow-sm">📄</span>
+              <div className="flex items-center gap-4">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-lg shadow-sm">📄</span>
                 <div>
-                  <div className="font-semibold">Drop job descriptions here</div>
-                  <div className="text-xs text-slate-500">You can drop multiple files or choose from the dropdown.</div>
+                  <div className="text-sm font-semibold">Drop job descriptions here</div>
+                  <div className="text-xs text-slate-500">Multiple files supported. We’ll store and de-dup automatically.</div>
                 </div>
               </div>
             </div>
+            <input
+              type="text"
+              className="mt-4 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+              placeholder="Search job descriptions..."
+              value={jobSearch}
+              onChange={event => setJobSearch(event.target.value)}
+            />
             <select
-              className="mt-3 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+              className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
               value={selectedJobId}
               onChange={event => setSelectedJobId(event.target.value)}
             >
               <option value="">Select a job</option>
-              {customJobOptions.map(job => (
+              {filteredJobs.map(job => (
                 <option key={job.id} value={job.id}>
-                  Uploaded JD — {job.title}
-                </option>
-              ))}
-              {jobDescriptions.map(job => (
-                <option key={job.id} value={job.id}>
-                  {job.title} — {job.company}
+                  {job.title} — {job.company} {formatDate(job.uploaded_at || job.updated_at || job.created_at)}
                 </option>
               ))}
             </select>
             {selectedJob ? (
-              <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-                <div className="font-medium text-slate-700">{jobTitle || "Job description"}</div>
-                {selectedJob.sourceLabel ? (
-                  <div className="mt-1 text-[11px] text-slate-500">Source: {selectedJob.sourceLabel}</div>
-                ) : null}
-                <p className="mt-1 line-clamp-6 whitespace-pre-wrap">{jobDescriptionText}</p>
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-sm text-slate-600">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Selected JD</div>
+                <div className="mt-1 text-sm font-semibold text-slate-800">{jobTitle || "Job description"}</div>
+                <div className="mt-1 text-xs text-slate-500">
+                  Uploaded {formatDate(selectedJob.uploaded_at || selectedJob.updated_at || selectedJob.created_at)}
+                </div>
+                <p className="mt-2 line-clamp-6 whitespace-pre-wrap text-xs text-slate-600">{jobDescriptionText}</p>
               </div>
             ) : null}
-            <div className="mt-4 space-y-2">
-              {customJobOptions.map(job => (
-                <div
-                  key={job.id}
-                  draggable
-                  onDragStart={handleDragStart({ type: "job", id: job.id })}
-                  className={`cursor-move rounded-md border px-3 py-2 text-xs ${
-                    selectedJobId === job.id
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                      : "border-slate-200 bg-white text-slate-600"
-                  }`}
-                >
-                  <div className="font-medium text-slate-700">{job.title}</div>
-                  <div className="text-slate-500">Uploaded JD</div>
-                </div>
-              ))}
-              {jobDescriptions.map(job => (
-                <div
-                  key={job.id}
-                  draggable
-                  onDragStart={handleDragStart({ type: "job", id: job.id })}
-                  className={`cursor-move rounded-md border px-3 py-2 text-xs ${
-                    selectedJobId === job.id
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                      : "border-slate-200 bg-white text-slate-600"
-                  }`}
-                >
-                  <div className="font-medium text-slate-700">{job.title}</div>
-                  <div className="text-slate-500">{job.company}</div>
-                </div>
-              ))}
+            <div className="mt-4 text-xs text-slate-500">
+              Tip: Use search to filter by title, company, or location.
             </div>
           </section>
 
-          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-semibold text-slate-800">Resumes</h2>
-            <p className="mt-1 text-xs text-slate-500">Select multiple resumes.</p>
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold text-slate-900">Resumes</h2>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-medium text-slate-600">Multi select</span>
+            </div>
+            <p className="mt-2 text-sm text-slate-500">Search and select multiple resumes to rank.</p>
             <div
-              className={`mt-3 rounded-xl border-2 border-dashed px-4 py-6 text-sm transition ${
+              className={`mt-4 rounded-2xl border-2 border-dashed px-5 py-6 text-sm transition ${
                 resumeDragActive
                   ? "border-emerald-400 bg-emerald-50 text-emerald-700 shadow-sm"
-                  : "border-slate-300 bg-gradient-to-br from-slate-50 to-white text-slate-500"
+                  : "border-slate-200 bg-gradient-to-br from-white to-slate-50 text-slate-500"
               }`}
               onDragOver={event => {
                 event.preventDefault();
@@ -332,52 +344,73 @@ export default function RecruiterRankingPage() {
               onDragLeave={() => setResumeDragActive(false)}
               onDrop={handleResumeDrop}
             >
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-lg shadow-sm">🧑‍💼</span>
+              <div className="flex items-center gap-4">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-lg shadow-sm">🧑‍💼</span>
                 <div>
-                  <div className="font-semibold">Drop resumes here</div>
-                  <div className="text-xs text-slate-500">You can drop multiple resumes.</div>
+                  <div className="text-sm font-semibold">Drop resumes here</div>
+                  <div className="text-xs text-slate-500">Multiple files supported. Duplicates are auto-upserted.</div>
                 </div>
               </div>
             </div>
-            <select
-              className="mt-3 h-64 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-              multiple
-              value={selectedResumeIds}
-              onChange={event =>
-                setSelectedResumeIds(
-                  Array.from(event.target.selectedOptions).map(option => option.value),
-                )
-              }
-            >
-              {resumes.map(resume => (
-                <option key={resume.id} value={resume.id}>
-                  {resume.candidate_name ? `${resume.candidate_name} — ` : ""}
-                  {resume.name}
-                </option>
-              ))}
-            </select>
-            <div className="mt-4 space-y-2">
-              {resumes.map(resume => (
-                <div
-                  key={resume.id}
-                  draggable
-                  onDragStart={handleDragStart({ type: "resume", id: resume.id })}
-                  className={`cursor-move rounded-md border px-3 py-2 text-xs ${
-                    selectedResumeIds.includes(resume.id)
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                      : "border-slate-200 bg-white text-slate-600"
-                  }`}
-                >
-                  <div className="font-medium text-slate-700">
-                    {resume.candidate_name ? `${resume.candidate_name} — ` : ""}
-                    {resume.name}
-                  </div>
-                  {resume.summary ? (
-                    <div className="mt-1 text-slate-500 line-clamp-2">{resume.summary}</div>
-                  ) : null}
+            <input
+              type="text"
+              className="mt-4 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+              placeholder="Search resumes..."
+              value={resumeSearch}
+              onChange={event => setResumeSearch(event.target.value)}
+            />
+            <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
+              <span>{filteredResumes.length} resumes</span>
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
+                {selectedResumeIds.length} selected
+              </span>
+            </div>
+            <div className="mt-3 max-h-72 space-y-2 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+              {filteredResumes.map(resume => {
+                const isSelected = selectedResumeIds.includes(resume.id);
+                return (
+                  <button
+                    key={resume.id}
+                    type="button"
+                    onClick={() => toggleResumeSelection(resume.id)}
+                    className={`flex w-full items-start gap-3 rounded-xl border px-3 py-2 text-left text-sm transition ${
+                      isSelected
+                        ? "border-emerald-200 bg-emerald-50/60"
+                        : "border-slate-200 bg-white hover:border-emerald-100 hover:bg-emerald-50/20"
+                    }`}
+                  >
+                    <span
+                      className={`mt-1 flex h-4 w-4 items-center justify-center rounded border text-[10px] font-bold ${
+                        isSelected
+                          ? "border-emerald-500 bg-emerald-500 text-white"
+                          : "border-slate-300 bg-white text-transparent"
+                      }`}
+                    >
+                      ✓
+                    </span>
+                    <div className="flex-1">
+                      <div className="text-sm font-semibold text-slate-800">
+                        {resume.candidate_name ? `${resume.candidate_name} — ` : ""}
+                        {resume.name}
+                      </div>
+                      <div className="mt-1 text-[11px] text-slate-500">
+                        Uploaded {formatDate(resume.uploaded_at || resume.last_updated)}
+                      </div>
+                      {resume.summary ? (
+                        <div className="mt-1 text-xs text-slate-500 line-clamp-2">{resume.summary}</div>
+                      ) : null}
+                    </div>
+                  </button>
+                );
+              })}
+              {filteredResumes.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
+                  No resumes match this search.
                 </div>
-              ))}
+              ) : null}
+            </div>
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-500">
+              Click a resume to add/remove it from the selection.
             </div>
           </section>
         </div>

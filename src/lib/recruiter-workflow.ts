@@ -144,6 +144,7 @@ export type JobDescription = {
   code?: string;
   created_at: string;
   updated_at: string;
+  uploaded_at?: string;
 };
 
 export type JobListResponse = {

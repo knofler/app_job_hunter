@@ -9,6 +9,8 @@ export type ResumeOption = {
   summary?: string | null;
   skills?: string[];
   resume_type?: string | null;
+  uploaded_at?: string | null;
+  last_updated?: string | null;
 };
 
 export type RecruiterRankingRequest = {
@@ -56,10 +58,14 @@ export async function listResumeOptions(limit: number = 200): Promise<ResumeOpti
   return fetchFromApi<ResumeOptionsResponse>(`/recruiter-ranking/resumes?limit=${limit}`);
 }
 
-export async function parseJobDescriptionFile(file: File): Promise<{ text: string; filename?: string }> {
+export async function uploadJobDescriptionFile(
+  file: File,
+  title: string,
+): Promise<{ job_id: string }> {
   const formData = new FormData();
   formData.append("file", file);
-  return fetchFromApi<{ text: string; filename?: string }>("/recruiter-ranking/parse-jd", {
+  formData.append("title", title);
+  return fetchFromApi<{ job_id: string }>("/jobs/upload-jd", {
     method: "POST",
     body: formData,
   });
@@ -80,7 +86,7 @@ export async function uploadResumeFile(
 }
 
 export async function listJobDescriptions(): Promise<{ items: JobDescription[] }>{
-  return fetchFromApi<{ items: JobDescription[] }>(`/jobs/descriptions?page=1&page_size=100`);
+  return fetchFromApi<{ items: JobDescription[] }>(`/jobs/descriptions?page=1&page_size=50`);
 }
 
 export async function generateRecruiterRanking(
