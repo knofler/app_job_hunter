@@ -1,5 +1,5 @@
 # Stage 1: Build the application
-FROM node:23-alpine AS builder
+FROM node:20-alpine AS builder
 
 # Accept build arguments
 ARG NEXT_PUBLIC_ADMIN_TOKEN
@@ -43,7 +43,7 @@ COPY . .
 RUN npm run build
 
 # Stage 2: Run the application
-FROM node:23-alpine
+FROM node:20-alpine
 
 # Set the working directory
 WORKDIR /app
