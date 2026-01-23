@@ -2,6 +2,7 @@
   "name": "ai-matching-job-app",
   "version": "0.1.0",
   "private": true,
+  "description": "AI-powered job matching app - test commit for GitHub Actions",
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",
