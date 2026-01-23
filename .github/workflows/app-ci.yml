@@ -14,6 +14,13 @@ jobs:
     name: Lint and Test
     runs-on: ubuntu-latest
 
+    env:
+      NEXT_PUBLIC_API_URL: http://localhost:8010
+      NEXT_PUBLIC_API_URL_LOCAL: http://localhost:8010
+      NEXT_PUBLIC_API_URL_INTERNAL: http://backend:8000
+      NEXT_PUBLIC_API_FORCE_REMOTE: 1
+      NEXT_PUBLIC_USE_DUMMY_DATA: true
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
