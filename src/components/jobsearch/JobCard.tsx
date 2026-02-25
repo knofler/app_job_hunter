@@ -30,12 +30,12 @@ export default function JobCard({ job }: JobCardProps) {
   const postedDate = job.posted_at
     ? new Date(job.posted_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })
     : null;
-  const initials = job.company
+  const initials = (job.company ?? "?")
     .split(" ")
     .slice(0, 2)
-    .map(w => w[0])
+    .map((w: string) => w[0])
     .join("")
-    .toUpperCase();
+    .toUpperCase() || "?";
 
   return (
     <div className="group bg-card border border-border rounded-xl p-5 flex gap-4 items-start hover:border-primary/40 hover:shadow-md transition-all duration-200 cursor-pointer">
