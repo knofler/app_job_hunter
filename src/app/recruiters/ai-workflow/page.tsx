@@ -562,7 +562,7 @@ export default function RecruiterAIWorkflowPage() {
   };
 
   return (
-    <div className="flex" style={{ height: "calc(100vh - 64px)" }}>
+    <div className="flex" style={{ height: "calc(100vh - 56px)" }}>
 
       {/* ─── LEFT PANEL: Inputs ─────────────────────────────── */}
       <aside className="w-[400px] flex-shrink-0 border-r border-border bg-card flex flex-col overflow-hidden">

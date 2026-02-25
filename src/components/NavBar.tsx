@@ -24,17 +24,17 @@ const NAV_ITEMS: Record<Persona, NavItem[]> = {
     { label: "Projects", href: "/recruiters/projects" },
   ],
   admin: [
-    { label: "LLM Settings", href: "/admin/llm" },
-    { label: "AI Prompts", href: "/admin/prompts" },
-    { label: "Organisations", href: "/admin/orgs" },
-    { label: "Seed Data", href: "/admin/seed" },
+    { label: "LLM Providers", href: "/settings/llm" },
+    { label: "AI Prompts", href: "/settings/prompts" },
+    { label: "Organisations", href: "/settings/orgs" },
+    { label: "Data Management", href: "/settings/data" },
   ],
 };
 
 const DEFAULT_DESTINATION: Record<Persona, string> = {
   candidate: "/dashboard",
   recruiter: "/recruiters/projects",
-  admin: "/admin/llm",
+  admin: "/settings/llm",
 };
 
 const personaOptions: Array<{ id: Persona; label: string; icon: string }> = [
