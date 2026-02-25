@@ -174,39 +174,75 @@ export default function JobCardList({ filters, pageSize = 10, mode = "personaliz
   const showInitialLoading = candidateId != null && loading && !jobs.length && !usingFallback;
 
   if (!candidateId) {
-    return <div className="text-sm text-gray-500">Switch to the candidate persona to see personalised job results.</div>;
+    return (
+      <div className="bg-card border border-border rounded-xl p-8 text-center">
+        <svg className="w-10 h-10 text-muted-foreground mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+        <p className="text-sm text-muted-foreground">Switch to the candidate persona to see personalised job results.</p>
+      </div>
+    );
   }
 
   if (showInitialLoading) {
-    return <div className="text-sm text-gray-400">Loading jobs...</div>;
+    return (
+      <div className="flex flex-col gap-4">
+        {[1,2,3,4,5].map(i => (
+          <div key={i} className="bg-card border border-border rounded-xl p-5 flex gap-4 animate-pulse">
+            <div className="w-11 h-11 rounded-lg bg-muted shrink-0" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 bg-muted rounded w-2/3" />
+              <div className="h-3 bg-muted rounded w-1/3" />
+              <div className="h-3 bg-muted rounded w-1/2" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   }
 
   if (!sortedJobs.length) {
-    return <div className="text-sm text-gray-500">No jobs found. Try adjusting your filters.</div>;
+    return (
+      <div className="bg-card border border-dashed border-border rounded-xl p-10 text-center">
+        <svg className="w-10 h-10 text-muted-foreground mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <p className="text-sm text-muted-foreground">No jobs found. Try adjusting your filters.</p>
+      </div>
+    );
   }
 
   return (
-    <div className={mode === "listings" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "flex flex-col gap-4"}>
-      {usingFallback && (
-        <div className="text-xs text-gray-400 col-span-full">Showing cached job listings while the API is unavailable.</div>
+    <div>
+      {mode !== "listings" && (
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-sm text-muted-foreground">
+            {usingFallback ? "Showing cached results" : `${sortedJobs.length} jobs found`}
+          </p>
+          {usingFallback && (
+            <span className="text-xs bg-amber-50 border border-amber-200 text-amber-700 px-2 py-0.5 rounded-full">Offline mode</span>
+          )}
+        </div>
       )}
-      {sortedJobs.map(job => (
-        mode === "listings" ? (
-          <JobListingCard key={job.id} job={job} />
-        ) : (
-          <JobCard key={job.id} job={job} />
-        )
-      ))}
-      {!usingFallback && hasMore && (
-        <div ref={loaderRef} className="h-1" aria-hidden />
-      )}
-      {loading && jobs.length > 0 && (
-        <div className="text-xs text-gray-400 col-span-full">Loading more jobs…</div>
-      )}
-      {!hasMore && !usingFallback && (
-        <div className="text-xs text-gray-400 col-span-full">You’ve reached the end of the job list.</div>
-      )}
-      {error && <div className="text-xs text-red-500 col-span-full">{error}</div>}
+      <div className={mode === "listings" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "flex flex-col gap-3"}>
+        {sortedJobs.map(job => (
+          mode === "listings" ? (
+            <JobListingCard key={job.id} job={job} />
+          ) : (
+            <JobCard key={job.id} job={job} />
+          )
+        ))}
+        {!usingFallback && hasMore && (
+          <div ref={loaderRef} className="h-1" aria-hidden />
+        )}
+        {loading && jobs.length > 0 && (
+          <div className="text-xs text-muted-foreground col-span-full py-2 text-center">Loading more jobs…</div>
+        )}
+        {!hasMore && !usingFallback && sortedJobs.length > 0 && (
+          <div className="text-xs text-muted-foreground col-span-full py-4 text-center border-t border-border">All jobs loaded</div>
+        )}
+        {error && <div className="text-xs text-error col-span-full">{error}</div>}
+      </div>
     </div>
   );
 }

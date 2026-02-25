@@ -11,6 +11,10 @@ import { fallbackResumes } from "@/lib/fallback-data";
 import ResumeHealthCard from "@/components/ResumeHealthCard";
 import SuggestedActions from "@/components/SuggestedActions";
 import ApplicationPipeline from "@/components/ApplicationPipeline";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import Button from "@/components/ui/Button";
+import Badge from "@/components/ui/Badge";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
 type Resume = {
 	id: string;
@@ -66,66 +70,41 @@ function ResumePreviewModal({ resume, onClose }: ResumePreviewModalProps) {
   if (!resume) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={onClose}>
+      <div className="bg-card rounded-xl border border-border shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="p-6">
           <div className="flex justify-between items-start mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">{resume.name}</h2>
-              <p className="text-lg text-gray-600 mt-1">{resume.type} Resume</p>
-              <p className="text-sm text-gray-500 mt-1">Last updated: {new Date(resume.lastUpdated).toLocaleDateString()}</p>
+              <h2 className="text-2xl font-bold text-foreground">{resume.name}</h2>
+              <p className="text-muted-foreground mt-1">{resume.type} Resume</p>
+              <p className="text-sm text-muted-foreground mt-1">Last updated: {new Date(resume.lastUpdated).toLocaleDateString()}</p>
             </div>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 text-2xl"
-            >
-              ×
-            </button>
+            <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-2xl leading-none">×</button>
           </div>
-
-          <div className="space-y-6">
+          <div className="space-y-5">
             {resume.summary && (
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Summary</h3>
-                <p className="text-gray-700">{resume.summary}</p>
+                <h3 className="text-base font-semibold text-foreground mb-2">Summary</h3>
+                <p className="text-muted-foreground">{resume.summary}</p>
               </div>
             )}
-
-            {resume.skills && resume.skills.length > 0 && (
+            {resume.skills?.length > 0 && (
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Skills</h3>
+                <h3 className="text-base font-semibold text-foreground mb-2">Skills</h3>
                 <div className="flex flex-wrap gap-2">
-                  {resume.skills.map((skill, index) => (
-                    <span
-                      key={index}
-                      className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm"
-                    >
-                      {skill}
-                    </span>
-                  ))}
+                  {resume.skills.map((skill, index) => <Badge key={index} variant="info">{skill}</Badge>)}
                 </div>
               </div>
             )}
-
-            <div className="border-t pt-4">
-              <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
-                <div>
-                  <span className="font-medium">Type:</span> {resume.type}
-                </div>
-                <div>
-                  <span className="font-medium">Last Updated:</span>{" "}
-                  {new Date(resume.lastUpdated).toLocaleDateString()}
-                </div>
-              </div>
+            <div className="border-t border-border pt-4 grid grid-cols-2 gap-3 text-sm">
+              <div><span className="font-medium text-foreground">Type:</span> <span className="text-muted-foreground">{resume.type}</span></div>
+              <div><span className="font-medium text-foreground">Last Updated:</span> <span className="text-muted-foreground">{new Date(resume.lastUpdated).toLocaleDateString()}</span></div>
             </div>
-
             {resume.preview && (
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Full Resume Content</h3>
-                <div className="bg-gray-50 p-6 rounded-lg border max-h-96 overflow-y-auto">
-                  <div className="text-base text-gray-800 leading-relaxed whitespace-pre-line">
-                    {formatPreviewText(resume.preview)}
-                  </div>
+                <h3 className="text-base font-semibold text-foreground mb-2">Full Resume Content</h3>
+                <div className="bg-muted p-4 rounded-lg border border-border max-h-80 overflow-y-auto scrollbar-thin">
+                  <pre className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed font-sans">{formatPreviewText(resume.preview)}</pre>
                 </div>
               </div>
             )}
@@ -153,7 +132,7 @@ function EditIcon({ onClick }: { onClick: (event: MouseEvent<HTMLButtonElement>)
 	return (
 		<button
 			onClick={onClick}
-			className="ml-2 text-gray-500 hover:text-blue-600"
+			className="ml-2 text-muted-foreground hover:text-primary"
 			title="Edit resume name"
 			aria-label="Edit resume name"
 			type="button"
@@ -591,15 +570,24 @@ export default function ResumePage() {
 
 	if (!user?.name) {
 		return (
-			<div className="max-w-5xl mx-auto py-10 px-4 text-sm text-gray-500">
-				Please log in to manage your resumes.
+			<div className="min-h-screen bg-muted/30 flex items-center justify-center">
+				<Card>
+					<CardContent className="p-8 text-center">
+						<p className="text-muted-foreground">Please log in to manage your resumes.</p>
+					</CardContent>
+				</Card>
 			</div>
 		);
 	}
 
 	return (
-		<div className="max-w-7xl mx-auto py-10 px-4 flex flex-col gap-8">
-			<div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+		<div className="min-h-screen bg-muted/30">
+			<div className="container-custom py-8">
+				<div className="mb-6">
+					<h1 className="text-3xl font-bold text-foreground mb-1">My Resumes</h1>
+					<p className="text-muted-foreground">Manage and upload your professional resumes</p>
+				</div>
+			<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 				{/* Left Column: Dashboard Components */}
 				<div className="col-span-1 flex flex-col gap-6">
 					<ResumeHealthCard />
@@ -611,256 +599,173 @@ export default function ResumePage() {
 					<ApplicationPipeline />
 					
 					{/* Resume List and Preview */}
-					<div className="flex flex-col md:flex-row gap-8">
+					<div className="flex flex-col md:flex-row gap-6">
 						{/* Left: Resume List */}
-						<div className="w-full md:w-1/2">
-							<h1 className="text-2xl font-bold mb-6">Your Resumes</h1>
-							{loading && <div className="text-sm text-gray-400 mb-4">Loading resumes...</div>}
+						<div className="w-full md:w-1/2 space-y-4">
+							{loading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><LoadingSpinner size="sm" /> Loading resumes...</div>}
 							{usingFallback && !loading && (
-								<div className="text-xs text-gray-400 mb-3">Showing cached resumes while the API is unavailable.</div>
+								<p className="text-xs text-muted-foreground">Showing cached resumes while the API is unavailable.</p>
 							)}
-							{errorMessage && <div className="text-xs text-red-500 mb-3">{errorMessage}</div>}
-							{statusMessage && <div className="text-xs text-blue-600 mb-3">{statusMessage}</div>}
+							{errorMessage && <p className="text-sm text-error">{errorMessage}</p>}
+							{statusMessage && <p className="text-sm text-primary">{statusMessage}</p>}
 							{resumes.length === 0 && !loading && (
-								<div className="text-sm text-gray-500 mb-4">No resumes yet. Upload one to get started.</div>
+								<p className="text-sm text-muted-foreground">No resumes yet. Upload one to get started.</p>
 							)}
 				{sections.map(section => (
-					<div key={section} className="mb-6">
-						<h2 className="text-lg font-semibold mb-3 text-blue-800">{section} Resumes</h2>
+					<div key={section}>
+						<h2 className="text-base font-semibold text-foreground mb-3">{section} Resumes</h2>
 						<ul className="flex flex-col gap-2">
 							{resumes
 								.filter(resume => resume.type === section)
 								.map(resume => (
 									<li
 										key={resume.id}
-										className={`bg-white border border-blue-100 rounded-lg px-4 py-3 flex flex-col items-start shadow transition-all duration-200 cursor-pointer ${
-											selectedResume?.id === resume.id ? "ring-2 ring-blue-400" : ""
+										className={`border rounded-lg px-4 py-3 flex flex-col items-start cursor-pointer transition-all duration-200 hover:shadow-md ${
+											selectedResume?.id === resume.id
+												? "border-primary bg-primary-light ring-2 ring-primary/30"
+												: "border-border bg-card hover:border-primary/50"
 										}`}
-										style={{ minHeight: 48 }}
 										onClick={() => setSelectedId(resume.id)}
 									>
 										<div className="flex items-center gap-2 w-full">
 											{editingId === resume.id ? (
 												<>
 													<input
-														className="border rounded px-2 py-1 text-sm flex-1"
+														className="input text-sm flex-1"
 														value={editName}
 														onChange={event => setEditName(event.target.value)}
 														onClick={event => event.stopPropagation()}
 													/>
 													<div className="flex gap-2 text-xs">
-														<button
-															className="text-blue-600"
-															type="button"
-															onClick={event => {
-																event.stopPropagation();
-																void saveEdit(resume.id);
-															}}
-														>
-															Save
-														</button>
-														<button
-															className="text-gray-500"
-															type="button"
-															onClick={event => {
-																event.stopPropagation();
-																cancelEdit();
-															}}
-														>
-															Cancel
-														</button>
+														<button className="text-primary font-medium" type="button" onClick={event => { event.stopPropagation(); void saveEdit(resume.id); }}>Save</button>
+														<button className="text-muted-foreground" type="button" onClick={event => { event.stopPropagation(); cancelEdit(); }}>Cancel</button>
 													</div>
 												</>
 											) : (
 												<>
-													<span className="font-semibold flex-1 text-gray-900">{resume.name}</span>
+													<span className="font-semibold flex-1 text-foreground">{resume.name}</span>
 													<div className="flex items-center gap-3">
-														<button
-															className="text-xs text-blue-600 hover:text-blue-700"
-															type="button"
-															onClick={event => {
-																event.stopPropagation();
-																handlePreview(resume);
-															}}
-														>
-															Preview
-														</button>
-														<EditIcon
-															onClick={event => {
-																event.stopPropagation();
-																startEdit(resume.id, resume.name);
-															}}
-														/>
-														<button
-															className="text-xs text-red-500 hover:text-red-600"
-															type="button"
-															onClick={event => {
-																void handleDelete(event, resume.id);
-															}}
-															disabled={deletingId === resume.id}
-														>
+														<button className="text-xs text-primary hover:text-primary-dark font-medium" type="button" onClick={event => { event.stopPropagation(); handlePreview(resume); }}>Preview</button>
+														<EditIcon onClick={event => { event.stopPropagation(); startEdit(resume.id, resume.name); }} />
+														<button className="text-xs text-error hover:text-red-700 font-medium" type="button" onClick={event => { void handleDelete(event, resume.id); }} disabled={deletingId === resume.id}>
 															{deletingId === resume.id ? "Deleting..." : "Delete"}
 														</button>
 													</div>
 												</>
 											)}
 										</div>
-										<div className="text-sm text-gray-700 mb-1 mt-1">{resume.summary}</div>
-										<div className="text-xs text-gray-500 mt-1">
-											Last updated: <span className="font-semibold text-blue-700">{resume.lastUpdated}</span>
-										</div>
+										<p className="text-sm text-muted-foreground mt-1">{resume.summary}</p>
+										<p className="text-xs text-muted-foreground mt-1">Last updated: <span className="font-medium text-foreground">{resume.lastUpdated}</span></p>
 									</li>
 								))}
 							</ul>
 						</div>
 					))}
 
-				<form onSubmit={handleUpload} className="bg-white border border-blue-100 rounded-lg p-4 shadow-sm">
-					<div className="flex items-center justify-between mb-4">
-						<h2 className="text-lg font-semibold text-blue-800">Upload New Resume</h2>
-						<label className="flex items-center gap-2 text-sm">
-							<input
-								type="checkbox"
-								checked={bulkUploadMode}
-								onChange={event => {
-									setBulkUploadMode(event.target.checked);
-									resetUploadForm();
-								}}
-							/>
-							<span>Bulk Upload</span>
-						</label>
-					</div>
-					<div className="flex flex-col gap-3">
+				<Card>
+					<CardHeader>
+						<div className="flex items-center justify-between">
+							<CardTitle>Upload New Resume</CardTitle>
+							<label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+								<input type="checkbox" checked={bulkUploadMode} onChange={event => { setBulkUploadMode(event.target.checked); resetUploadForm(); }} className="rounded" />
+								<span>Bulk Upload</span>
+							</label>
+						</div>
+					</CardHeader>
+					<CardContent>
+					<form onSubmit={handleUpload} className="space-y-3">
 						{!bulkUploadMode && (
-							<label className="flex flex-col text-sm text-gray-700">
-								<span className="mb-1 font-medium">Resume Name</span>
-								<input
-									className="border border-gray-300 rounded px-2 py-2"
-									required
-									value={uploadName}
-									onChange={event => setUploadName(event.target.value)}
-								/>
+							<label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
+								Resume Name
+								<input className="input" required value={uploadName} onChange={event => setUploadName(event.target.value)} />
 							</label>
 						)}
 						{!bulkUploadMode && (
-							<label className="flex flex-col text-sm text-gray-700">
-								<span className="mb-1 font-medium">Candidate Name</span>
-								<input
-									className="border border-gray-300 rounded px-2 py-2"
-									required
-									value={uploadCandidateName}
-									onChange={event => setUploadCandidateName(event.target.value)}
-									placeholder="Enter candidate name or leave blank to auto-extract from resume"
-								/>
-								{extractingCandidateName && (
-									<span className="text-xs text-blue-600 mt-1">Extracting candidate name from resume...</span>
-								)}
+							<label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
+								Candidate Name
+								<input className="input" required value={uploadCandidateName} onChange={event => setUploadCandidateName(event.target.value)} placeholder="Enter candidate name" />
+								{extractingCandidateName && <span className="text-xs text-primary">Extracting name from resume...</span>}
 							</label>
 						)}
-						<label className="flex flex-col text-sm text-gray-700">
-							<span className="mb-1 font-medium">Resume Type</span>
-							<select
-								className="border border-gray-300 rounded px-2 py-2"
-								value={uploadType}
-								onChange={event => setUploadType(event.target.value)}
-							>
-								{availableTypes.map(type => (
-									<option key={type} value={type}>
-										{type}
-									</option>
-								))}
+						<label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
+							Resume Type
+							<select className="input" value={uploadType} onChange={event => setUploadType(event.target.value)}>
+								{availableTypes.map(type => <option key={type} value={type}>{type}</option>)}
 							</select>
 						</label>
-						<label className="flex flex-col text-sm text-gray-700">
-							<span className="mb-1 font-medium">Summary (optional)</span>
-							<textarea
-								className="border border-gray-300 rounded px-2 py-2 h-20"
-								value={uploadSummary}
-								onChange={event => setUploadSummary(event.target.value)}
-							/>
+						<label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
+							Summary <span className="text-muted-foreground font-normal">(optional)</span>
+							<textarea className="input h-16 resize-none" value={uploadSummary} onChange={event => setUploadSummary(event.target.value)} />
 						</label>
-						<label className="flex flex-col text-sm text-gray-700">
-							<span className="mb-1 font-medium">Skills (comma separated)</span>
-							<input
-								className="border border-gray-300 rounded px-2 py-2"
-								value={uploadSkills}
-								onChange={event => setUploadSkills(event.target.value)}
-							/>
+						<label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
+							Skills <span className="text-muted-foreground font-normal">(comma separated)</span>
+							<input className="input" value={uploadSkills} onChange={event => setUploadSkills(event.target.value)} />
 						</label>
-						<label className="flex flex-col text-sm text-gray-700">
-							<span className="mb-1 font-medium">Resume File{bulkUploadMode ? 's' : ''} (PDF, DOCX only)</span>
-							<input
-								className="border border-gray-300 rounded px-2 py-2"
-								required
-								type="file"
-								accept=".pdf,.docx,.doc"
-								multiple={bulkUploadMode}
-								onChange={handleFileChange}
-							/>
-							{uploadFile && <span className="text-xs text-gray-500 mt-1">{uploadFile.name}</span>}
-							{uploadFiles && uploadFiles.length > 0 && (
-								<span className="text-xs text-gray-500 mt-1">
-									{uploadFiles.length} file{uploadFiles.length > 1 ? 's' : ''} selected
-								</span>
-							)}
+						<label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
+							Resume File{bulkUploadMode ? 's' : ''} <span className="text-muted-foreground font-normal">(PDF, DOCX only)</span>
+							<input className="input py-1.5" required type="file" accept=".pdf,.docx,.doc" multiple={bulkUploadMode} onChange={handleFileChange} />
+							{uploadFile && <span className="text-xs text-muted-foreground">{uploadFile.name}</span>}
+							{uploadFiles && uploadFiles.length > 0 && <span className="text-xs text-muted-foreground">{uploadFiles.length} file{uploadFiles.length > 1 ? 's' : ''} selected</span>}
 						</label>
-						<button
-							className="bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold disabled:opacity-50"
-							type="submit"
-							disabled={uploading}
-						>
+						<Button variant="primary" className="w-full" type="submit" isLoading={uploading}>
 							{uploading ? "Uploading..." : bulkUploadMode ? "Upload Resumes" : "Upload Resume"}
-						</button>
-					</div>
-				</form>
+						</Button>
+					</form>
+					</CardContent>
+				</Card>
 			</div>
 			{/* Right: Resume Preview */}
 			<div className="w-full md:w-1/2">
 				{selectedResume ? (
-					<div className="bg-white border-2 border-blue-200 rounded-lg p-6 shadow-sm min-h-[300px]">
-						<div className="mb-2 font-semibold text-blue-900 text-lg">{selectedResume.name}</div>
-						<div className="mb-2 text-gray-700">{selectedResume.summary}</div>
-						<div className="mb-2 font-semibold text-blue-900">Professional Summary</div>
-						<div className="mb-3 text-gray-800">{professionalSummary || "No professional summary provided."}</div>
-						<div className="mb-2 font-semibold text-blue-900">Skills</div>
-						<div className="flex flex-wrap gap-2 mb-3">
-							{selectedResume.skills.length > 0 ? (
-								selectedResume.skills.map(skill => (
-									<span
-										key={skill}
-										className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium border border-blue-200"
-									>
-										{skill}
-										</span>
-								))
-							) : (
-								<span className="text-xs text-gray-500">No skills listed.</span>
-							)}
-						</div>
-						<div className="mb-2 font-semibold text-blue-900">Full Resume</div>
-						<div className="bg-gray-50 border border-gray-200 rounded p-3 text-xs text-gray-700 whitespace-pre-line overflow-x-auto leading-relaxed">
-							<div className={`${!previewExpanded ? 'max-h-48 overflow-hidden' : ''}`}>
-								{selectedResume.preview ? formatPreviewText(selectedResume.preview) : "Preview not available."}
+					<Card>
+						<CardHeader>
+							<CardTitle>{selectedResume.name}</CardTitle>
+							<Badge variant="info">{selectedResume.type}</Badge>
+						</CardHeader>
+						<CardContent className="space-y-4">
+							{selectedResume.summary && <p className="text-muted-foreground text-sm">{selectedResume.summary}</p>}
+							<div>
+								<h3 className="text-sm font-semibold text-foreground mb-2">Professional Summary</h3>
+								<p className="text-sm text-muted-foreground">{professionalSummary || "No professional summary provided."}</p>
 							</div>
-							{selectedResume.preview && selectedResume.preview.length > 500 && (
-								<button
-									onClick={() => setPreviewExpanded(!previewExpanded)}
-									className="mt-2 text-blue-600 hover:text-blue-800 text-xs font-medium focus:outline-none"
-								>
-									{previewExpanded ? 'Read Less' : 'Read More'}
-								</button>
-							)}
-						</div>
-					</div>
+							<div>
+								<h3 className="text-sm font-semibold text-foreground mb-2">Skills</h3>
+								<div className="flex flex-wrap gap-1.5">
+									{selectedResume.skills.length > 0 ? (
+										selectedResume.skills.map(skill => <Badge key={skill} variant="info" size="sm">{skill}</Badge>)
+									) : (
+										<span className="text-xs text-muted-foreground">No skills listed.</span>
+									)}
+								</div>
+							</div>
+							<div>
+								<h3 className="text-sm font-semibold text-foreground mb-2">Full Resume</h3>
+								<div className="bg-muted rounded-lg border border-border p-3 text-xs text-muted-foreground scrollbar-thin overflow-auto">
+									<div className={`${!previewExpanded ? 'max-h-48 overflow-hidden' : ''} whitespace-pre-line leading-relaxed`}>
+										{selectedResume.preview ? formatPreviewText(selectedResume.preview) : "Preview not available."}
+									</div>
+									{selectedResume.preview && selectedResume.preview.length > 500 && (
+										<button onClick={() => setPreviewExpanded(!previewExpanded)} className="mt-2 text-primary hover:text-primary-dark text-xs font-medium">
+											{previewExpanded ? 'Read Less' : 'Read More'}
+										</button>
+									)}
+								</div>
+							</div>
+						</CardContent>
+					</Card>
 				) : (
-					<div className="text-sm text-gray-500">No resume selected.</div>
+					<Card>
+						<CardContent className="py-16 text-center">
+							<p className="text-muted-foreground text-sm">Select a resume to preview it here.</p>
+						</CardContent>
+					</Card>
 				)}
 			</div>
 		</div>
 	</div>
 </div>
-
-<ResumePreviewModal resume={previewResume} onClose={() => setPreviewResume(null)} />
-</div>
+		</div>
+		<ResumePreviewModal resume={previewResume} onClose={() => setPreviewResume(null)} />
+	</div>
 	);
 }

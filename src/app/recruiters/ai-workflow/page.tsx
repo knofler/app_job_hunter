@@ -549,895 +549,661 @@ export default function RecruiterAIWorkflowPage() {
         .map(step => `### ${step.title}\n${step.description}`)
         .join("\n\n");
 
+
+  const [openSections, setOpenSections] = useState<Set<string>>(
+    new Set(["chat", "core_skills", "ai_analysis", "ranked_shortlist", "detailed_readout", "engagement", "fairness", "interview"])
+  );
+  const toggleSection = (key: string) => {
+    setOpenSections(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
   return (
-    <div className="max-w-7xl mx-auto py-10 px-4 space-y-10">
-      <header className="space-y-6">
-        <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 border border-blue-100 px-4 py-1 text-sm font-medium text-blue-700">
-          Recruiter AI Workflow
-        </span>
-        <div className="flex flex-wrap items-start justify-between gap-6">
-          <div className="max-w-3xl space-y-4">
-            <h1 className="text-3xl font-bold text-gray-900">Recruiter AI workflow</h1>
-            <p className="text-gray-600">
-              Capture the job context, choose candidate resumes, and let the AI engine produce ranked shortlists,
-              detailed readouts, fairness guidance, and interview packs.
-            </p>
-            <div className="rounded-xl border border-blue-100 bg-blue-50 px-5 py-4 space-y-2">
-              <div className="grid gap-2 md:grid-cols-2">
-                <label className="flex flex-col gap-1 text-sm text-blue-900">
-                  Job title
-                  <input
-                    className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm"
-                    value={jobTitle}
-                    onChange={event => setJobTitle(event.target.value)}
-                  />
-                </label>
-                <label className="flex flex-col gap-1 text-sm text-blue-900">
-                  Job code
-                  <input
-                    className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm"
-                    value={jobCode}
-                    onChange={event => setJobCode(event.target.value)}
-                  />
-                </label>
-                <label className="flex flex-col gap-1 text-sm text-blue-900">
-                  Level / program
-                  <input
-                    className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm"
-                    value={jobLevel}
-                    onChange={event => setJobLevel(event.target.value)}
-                  />
-                </label>
-                <label className="flex flex-col gap-1 text-sm text-blue-900">
-                  Salary band
-                  <input
-                    className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm"
-                    value={salaryBand}
-                    onChange={event => setSalaryBand(event.target.value)}
-                  />
-                </label>
-              </div>
-              <label className="flex flex-col gap-1 text-sm text-blue-900">
-                Summary / recruiter notes
-                <textarea
-                  className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm"
-                  rows={3}
-                  value={jobSummary}
-                  onChange={event => setJobSummary(event.target.value)}
-                />
-              </label>
+    <div className="flex" style={{ height: "calc(100vh - 64px)" }}>
+
+      {/* ─── LEFT PANEL: Inputs ─────────────────────────────── */}
+      <aside className="w-[400px] flex-shrink-0 border-r border-border bg-card flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto p-5 space-y-6">
+
+          {/* Step 1: Job Description */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">1</span>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground">Job Description</h2>
             </div>
-          </div>
-          <div className="flex flex-col gap-3 text-sm text-gray-500">
-            <div>
-              <span className="font-semibold text-gray-700">Last analysis:</span> {formatDateTime(lastAnalyzedAt)}
-            </div>
-            <button
-              type="button"
-              onClick={handleGenerate}
-              disabled={isGenerating || !selectedCandidateId || selectedResumeIds.length === 0}
-              className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isGenerating ? "Generating..." : "Run workflow"}
-            </button>
-            {generationError && !generationError.includes("'str' object has no attribute 'get'") && (
-              <p className="max-w-xs rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
-                {generationError}
-              </p>
-            )}
-          </div>
-        </div>
-      </header>
-
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-semibold text-gray-900">1. Inputs captured</h2>
-          {isGenerating && <span className="text-sm text-blue-600">Processing...</span>}
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Left: Job descriptions */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Job descriptions</h3>
-                <p className="text-sm text-gray-500">Select a job description to edit and analyze.</p>
-              </div>
-              <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700">
-                {filteredJobDescriptions.length} available
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search job descriptions..."
-                  value={jobDescriptionSearch}
-                  onChange={(e) => setJobDescriptionSearch(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 pl-9 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                />
-                <svg className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-
-              {jobDescriptionsLoading && <p className="text-xs text-gray-500">Loading job descriptions...</p>}
-              {!jobDescriptionsLoading && filteredJobDescriptions.length === 0 && jobDescriptionSearch && (
-                <p className="text-xs text-gray-500">No job descriptions match your search.</p>
-              )}
-              {!jobDescriptionsLoading && filteredJobDescriptions.length === 0 && !jobDescriptionSearch && (
-                <p className="text-xs text-gray-500">No job descriptions available.</p>
-              )}
-
-              {jobDescriptionCollapsed && selectedJobId ? (
-                <div className="rounded-xl border border-blue-500 bg-blue-50 p-4 shadow">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-blue-900">{jobDescriptions.find(job => job.id === selectedJobId)?.title}</p>
-                      <p className="text-xs text-blue-700">{jobDescriptions.find(job => job.id === selectedJobId)?.company} • {jobDescriptions.find(job => job.id === selectedJobId)?.location}</p>
-                    </div>
-                    <button type="button" onClick={() => setJobDescriptionCollapsed(false)} className="rounded-lg border border-blue-200 bg-white px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50">Show All</button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {filteredJobDescriptions.slice(0, visibleJobDescriptions).map(job => {
-                    const isActive = job.id === selectedJobId;
-                    return (
-                      <button key={job.id} type="button" onClick={() => handleJobSelection(job.id)} className={`w-full rounded-xl border px-4 py-3 text-left transition ${isActive ? "border-blue-500 bg-blue-50 shadow" : "border-gray-200 bg-gray-50 hover:border-blue-200 hover:bg-white"}`}>
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 truncate">{job.title}</p>
-                            <p className="text-xs text-gray-600 truncate">{job.company} • {job.location}</p>
-                            <p className="text-xs text-gray-500 mt-1 overflow-hidden" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>{job.description ? `${job.description.substring(0, 150)}${job.description.length > 150 ? '...' : ''}` : 'No description available'}</p>
-                          </div>
-                          <div className="text-right text-xs text-gray-500"><p>{new Date(job.updated_at).toLocaleDateString()}</p></div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                  {filteredJobDescriptions.length > visibleJobDescriptions && (
-                    <button type="button" onClick={() => setVisibleJobDescriptions(prev => Math.min(prev + 5, filteredJobDescriptions.length))} className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-50 hover:border-blue-300">Show 5 more job descriptions ({filteredJobDescriptions.length - visibleJobDescriptions} remaining)</button>
-                  )}
-                </>
-              )}
-
-              {selectedJobId && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-semibold text-gray-900">Edit Job Description</h4>
-                    <button type="button" onClick={handleJobDescriptionUpdate} className="rounded-lg border border-blue-200 bg-blue-600 px-3 py-1 text-xs font-medium text-white shadow-sm transition hover:bg-blue-700">Save Changes</button>
-                  </div>
-                  <div className="space-y-2">
-                    <input type="text" value={jobTitle} onChange={event => setJobTitle(event.target.value)} className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 shadow-inner focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Job title" />
-                  </div>
-                  <textarea value={jobDescription} onChange={event => setJobDescription(event.target.value)} rows={12} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 shadow-inner focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Paste the job description or upload a JD file" />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Right: Candidate & Resumes */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Candidate & resumes</h3>
-                <p className="text-sm text-gray-500">Search candidates by name/role or resume content. Select a candidate to auto-load their resumes for analysis.</p>
-              </div>
-              <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">{selectedResumeIds.length} selected</span>
-            </div>
-
-            {candidateError && <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{candidateError}</p>}
 
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search candidates by resume content..."
-                value={resumeSearch}
-                onChange={(e) => setResumeSearch(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 pl-9 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                placeholder="Search job descriptions..."
+                value={jobDescriptionSearch}
+                onChange={(e) => setJobDescriptionSearch(e.target.value)}
+                className="w-full rounded-lg border border-border bg-muted px-3 py-2 pl-8 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
-              <svg className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
 
-            <div className="grid gap-3">
-              {searchLoading && <p className="text-xs text-gray-500">Searching...</p>}
-              {candidatesLoading && !searchResults && <p className="text-xs text-gray-500">Loading candidates...</p>}
-              {!candidatesLoading && !searchResults && candidates.length === 0 && <p className="text-xs text-gray-500">No candidates available. Upload resumes via the candidate profile first.</p>}
-              {!searchLoading && searchResults && searchResults.results.length === 0 && resumeSearch && <p className="text-xs text-gray-500">No candidates or resumes match your search.</p>}
-              {!candidatesLoading && !searchResults && filteredCandidates.length === 0 && resumeSearch && <p className="text-xs text-gray-500">No candidates match your search.</p>}
+            {jobDescriptionsLoading && <p className="text-xs text-muted-foreground">Loading...</p>}
 
-              {/* Show search results if available */}
-              {searchResults && searchResults.results.slice(0, visibleCandidates).map(searchResult => {
-                const candidate = searchResult.candidate;
-                const isActive = candidate.candidate_id === selectedCandidateId;
-                return (
-                  <div key={candidate.candidate_id} className={`rounded-xl border px-4 py-3 transition ${isActive ? "border-blue-500 bg-blue-50 shadow" : "border-gray-200 bg-gray-50"}`}>
-                    <div className="flex items-start justify-between gap-3 mb-2">
-                      <div className="flex-1">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedCandidateId(candidate.candidate_id)}
-                          className="text-left w-full"
-                        >
-                          <p className="text-sm font-semibold text-gray-900">{candidate.name}</p>
-                          <p className="text-xs text-gray-600">{candidate.primary_role || "Role not captured"}</p>
-                        </button>
-                      </div>
-                      <div className="text-right text-xs text-gray-500">
-                        <p>Candidate ID</p>
-                        <p className="font-semibold text-gray-700">{candidate.candidate_id}</p>
-                      </div>
-                    </div>
-                    {candidate.preferred_locations && candidate.preferred_locations.length > 0 && (
-                      <p className="text-xs text-gray-500 mb-2">Preferred locations: {candidate.preferred_locations.join(", ")}</p>
-                    )}
-
-                    {/* Show matching resumes */}
-                    <div className="border-t border-gray-200 pt-2 mt-2">
-                      <p className="text-xs font-semibold text-gray-700 mb-2">Matching resumes ({searchResult.resume_count}):</p>
-                      <div className="space-y-1">
-                        {searchResult.matching_resumes.slice(0, 3).map(resume => (
-                          <div key={resume.id} className="flex items-start gap-2">
-                            <input
-                              type="checkbox"
-                              checked={selectedResumeIds.includes(resume.id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedResumeIds(current => Array.from(new Set([...current, resume.id])));
-                                } else {
-                                  setSelectedResumeIds(current => current.filter(id => id !== resume.id));
-                                }
-                              }}
-                              className="mt-0.5"
-                            />
-                            <div className="flex-1">
-                              <div className="flex items-start justify-between">
-                                <p className={`text-xs font-semibold ${resume._search_match ? 'text-blue-700' : 'text-gray-800'}`}>
-                                  {resume.name}
-                                  {resume._search_match && <span className="ml-1 text-xs bg-blue-100 text-blue-600 px-1 rounded">Match</span>}
-                                </p>
-                              </div>
-                              {resume.summary && (
-                                <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">{resume.summary}</p>
-                              )}
-                              {resume.skills && resume.skills.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                  {resume.skills.slice(0, 3).map(skill => (
-                                    <span key={skill} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">{skill}</span>
-                                  ))}
-                                  {resume.skills.length > 3 && <span className="text-xs text-gray-500">+{resume.skills.length - 3} more</span>}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                        {searchResult.matching_resumes.length > 3 && (
-                          <p className="text-xs text-gray-500">+{searchResult.matching_resumes.length - 3} more resumes</p>
-                        )}
-                      </div>
-                    </div>
+            {jobDescriptionCollapsed && selectedJobId ? (
+              <div className="rounded-lg border border-primary bg-primary/5 p-3">
+                <div className="flex items-center justify-between">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-foreground">{jobDescriptions.find(job => job.id === selectedJobId)?.title}</p>
+                    <p className="truncate text-xs text-primary">{jobDescriptions.find(job => job.id === selectedJobId)?.company}</p>
                   </div>
-                );
-              })}
-
-              {/* Show regular candidates when not searching */}
-              {!searchResults && filteredCandidates.slice(0, visibleCandidates).map(candidate => {
-                const isActive = candidate.candidate_id === selectedCandidateId;
-                return (
-                  <button key={candidate.candidate_id} type="button" onClick={() => setSelectedCandidateId(candidate.candidate_id)} className={`rounded-xl border px-4 py-3 text-left transition ${isActive ? "border-blue-500 bg-blue-50 shadow" : "border-gray-200 bg-gray-50 hover:border-blue-200 hover:bg-white"}`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900">{candidate.name}</p>
-                        <p className="text-xs text-gray-600">{candidate.primary_role || "Role not captured"}</p>
-                      </div>
-                      <div className="text-right text-xs text-gray-500"><p>Candidate ID</p><p className="font-semibold text-gray-700">{candidate.candidate_id}</p></div>
-                    </div>
-                    {candidate.preferred_locations && candidate.preferred_locations.length > 0 && <p className="mt-2 text-xs text-gray-500">Preferred locations: {candidate.preferred_locations.join(", ")}</p>}
+                  <button type="button" onClick={() => setJobDescriptionCollapsed(false)} className="ml-2 flex-shrink-0 rounded border border-primary/30 px-2 py-1 text-xs text-primary hover:bg-primary/5">Change</button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredJobDescriptions.slice(0, visibleJobDescriptions).map(job => {
+                  const isActive = job.id === selectedJobId;
+                  return (
+                    <button key={job.id} type="button" onClick={() => handleJobSelection(job.id)}
+                      className={`w-full rounded-lg border px-3 py-2.5 text-left transition ${isActive ? "border-primary bg-primary/5 shadow-sm" : "border-border bg-muted hover:border-primary/30 hover:bg-card"}`}>
+                      <p className="truncate text-sm font-semibold text-foreground">{job.title}</p>
+                      <p className="truncate text-xs text-muted-foreground">{job.company} · {job.location}</p>
+                    </button>
+                  );
+                })}
+                {filteredJobDescriptions.length > visibleJobDescriptions && (
+                  <button type="button" onClick={() => setVisibleJobDescriptions(prev => Math.min(prev + 5, filteredJobDescriptions.length))}
+                    className="w-full rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground hover:border-primary/40 hover:text-primary">
+                    Show {Math.min(5, filteredJobDescriptions.length - visibleJobDescriptions)} more
                   </button>
-                );
-              })}
+                )}
+              </div>
+            )}
 
-              {/* Show more button */}
-              {((searchResults && searchResults.results.length > visibleCandidates) || (!searchResults && filteredCandidates.length > visibleCandidates)) && (
-                <button
-                  type="button"
-                  onClick={() => setVisibleCandidates(prev => Math.min(prev + 5, (searchResults ? searchResults.results.length : filteredCandidates.length)))}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-50 hover:border-blue-300"
-                >
-                  Show 5 more candidates ({((searchResults ? searchResults.results.length : filteredCandidates.length) - visibleCandidates)} remaining)
-                </button>
+            {selectedJobId && (
+              <div className="space-y-2 rounded-lg border border-border bg-muted/50 p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-foreground">Edit JD</span>
+                  <button type="button" onClick={handleJobDescriptionUpdate}
+                    className="rounded border border-primary/30 bg-primary px-2.5 py-1 text-xs font-medium text-white hover:bg-primary/90">Save</button>
+                </div>
+                <input type="text" value={jobTitle} onChange={e => setJobTitle(e.target.value)}
+                  className="w-full rounded border border-border bg-card px-2.5 py-1.5 text-xs focus:border-primary focus:outline-none" placeholder="Job title" />
+                <textarea value={jobDescription} onChange={e => setJobDescription(e.target.value)} rows={6}
+                  className="w-full rounded border border-border bg-card px-2.5 py-1.5 text-xs focus:border-primary focus:outline-none resize-none" placeholder="Job description" />
+              </div>
+            )}
+          </div>
+
+          {/* Step 2: Candidates & Resumes */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">2</span>
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground">Candidates & Resumes</h2>
+              </div>
+              {selectedResumeIds.length > 0 && (
+                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">{selectedResumeIds.length} selected</span>
               )}
             </div>
 
-            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600">
-              <div className="flex items-center justify-between mb-3">
-                <p className="font-semibold text-gray-800">Selected resumes for AI analysis</p>
-                {selectedResumeIds.length > 0 && <button type="button" onClick={() => setResumeCollapsed(!resumeCollapsed)} className="text-xs text-blue-600 hover:text-blue-800">{resumeCollapsed ? 'Show All' : 'Collapse'}</button>}
-              </div>
+            {candidateError && <p className="rounded border border-rose-200 bg-rose-50 px-2 py-1.5 text-xs text-rose-700">{candidateError}</p>}
 
-              {selectedResumeIds.length === 0 && (
-                <p className="text-xs text-gray-500">No resumes selected. Search for candidates and select resumes above to run AI analysis.</p>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search candidates..."
+                value={resumeSearch}
+                onChange={(e) => setResumeSearch(e.target.value)}
+                className="w-full rounded-lg border border-border bg-muted px-3 py-2 pl-8 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              <svg className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+
+            <div className="space-y-2">
+              {searchLoading && <p className="text-xs text-muted-foreground">Searching...</p>}
+              {candidatesLoading && !searchResults && <p className="text-xs text-muted-foreground">Loading candidates...</p>}
+
+              {searchResults
+                ? searchResults.results.slice(0, visibleCandidates).map(searchResult => {
+                    const candidate = searchResult.candidate;
+                    const isActive = candidate.candidate_id === selectedCandidateId;
+                    return (
+                      <div key={candidate.candidate_id} className={`rounded-lg border p-3 transition ${isActive ? "border-primary bg-primary/5" : "border-border bg-muted"}`}>
+                        <button type="button" onClick={() => setSelectedCandidateId(candidate.candidate_id)} className="w-full text-left mb-2">
+                          <p className="text-sm font-semibold text-foreground">{candidate.name}</p>
+                          <p className="text-xs text-muted-foreground">{candidate.primary_role || "No role"}</p>
+                        </button>
+                        <div className="space-y-1">
+                          {searchResult.matching_resumes.slice(0, 3).map(resume => (
+                            <label key={resume.id} className="flex items-start gap-2 cursor-pointer">
+                              <input type="checkbox" checked={selectedResumeIds.includes(resume.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) setSelectedResumeIds(c => Array.from(new Set([...c, resume.id])));
+                                  else setSelectedResumeIds(c => c.filter(id => id !== resume.id));
+                                }}
+                                className="mt-0.5 h-3.5 w-3.5" />
+                              <span className={`text-xs ${resume._search_match ? "font-semibold text-primary" : "text-foreground/80"}`}>{resume.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })
+                : filteredCandidates.slice(0, visibleCandidates).map(candidate => {
+                    const isActive = candidate.candidate_id === selectedCandidateId;
+                    return (
+                      <button key={candidate.candidate_id} type="button" onClick={() => setSelectedCandidateId(candidate.candidate_id)}
+                        className={`w-full rounded-lg border px-3 py-2.5 text-left transition ${isActive ? "border-primary bg-primary/5" : "border-border bg-muted hover:border-primary/30"}`}>
+                        <p className="text-sm font-semibold text-foreground">{candidate.name}</p>
+                        <p className="text-xs text-muted-foreground">{candidate.primary_role || "No role"}</p>
+                      </button>
+                    );
+                  })
+              }
+
+              {((searchResults && searchResults.results.length > visibleCandidates) || (!searchResults && filteredCandidates.length > visibleCandidates)) && (
+                <button type="button"
+                  onClick={() => setVisibleCandidates(prev => Math.min(prev + 5, searchResults ? searchResults.results.length : filteredCandidates.length))}
+                  className="w-full rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground hover:border-primary/40 hover:text-primary">
+                  Show more
+                </button>
               )}
 
-              {selectedResumeIds.length > 0 && resumeCollapsed && (
-                <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
-                  <p className="text-xs font-semibold text-blue-900 mb-2">Selected Resumes ({selectedResumeIds.length}):</p>
-                  <div className="flex flex-wrap gap-1">
-                    {selectedResumeIds.map(resumeId => {
-                      // Find resume in search results or current candidate resumes
-                      let resumeName = `Resume ${resumeId}`;
-                      if (searchResults) {
-                        for (const result of searchResults.results) {
-                          const resume = result.matching_resumes.find((r: any) => r.id === resumeId);
-                          if (resume) {
-                            resumeName = resume.name;
-                            break;
-                          }
-                        }
-                      } else {
-                        const resume = resumes.find(r => r.id === resumeId);
-                        if (resume) resumeName = resume.name;
-                      }
+              {!searchResults && candidates.length === 0 && !candidatesLoading && (
+                <p className="text-xs text-muted-foreground">No candidates. Upload resumes via candidate profile.</p>
+              )}
+            </div>
+
+            {/* Resumes for selected candidate */}
+            {selectedCandidateId && !searchResults && resumes.length > 0 && (
+              <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-2">
+                <p className="text-xs font-semibold text-foreground">Resumes ({resumes.length})</p>
+                {resumes.map(resume => (
+                  <label key={resume.id} className="flex items-start gap-2 cursor-pointer">
+                    <input type="checkbox" checked={selectedResumeIds.includes(resume.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) setSelectedResumeIds(c => Array.from(new Set([...c, resume.id])));
+                        else setSelectedResumeIds(c => c.filter(id => id !== resume.id));
+                      }}
+                      className="mt-0.5 h-3.5 w-3.5" />
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-medium text-foreground">{resume.name}</p>
+                      {resume.summary && <p className="line-clamp-1 text-xs text-muted-foreground">{resume.summary}</p>}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {/* Top matches */}
+            {selectedJobId && topRecommendedResumes.length > 0 && (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-emerald-800">Top Matches</p>
+                  <button type="button"
+                    onClick={() => { const ids = topRecommendedResumes.slice(0,3).map(r=>r.id); setSelectedResumeIds(p => Array.from(new Set([...p,...ids])).slice(0,5)); }}
+                    className="rounded border border-emerald-300 px-2 py-0.5 text-xs text-emerald-700 hover:bg-emerald-100">Select Top 3</button>
+                </div>
+                {topRecommendedResumes.slice(0,3).map((resume,i) => (
+                  <label key={resume.id} className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={selectedResumeIds.includes(resume.id)} onChange={(e) => handleResumeToggle(e, resume.id)} className="h-3.5 w-3.5" />
+                    <span className="text-xs text-emerald-700">#{i+1}</span>
+                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{resume.name}</span>
+                    <span className="text-xs text-emerald-600">{Math.round(resume.matchScore)}%</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Run button — sticky at bottom */}
+        <div className="flex-shrink-0 border-t border-border bg-card p-4 space-y-2">
+          {generationError && !generationError.includes("'str' object has no attribute 'get'") && (
+            <p className="rounded border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700">{generationError}</p>
+          )}
+          <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+            <span>Last run: {formatDateTime(lastAnalyzedAt)}</span>
+            {selectedResumeIds.length > 0 && <span className="text-primary">{selectedResumeIds.length} resume{selectedResumeIds.length > 1 ? "s" : ""}</span>}
+          </div>
+          <button type="button" onClick={handleGenerate}
+            disabled={isGenerating || !selectedCandidateId || selectedResumeIds.length === 0}
+            className="w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center gap-2">
+            {isGenerating ? (
+              <>
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                {streamingMessage || "Running AI workflow..."}
+              </>
+            ) : (
+              <>
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Run AI Workflow
+              </>
+            )}
+          </button>
+        </div>
+      </aside>
+
+      {/* ─── RIGHT PANEL: Results ────────────────────────────── */}
+      <main className="flex-1 min-w-0 overflow-y-auto bg-muted/30">
+        <div className="p-6 space-y-3">
+
+          {/* Empty state */}
+          {!workflowResult && !isGenerating && (
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                <svg className="h-8 w-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-foreground">Ready to analyze</h3>
+              <p className="mt-1 max-w-sm text-sm text-muted-foreground">Select a job description and candidate resumes on the left, then click <strong>Run AI Workflow</strong>.</p>
+            </div>
+          )}
+
+          {/* Progress bar when generating */}
+          {isGenerating && (
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+              <div className="flex items-center gap-3">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-primary">{streamingMessage || "AI workflow running..."}</p>
+                  <p className="text-xs text-muted-foreground">Step: {streamingStep || "initializing"}</p>
+                </div>
+              </div>
+              <div className="mt-3 flex gap-1.5">
+                {STEP_ORDER.filter(s => s !== 'loading').map(step => {
+                  const idx = STEP_ORDER.indexOf(step);
+                  const curIdx = STEP_ORDER.indexOf(streamingStep || 'loading');
+                  const done = curIdx > idx;
+                  const active = curIdx === idx;
+                  return (
+                    <div key={step} className={`h-1.5 flex-1 rounded-full transition-colors ${done ? 'bg-primary' : active ? 'bg-primary/60 animate-pulse' : 'bg-primary/20'}`} />
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* AI Recruiter Chat */}
+          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+            <button type="button" onClick={() => toggleSection("chat")}
+              className="flex w-full items-center justify-between px-5 py-4 hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-2.5">
+                <svg className="h-4 w-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+                <span className="text-sm font-semibold text-foreground">AI Recruiter Assistant</span>
+              </div>
+              <svg className={`h-4 w-4 text-muted-foreground transition-transform ${openSections.has("chat") ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {openSections.has("chat") && (
+              <div className="border-t border-border" style={{ height: "28rem" }}>
+                <RecruiterChat
+                  sessionId={sessionId}
+                  jobId={selectedJobId || undefined}
+                  resumeIds={selectedResumeIds.length > 0 ? selectedResumeIds : undefined}
+                  workflowContext={workflowResult ? { workflowResult } : undefined}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Core Skills */}
+          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+            <button type="button" onClick={() => toggleSection("core_skills")}
+              className="flex w-full items-center justify-between px-5 py-4 hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-2.5">
+                {isGenerating && streamingStep === 'core_skills' && <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />}
+                <span className="text-sm font-semibold text-foreground">Core Must-Have Skills</span>
+                {displayCoreSkills.length > 0 && !isGenerating && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{displayCoreSkills.length}</span>}
+                {isGenerating && isStepBefore(streamingStep, 'core_skills') && <span className="text-xs text-muted-foreground">Waiting...</span>}
+              </div>
+              <svg className={`h-4 w-4 text-muted-foreground transition-transform ${openSections.has("core_skills") ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {openSections.has("core_skills") && (
+              <div className="border-t border-border p-5">
+                {isGenerating && streamingStep === 'core_skills' && displayCoreSkills.length === 0 && (
+                  <div className="flex items-center gap-2 py-4 text-sm text-primary">
+                    <span className="h-3 w-3 animate-pulse rounded-full bg-primary" />
+                    Analyzing core skills from job description...
+                  </div>
+                )}
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {displayCoreSkills.map(skill => (
+                    <div key={skill.name} className="rounded-lg border border-border bg-muted p-3">
+                      <p className="text-sm font-semibold text-foreground">{skill.name}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{skill.reason}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* AI Analysis */}
+          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+            <button type="button" onClick={() => toggleSection("ai_analysis")}
+              className="flex w-full items-center justify-between px-5 py-4 hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-2.5">
+                {isGenerating && (streamingStep === 'ai_analysis') && <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />}
+                <span className="text-sm font-semibold text-foreground">AI-Powered Analysis</span>
+                {isGenerating && isStepBefore(streamingStep, 'ai_analysis') && <span className="text-xs text-muted-foreground">Waiting...</span>}
+              </div>
+              <svg className={`h-4 w-4 text-muted-foreground transition-transform ${openSections.has("ai_analysis") ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {openSections.has("ai_analysis") && (
+              <div className="border-t border-border p-5">
+                {isGenerating && streamingStep === 'ai_analysis' && !markdownAnalysis && (
+                  <div className="flex items-center gap-2 py-4 text-sm text-primary">
+                    <span className="h-3 w-3 animate-pulse rounded-full bg-primary" />
+                    Generating AI analysis...
+                  </div>
+                )}
+                {markdownAnalysis && (
+                  <div className="prose prose-sm max-w-none text-foreground space-y-1">
+                    {markdownAnalysis.split('\n').map((line, idx) => {
+                      if (!line || typeof line !== 'string') return null;
+                      if (line.startsWith('### ')) return <h3 key={idx} className="text-base font-semibold text-foreground mt-4 mb-1">{line.substring(4)}</h3>;
+                      if (line.startsWith('## ')) return <h2 key={idx} className="text-lg font-bold text-foreground mt-5 mb-2">{line.substring(3)}</h2>;
+                      if (line.startsWith('# ')) return <h1 key={idx} className="text-xl font-bold text-foreground mt-6 mb-3">{line.substring(2)}</h1>;
+                      if (line.startsWith('- ')) return <li key={idx} className="ml-4 text-sm text-foreground/80">{line.substring(2)}</li>;
+                      if (line.trim() === '') return <br key={idx} />;
+                      return <p key={idx} className="text-sm text-foreground/80 leading-relaxed">{line}</p>;
+                    })}
+                    {isGenerating && streamingStep === 'ai_analysis' && (
+                      <span className="inline-flex items-center gap-1 text-xs text-primary">
+                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" /> Streaming...
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Ranked Shortlist */}
+          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+            <button type="button" onClick={() => toggleSection("ranked_shortlist")}
+              className="flex w-full items-center justify-between px-5 py-4 hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-2.5">
+                {isGenerating && streamingStep === 'ranked_shortlist' && <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />}
+                <span className="text-sm font-semibold text-foreground">Ranked Shortlist</span>
+                {shortlist.length > 0 && !isGenerating && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">{shortlist.length} candidates</span>}
+                {isGenerating && isStepBefore(streamingStep, 'ranked_shortlist') && <span className="text-xs text-muted-foreground">Waiting...</span>}
+              </div>
+              <svg className={`h-4 w-4 text-muted-foreground transition-transform ${openSections.has("ranked_shortlist") ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {openSections.has("ranked_shortlist") && (
+              <div className="border-t border-border overflow-x-auto">
+                <table className="min-w-full divide-y divide-border text-sm">
+                  <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-semibold">Candidate</th>
+                      <th className="px-4 py-3 text-left font-semibold">Match</th>
+                      <th className="px-4 py-3 text-left font-semibold">Bias-free</th>
+                      <th className="px-4 py-3 text-left font-semibold">Priority</th>
+                      <th className="px-4 py-3 text-left font-semibold">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/50">
+                    {isGenerating && streamingStep === 'ranked_shortlist' && shortlist.length === 0 && (
+                      <tr><td colSpan={5} className="px-4 py-6 text-center">
+                        <div className="flex items-center justify-center gap-2 text-sm text-primary">
+                          <span className="h-3 w-3 animate-pulse rounded-full bg-primary" /> Ranking candidates...
+                        </div>
+                      </td></tr>
+                    )}
+                    {!isGenerating && shortlist.length === 0 && (
+                      <tr><td colSpan={5} className="px-4 py-4 text-sm text-muted-foreground">Run the workflow to populate the ranked shortlist.</td></tr>
+                    )}
+                    {shortlist.map((item, index) => {
+                      const rowCandidate = candidates.find(c => c.candidate_id === item.candidate_id);
+                      const analysis = candidateAnalysisById.get(item.candidate_id);
+                      const score = analysis?.match_score;
+                      const scoreColor = score == null ? "bg-muted text-muted-foreground"
+                        : score >= 80 ? "bg-emerald-100 text-emerald-700"
+                        : score >= 60 ? "bg-blue-100 text-blue-700"
+                        : score >= 40 ? "bg-amber-100 text-amber-700"
+                        : "bg-rose-100 text-rose-700";
                       return (
-                        <span key={resumeId} className="rounded bg-blue-100 px-2 py-1 text-xs text-blue-800">
-                          {resumeName}
-                        </span>
+                        <tr key={`${item.candidate_id}-${item.rank}`} className="hover:bg-muted/30">
+                          <td className="px-4 py-3">
+                            <p className="font-semibold text-foreground">{analysis?.name || rowCandidate?.name || item.candidate_id}</p>
+                            <p className="text-xs text-muted-foreground">#{index + 1}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            {score != null ? (
+                              <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${scoreColor}`}>{score}</span>
+                            ) : <span className="text-muted-foreground">—</span>}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-semibold text-foreground">{analysis?.bias_free_score ?? "—"}</td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground">{item.priority ?? "—"}</td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground">{item.status ?? "—"}</td>
+                        </tr>
                       );
                     })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Detailed Readout */}
+          {selectedCandidate && (
+            <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+              <button type="button" onClick={() => toggleSection("detailed_readout")}
+                className="flex w-full items-center justify-between px-5 py-4 hover:bg-muted/50 transition-colors">
+                <div className="flex items-center gap-2.5">
+                  {isGenerating && streamingStep === 'detailed_readout' && <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />}
+                  <span className="text-sm font-semibold text-foreground">Detailed Readout</span>
+                  {selectedAnalysis && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">{selectedAnalysis.name || selectedCandidate.name}</span>}
+                  {isGenerating && isStepBefore(streamingStep, 'detailed_readout') && <span className="text-xs text-muted-foreground">Waiting...</span>}
+                </div>
+                <svg className={`h-4 w-4 text-muted-foreground transition-transform ${openSections.has("detailed_readout") ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {openSections.has("detailed_readout") && (
+                <div className="border-t border-border p-5 space-y-5">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-foreground">{selectedAnalysis?.name || selectedCandidate.name}</h3>
+                      <p className="text-sm text-muted-foreground">{selectedCandidate.primary_role || "No role"}</p>
+                    </div>
+                    <div className="flex gap-4 text-center">
+                      {selectedAnalysis?.match_score != null && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Match</p>
+                          <p className={`text-xl font-bold ${selectedAnalysis.match_score >= 80 ? "text-emerald-600" : selectedAnalysis.match_score >= 60 ? "text-blue-600" : "text-amber-600"}`}>{selectedAnalysis.match_score}</p>
+                        </div>
+                      )}
+                      {selectedAnalysis?.bias_free_score != null && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Bias-free</p>
+                          <p className="text-xl font-bold text-emerald-600">{selectedAnalysis.bias_free_score}</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
+
+                  {selectedAnalysis?.summary && <p className="text-sm text-foreground/80">{selectedAnalysis.summary}</p>}
+
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Skill Alignment</h4>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {selectedAnalysis?.skill_alignment.map(alignment => (
+                        <div key={`${alignment.skill}-${alignment.status}`}
+                          className={`rounded-lg border px-3 py-2.5 text-sm ${skillStatusClasses[alignment.status] || "border-border bg-muted text-foreground/80"}`}>
+                          <p className="font-semibold">{alignment.skill}</p>
+                          <p className="text-xs">{alignment.evidence}</p>
+                        </div>
+                      ))}
+                      {(!selectedAnalysis || selectedAnalysis.skill_alignment.length === 0) && (
+                        <p className="text-xs text-muted-foreground">Run the workflow to see skill alignment.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {selectedReadout && (
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                        <h4 className="text-xs font-semibold uppercase tracking-wide text-emerald-700 mb-2">Strengths</h4>
+                        <ul className="space-y-1 text-xs text-emerald-800">
+                          {selectedReadout.strengths.map(s => <li key={s}>{s}</li>)}
+                          {selectedReadout.strengths.length === 0 && <li>None supplied.</li>}
+                        </ul>
+                      </div>
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                        <h4 className="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-2">Risks</h4>
+                        <ul className="space-y-1 text-xs text-amber-800">
+                          {selectedReadout.risks.map(r => <li key={r}>{r}</li>)}
+                          {selectedReadout.risks.length === 0 && <li>None supplied.</li>}
+                        </ul>
+                      </div>
+                      <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+                        <h4 className="text-xs font-semibold uppercase tracking-wide text-primary mb-2">Actions</h4>
+                        <ul className="space-y-1 text-xs text-blue-800">
+                          {selectedReadout.recommended_actions.map(a => <li key={a}>{a}</li>)}
+                          {selectedReadout.recommended_actions.length === 0 && <li>None supplied.</li>}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                  {!selectedReadout && <p className="text-xs text-muted-foreground">Run the workflow to populate the detailed readout.</p>}
                 </div>
               )}
+            </div>
+          )}
 
-              {selectedResumeIds.length > 0 && !resumeCollapsed && (
-                <div className="space-y-2">
-                  {selectedResumeIds.map(resumeId => {
-                    // Find resume details in search results or current candidate resumes
-                    let resume: any = null;
-                    if (searchResults) {
-                      for (const result of searchResults.results) {
-                        resume = result.matching_resumes.find((r: any) => r.id === resumeId);
-                        if (resume) break;
-                      }
-                    } else {
-                      resume = resumes.find(r => r.id === resumeId);
-                    }
+          {/* Engagement Plan */}
+          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+            <button type="button" onClick={() => toggleSection("engagement")}
+              className="flex w-full items-center justify-between px-5 py-4 hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-2.5">
+                {isGenerating && streamingStep === 'engagement_plan' && <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />}
+                <span className="text-sm font-semibold text-foreground">Engagement Plan</span>
+                {displayEngagement.length > 0 && !isGenerating && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">{displayEngagement.length} items</span>}
+                {isGenerating && isStepBefore(streamingStep, 'engagement_plan') && <span className="text-xs text-muted-foreground">Waiting...</span>}
+              </div>
+              <svg className={`h-4 w-4 text-muted-foreground transition-transform ${openSections.has("engagement") ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {openSections.has("engagement") && (
+              <div className="border-t border-border p-5">
+                {isGenerating && streamingStep === 'engagement_plan' && displayEngagement.length === 0 && (
+                  <div className="flex items-center gap-2 py-3 text-sm text-primary">
+                    <span className="h-3 w-3 animate-pulse rounded-full bg-primary" /> Creating engagement plan...
+                  </div>
+                )}
+                {!isGenerating && displayEngagement.length === 0 && <p className="text-sm text-muted-foreground">Run the workflow to populate engagement actions.</p>}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {displayEngagement.map((item, i) => (
+                    <div key={`${item.label}-${i}`} className="rounded-lg border border-border bg-muted p-3">
+                      <p className="text-sm font-semibold text-foreground">{item.label}</p>
+                      <p className="mt-1 text-xs text-foreground/80">{item.value}</p>
+                      {item.helper && <p className="mt-1.5 text-xs text-muted-foreground">{item.helper}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
 
-                    if (!resume) return null;
-
+          {/* Fairness Guidance */}
+          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+            <button type="button" onClick={() => toggleSection("fairness")}
+              className="flex w-full items-center justify-between px-5 py-4 hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-2.5">
+                {isGenerating && streamingStep === 'fairness_guidance' && <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />}
+                <span className="text-sm font-semibold text-foreground">Fairness & Panel Guidance</span>
+                {isGenerating && isStepBefore(streamingStep, 'fairness_guidance') && <span className="text-xs text-muted-foreground">Waiting...</span>}
+              </div>
+              <svg className={`h-4 w-4 text-muted-foreground transition-transform ${openSections.has("fairness") ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {openSections.has("fairness") && (
+              <div className="border-t border-border p-5">
+                {isGenerating && streamingStep === 'fairness_guidance' && displayFairness.length === 0 && (
+                  <div className="flex items-center gap-2 py-3 text-sm text-primary">
+                    <span className="h-3 w-3 animate-pulse rounded-full bg-primary" /> Generating fairness guidance...
+                  </div>
+                )}
+                {!isGenerating && displayFairness.length === 0 && <p className="text-sm text-muted-foreground">Run the workflow to receive panel guidance.</p>}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {displayFairness.map((item, i) => {
+                    const lo = item.label.toLowerCase();
+                    const cardCls = lo.includes('bias') || lo.includes('fairness') || lo.includes('diversity') ? "border-emerald-200 bg-emerald-50"
+                      : lo.includes('risk') || lo.includes('caution') ? "border-amber-200 bg-amber-50"
+                      : "border-border bg-muted";
+                    const textCls = lo.includes('bias') || lo.includes('fairness') || lo.includes('diversity') ? "text-emerald-800"
+                      : lo.includes('risk') || lo.includes('caution') ? "text-amber-800"
+                      : "text-foreground";
                     return (
-                      <div key={resumeId} className="flex items-start gap-2 p-2 rounded border border-gray-200 bg-white">
-                        <input
-                          type="checkbox"
-                          checked={true}
-                          onChange={() => setSelectedResumeIds(current => current.filter(id => id !== resumeId))}
-                          className="mt-0.5"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-start justify-between mb-1">
-                            <p className="text-sm font-semibold text-gray-800">{resume.name}</p>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedResumeIds(current => current.filter(id => id !== resumeId))}
-                              className="text-xs text-red-600 hover:text-red-800"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                          {resume.summary && (
-                            <p className="text-xs text-gray-600 leading-relaxed mb-2 line-clamp-3">{resume.summary}</p>
-                          )}
-                          {resume.skills && resume.skills.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                              {resume.skills.slice(0, 4).map((skill: string) => (
-                                <span key={skill} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">{skill}</span>
-                              ))}
-                              {resume.skills.length > 4 && <span className="text-xs text-gray-500">+{resume.skills.length - 4} more</span>}
-                            </div>
-                          )}
-                        </div>
+                      <div key={`${item.label}-${i}`} className={`rounded-lg border p-3 ${cardCls}`}>
+                        <p className={`text-sm font-semibold ${textCls}`}>{item.label}</p>
+                        <p className={`mt-1 text-xs ${textCls}`}>{item.value}</p>
+                        {item.helper && <p className="mt-1.5 text-xs text-muted-foreground">{item.helper}</p>}
                       </div>
                     );
                   })}
                 </div>
-              )}
-            </div>
-
-            {selectedJobId && topRecommendedResumes.length > 0 && (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-sm font-semibold text-emerald-900">Top Matches</h4>
-                  <button type="button" onClick={() => {const topIds = topRecommendedResumes.slice(0, 3).map(r => r.id); setSelectedResumeIds(prev => {const combined = Array.from(new Set([...prev, ...topIds])); return combined.slice(0, 5);});}} className="rounded border border-emerald-300 bg-white px-2 py-1 text-xs text-emerald-700 hover:bg-emerald-50">Select Top 3</button>
-                </div>
-                <p className="text-xs text-emerald-700 mb-3">Best matching resumes for the selected job</p>
-                <div className="space-y-2">
-                  {topRecommendedResumes.slice(0, 5).map((resume, index) => (
-                    <div key={resume.id} className="rounded-lg border border-emerald-200 bg-white p-3">
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-gray-900 truncate">{resume.name}</p>
-                          <p className="text-xs text-gray-600">Match: {Math.round(resume.matchScore)}%</p>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-emerald-600 font-medium">#{index + 1}</span>
-                          <input type="checkbox" className="w-3 h-3" checked={selectedResumeIds.includes(resume.id)} onChange={event => handleResumeToggle(event, resume.id)} />
-                        </div>
-                      </div>
-                      {resume.skills && resume.skills.length > 0 && <p className="text-xs text-gray-500 truncate">Skills: {resume.skills.slice(0, 3).join(", ")}{resume.skills.length > 3 ? "..." : ""}</p>}
-                    </div>
-                  ))}
-                </div>
               </div>
             )}
           </div>
-        </div>
-      </section>
 
-      <section className="space-y-4" ref={workflowStepsRef}>
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-2xl font-semibold text-gray-900">2. Workflow steps</h2>
-          {isGenerating && streamingStep === 'loading' && (
-            <span className="flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-blue-600"></span>
-              {streamingMessage || 'AI generating...'}
-            </span>
-          )}
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {fallback.workflowSteps.map((step, index) => (
-            <div key={step.title} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full border border-blue-100 bg-blue-50 text-sm font-semibold text-blue-700">
-                  {index + 1}
-                </span>
-                <h3 className="text-base font-semibold text-gray-900">{step.title}</h3>
+          {/* Interview Pack */}
+          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+            <button type="button" onClick={() => toggleSection("interview")}
+              className="flex w-full items-center justify-between px-5 py-4 hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-2.5">
+                {isGenerating && streamingStep === 'interview_preparation' && <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />}
+                <span className="text-sm font-semibold text-foreground">Interview Preparation Pack</span>
+                {displayInterview.length > 0 && !isGenerating && <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">{displayInterview.length} questions</span>}
+                {isGenerating && isStepBefore(streamingStep, 'interview_preparation') && <span className="text-xs text-muted-foreground">Waiting...</span>}
               </div>
-              <p className="mt-3 text-sm text-gray-600">{step.description}</p>
-              {step.bullets && step.bullets.length > 0 && (
-                <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-gray-500">
-                  {step.bullets.map(item => (
-                    <li key={item}>{item}</li>
+              <svg className={`h-4 w-4 text-muted-foreground transition-transform ${openSections.has("interview") ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {openSections.has("interview") && (
+              <div className="border-t border-border p-5">
+                {isGenerating && streamingStep === 'interview_preparation' && displayInterview.length === 0 && (
+                  <div className="flex items-center gap-2 py-3 text-sm text-primary">
+                    <span className="h-3 w-3 animate-pulse rounded-full bg-primary" /> Preparing interview questions...
+                  </div>
+                )}
+                {!isGenerating && displayInterview.length === 0 && <p className="text-sm text-muted-foreground">Run the workflow to populate interview questions.</p>}
+                <ul className="space-y-2">
+                  {displayInterview.map(item => (
+                    <li key={item.question} className="rounded-lg border border-border bg-muted px-4 py-3">
+                      <p className="text-sm font-semibold text-foreground">{item.question}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{item.rationale}</p>
+                    </li>
                   ))}
                 </ul>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* AI Chatbot Section */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-2xl font-semibold text-gray-900">AI Recruiter Assistant</h2>
-        </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm h-[32rem]">
-          <RecruiterChat
-            sessionId={sessionId}
-            jobId={selectedJobId || undefined}
-            resumeIds={selectedResumeIds.length > 0 ? selectedResumeIds : undefined}
-            workflowContext={workflowResult ? { workflowResult } : undefined}
-          />
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-2xl font-semibold text-gray-900">3. Core must-have skills</h2>
-          {isGenerating && streamingStep === 'core_skills' && (
-            <span className="flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-blue-600"></span>
-              {streamingMessage || 'AI generating...'}
-            </span>
-          )}
-          {isGenerating && isStepBefore(streamingStep, 'core_skills') && displayCoreSkills.length === 0 && (
-            <span className="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-500">
-              <span className="inline-block h-2 w-2 rounded-full bg-gray-400"></span>
-              Waiting...
-            </span>
-          )}
-        </div>
-        <div className="grid gap-4 md:grid-cols-3">
-          {isGenerating && streamingStep === 'core_skills' && displayCoreSkills.length === 0 && (
-            <div className="col-span-full rounded-2xl border border-blue-200 bg-blue-50 p-6 text-center">
-              <div className="flex items-center justify-center gap-2 text-sm text-blue-700">
-                <span className="inline-block h-3 w-3 animate-pulse rounded-full bg-blue-600"></span>
-                Analyzing core skills from job description...
-              </div>
-            </div>
-          )}
-          {displayCoreSkills.map(skill => (
-            <div key={skill.name} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900">{skill.name}</h3>
-              <p className="mt-2 text-sm text-gray-600">{skill.reason}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-2xl font-semibold text-gray-900">4. AI-powered analysis</h2>
-          {isGenerating && (streamingStep === 'ai_analysis' || (streamingStep && ['loading', 'core_skills'].includes(streamingStep) && !markdownAnalysis)) && (
-            <span className="flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-blue-600"></span>
-              {streamingStep === 'ai_analysis' ? 'AI generating...' : 'Waiting...'}
-            </span>
-          )}
-        </div>
-        <div className="space-y-5 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          {isGenerating && streamingStep === 'ai_analysis' && !markdownAnalysis && (
-            <div className="flex items-center justify-center gap-2 py-8 text-sm text-blue-700">
-              <span className="inline-block h-3 w-3 animate-pulse rounded-full bg-blue-600"></span>
-              Waiting for AI response...
-            </div>
-          )}
-          {markdownAnalysis && (
-            <div className="prose prose-sm max-w-none text-gray-800">
-              {markdownAnalysis.split('\n').map((line, idx) => {
-                if (!line || typeof line !== 'string') return null;
-                
-                if (line.startsWith('### ') && line.length > 4) {
-                  return <h3 key={idx} className="text-lg font-semibold text-gray-900 mt-4 mb-2">{line.substring(4)}</h3>;
-                } else if (line.startsWith('## ') && line.length > 3) {
-                  return <h2 key={idx} className="text-xl font-bold text-gray-900 mt-6 mb-3">{line.substring(3)}</h2>;
-                } else if (line.startsWith('# ') && line.length > 2) {
-                  return <h1 key={idx} className="text-2xl font-bold text-gray-900 mt-8 mb-4">{line.substring(2)}</h1>;
-                } else if (line.startsWith('- ') && line.length > 2) {
-                  return <li key={idx} className="ml-4 text-gray-700">{line.substring(2)}</li>;
-                } else if (line.trim() === '') {
-                  return <br key={idx} />;
-                } else {
-                  return <p key={idx} className="text-gray-700 leading-relaxed">{line}</p>;
-                }
-              })}
-            </div>
-          )}
-          {isGenerating && markdownAnalysis && streamingStep === 'ai_analysis' && (
-            <div className="mt-2 flex items-center gap-2 text-xs text-blue-600">
-              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-blue-600"></span>
-              Streaming...
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-2xl font-semibold text-gray-900">5. Ranked shortlist</h2>
-          {isGenerating && streamingStep === 'ranked_shortlist' && (
-            <span className="flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-blue-600"></span>
-              {streamingMessage || 'AI generating...'}
-            </span>
-          )}
-          {isGenerating && isStepBefore(streamingStep, 'ranked_shortlist') && shortlist.length === 0 && (
-            <span className="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-500">
-              <span className="inline-block h-2 w-2 rounded-full bg-gray-400"></span>
-              Waiting...
-            </span>
-          )}
-        </div>
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
-              <tr>
-                <th className="px-4 py-3 text-left font-semibold">Candidate</th>
-                <th className="px-4 py-3 text-left font-semibold">Match</th>
-                <th className="px-4 py-3 text-left font-semibold">Bias-free</th>
-                <th className="px-4 py-3 text-left font-semibold">Priority</th>
-                <th className="px-4 py-3 text-left font-semibold">Status</th>
-                <th className="px-4 py-3 text-left font-semibold">Availability</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {isGenerating && streamingStep === 'ranked_shortlist' && shortlist.length === 0 && (
-                <tr>
-                  <td className="px-4 py-4 text-center text-sm text-blue-700" colSpan={6}>
-                    <div className="flex items-center justify-center gap-2">
-                      <span className="inline-block h-3 w-3 animate-pulse rounded-full bg-blue-600"></span>
-                      Ranking candidates and generating shortlist...
-                    </div>
-                  </td>
-                </tr>
-              )}
-              {!isGenerating && shortlist.length === 0 && (
-                <tr>
-                  <td className="px-4 py-4 text-sm text-gray-500" colSpan={6}>
-                    Run the workflow to populate the ranked shortlist.
-                  </td>
-                </tr>
-              )}
-              {shortlist.map(item => {
-                const rowCandidate = candidates.find(candidate => candidate.candidate_id === item.candidate_id);
-                const analysis = candidateAnalysisById.get(item.candidate_id);
-                const isActive = item.candidate_id === selectedCandidateId;
-                return (
-                  <tr
-                    key={`${item.candidate_id}-${item.rank}`}
-                    className={`${isActive ? "bg-blue-50/60" : "bg-white"} hover:bg-blue-50/50`}
-                  >
-                    <td className="px-4 py-4">
-                      <div className="font-semibold text-gray-900">
-                        {analysis?.name || rowCandidate?.name || item.candidate_id}
-                      </div>
-                      <div className="text-xs text-gray-600">Rank {item.rank}</div>
-                    </td>
-                    <td className="px-4 py-4 font-semibold text-gray-900">{analysis?.match_score ?? "--"}</td>
-                    <td className="px-4 py-4 font-semibold text-gray-900">{analysis?.bias_free_score ?? "--"}</td>
-                    <td className="px-4 py-4 text-xs text-gray-600">{item.priority ?? "--"}</td>
-                    <td className="px-4 py-4 text-xs text-gray-600">{item.status ?? "--"}</td>
-                    <td className="px-4 py-4 text-xs text-gray-600">{item.availability ?? "--"}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {selectedCandidate && (
-        <section className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <h2 className="text-2xl font-semibold text-gray-900">6. Detailed readout</h2>
-              <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700">
-                Focus: {selectedAnalysis?.name || selectedCandidate.name}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              {isGenerating && streamingStep === 'detailed_readout' && (
-                <span className="flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                  <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-blue-600"></span>
-                  {streamingMessage || 'AI generating...'}
-                </span>
-              )}
-              {isGenerating && isStepBefore(streamingStep, 'detailed_readout') && !selectedReadout && (
-                <span className="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-500">
-                  <span className="inline-block h-2 w-2 rounded-full bg-gray-400"></span>
-                  Waiting...
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="space-y-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="space-y-2">
-                <h3 className="text-xl font-semibold text-gray-900">{selectedAnalysis?.name || selectedCandidate.name}</h3>
-                <p className="text-sm text-gray-600">{selectedCandidate.primary_role || "Role not captured"}</p>
-                {selectedCandidate.experience_years != null && (
-                  <p className="text-sm text-gray-600">Experience: {selectedCandidate.experience_years} years</p>
-                )}
-              </div>
-              <div className="flex flex-wrap items-end gap-4 text-sm text-gray-600">
-                {selectedAnalysis?.match_score != null && (
-                  <div>
-                    <span className="font-semibold text-gray-800">Match score</span>
-                    <div className="text-lg font-bold text-blue-700">{selectedAnalysis.match_score}</div>
-                  </div>
-                )}
-                {selectedAnalysis?.bias_free_score != null && (
-                  <div>
-                    <span className="font-semibold text-gray-800">Bias-free score</span>
-                    <div className="text-lg font-bold text-emerald-700">{selectedAnalysis.bias_free_score}</div>
-                  </div>
-                )}
-                <div>
-                  <span className="font-semibold text-gray-800">Selected resumes</span>
-                  <div className="text-xs text-gray-600">{selectedResumeIds.join(", ") || "None"}</div>
-                </div>
-                <div>
-                  <span className="font-semibold text-gray-800">Workflow run</span>
-                  <div className="text-xs text-gray-600">{formatDateTime(lastAnalyzedAt)}</div>
-                </div>
-              </div>
-            </div>
-
-            {selectedAnalysis?.summary && <p className="text-sm text-gray-700">{selectedAnalysis.summary}</p>}
-
-            <div className="space-y-3">
-              <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Highlights</h4>
-              <ul className="space-y-2 text-sm text-gray-700">
-                {selectedAnalysis && selectedAnalysis.highlights.length === 0 && <li>No highlights returned.</li>}
-                {selectedAnalysis?.highlights.map(item => (
-                  <li key={item} className="flex gap-2">
-                    <span className="mt-1 inline-flex h-2 w-2 flex-none rounded-full bg-blue-400" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-                {!selectedAnalysis && <li className="text-xs text-gray-500">Run the workflow to populate highlights.</li>}
-              </ul>
-            </div>
-
-            <div className="space-y-3">
-              <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Skill alignment</h4>
-              <div className="grid gap-3 md:grid-cols-2">
-                {selectedAnalysis?.skill_alignment.map(alignment => (
-                  <div
-                    key={`${alignment.skill}-${alignment.status}`}
-                    className={`rounded-xl border px-4 py-3 text-sm ${skillStatusClasses[alignment.status] || "border-gray-200 bg-gray-50 text-gray-700"}`}
-                  >
-                    <p className="font-semibold">{alignment.skill}</p>
-                    <p className="text-xs">{alignment.evidence}</p>
-                  </div>
-                ))}
-                {(!selectedAnalysis || selectedAnalysis.skill_alignment.length === 0) && (
-                  <p className="text-xs text-gray-500">Run the workflow to see AI-assessed skill alignment.</p>
-                )}
-              </div>
-            </div>
-
-            {selectedReadout && (
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                  <h4 className="text-sm font-semibold uppercase tracking-wide text-emerald-700">Strengths</h4>
-                  <ul className="mt-2 space-y-1 text-sm text-emerald-800">
-                    {selectedReadout.strengths.map(item => (
-                      <li key={item}>{item}</li>
-                    ))}
-                    {selectedReadout.strengths.length === 0 && <li>No strengths supplied.</li>}
-                  </ul>
-                </div>
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                  <h4 className="text-sm font-semibold uppercase tracking-wide text-amber-700">Risks</h4>
-                  <ul className="mt-2 space-y-1 text-sm text-amber-800">
-                    {selectedReadout.risks.map(item => (
-                      <li key={item}>{item}</li>
-                    ))}
-                    {selectedReadout.risks.length === 0 && <li>No risks supplied.</li>}
-                  </ul>
-                </div>
-                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-                  <h4 className="text-sm font-semibold uppercase tracking-wide text-blue-700">Recommended actions</h4>
-                  <ul className="mt-2 space-y-1 text-sm text-blue-800">
-                    {selectedReadout.recommended_actions.map(item => (
-                      <li key={item}>{item}</li>
-                    ))}
-                    {selectedReadout.recommended_actions.length === 0 && <li>No actions supplied.</li>}
-                  </ul>
-                </div>
               </div>
             )}
-            {!selectedReadout && <p className="text-xs text-gray-500">Run the workflow to populate the detailed readout.</p>}
           </div>
-        </section>
-      )}
 
-      <section className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-2xl font-semibold text-gray-900">Engagement plan</h2>
-          {isGenerating && streamingStep === 'engagement_plan' && (
-            <span className="flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-blue-600"></span>
-              {streamingMessage || 'AI generating...'}
-            </span>
-          )}
-          {isGenerating && isStepBefore(streamingStep, 'engagement_plan') && displayEngagement.length === 0 && (
-            <span className="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-500">
-              <span className="inline-block h-2 w-2 rounded-full bg-gray-400"></span>
-              Waiting...
-            </span>
-          )}
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          {isGenerating && streamingStep === 'engagement_plan' && displayEngagement.length === 0 && (
-            <div className="col-span-full rounded-2xl border border-blue-200 bg-blue-50 p-6 text-center">
-              <div className="flex items-center justify-center gap-2 text-sm text-blue-700">
-                <span className="inline-block h-3 w-3 animate-pulse rounded-full bg-blue-600"></span>
-                Creating engagement plan...
-              </div>
-            </div>
-          )}
-          {!isGenerating && displayEngagement.length === 0 && <p className="text-sm text-gray-500">Run the workflow to populate engagement actions.</p>}
-          {displayEngagement.map((item, index) => (
-            <div key={`${item.label}-${index}`} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-semibold text-gray-900">{item.label}</p>
-              <p className="mt-1 text-sm text-gray-700">{item.value}</p>
-              {item.helper && <p className="mt-2 text-xs text-gray-500">{item.helper}</p>}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-2xl font-semibold text-gray-900">Fairness & panel guidance</h2>
-          {isGenerating && streamingStep === 'fairness_guidance' && (
-            <span className="flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-blue-600"></span>
-              {streamingMessage || 'AI generating...'}
-            </span>
-          )}
-          {isGenerating && isStepBefore(streamingStep, 'fairness_guidance') && displayFairness.length === 0 && (
-            <span className="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-500">
-              <span className="inline-block h-2 w-2 rounded-full bg-gray-400"></span>
-              Waiting...
-            </span>
-          )}
-        </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          {isGenerating && streamingStep === 'fairness_guidance' && displayFairness.length === 0 && (
-            <div className="col-span-full rounded-2xl border border-blue-200 bg-blue-50 p-6 text-center">
-              <div className="flex items-center justify-center gap-2 text-sm text-blue-700">
-                <span className="inline-block h-3 w-3 animate-pulse rounded-full bg-blue-600"></span>
-                Generating fairness & panel guidance...
-              </div>
-            </div>
-          )}
-          {!isGenerating && displayFairness.length === 0 && <p className="text-sm text-gray-500">Run the workflow to receive panel guidance.</p>}
-          {displayFairness.map((item, index) => {
-            // Color coding based on content type - using consistent color scheme with skill alignment
-            const getCardStyle = (label: string) => {
-              if (label.toLowerCase().includes('bias') || label.toLowerCase().includes('fairness') || label.toLowerCase().includes('diversity')) {
-                return 'border-emerald-200 bg-emerald-50'; // Green for fairness/bias related (consistent with Yes status)
-              } else if (label.toLowerCase().includes('panel') || label.toLowerCase().includes('guidance')) {
-                return 'border-blue-200 bg-blue-50'; // Blue for guidance
-              } else if (label.toLowerCase().includes('risk') || label.toLowerCase().includes('caution')) {
-                return 'border-amber-200 bg-amber-50'; // Amber for risks/cautions (consistent with Partial status)
-              } else {
-                return 'border-gray-200 bg-white'; // Default gray
-              }
-            };
-
-            const getTextStyle = (label: string) => {
-              if (label.toLowerCase().includes('bias') || label.toLowerCase().includes('fairness') || label.toLowerCase().includes('diversity')) {
-                return 'text-emerald-800'; // Emerald text for fairness/bias (consistent with Yes status)
-              } else if (label.toLowerCase().includes('panel') || label.toLowerCase().includes('guidance')) {
-                return 'text-blue-800'; // Blue text for guidance
-              } else if (label.toLowerCase().includes('risk') || label.toLowerCase().includes('caution')) {
-                return 'text-amber-800'; // Amber text for risks/cautions (consistent with Partial status)
-              } else {
-                return 'text-gray-900'; // Default gray text
-              }
-            };
-
-            return (
-              <div key={`${item.label}-${index}`} className={`rounded-2xl border p-5 shadow-sm ${getCardStyle(item.label)}`}>
-                <p className={`text-sm font-semibold ${getTextStyle(item.label)}`}>{item.label}</p>
-                <p className={`mt-1 text-sm ${getTextStyle(item.label).replace('800', '700')}`}>{item.value}</p>
-                {item.helper && <p className="mt-2 text-xs text-gray-500">{item.helper}</p>}
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-2xl font-semibold text-gray-900">Interview preparation pack</h2>
-          {isGenerating && streamingStep === 'interview_preparation' && (
-            <span className="flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-blue-600"></span>
-              {streamingMessage || 'AI generating...'}
-            </span>
-          )}
-          {isGenerating && isStepBefore(streamingStep, 'interview_preparation') && displayInterview.length === 0 && (
-            <span className="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-500">
-              <span className="inline-block h-2 w-2 rounded-full bg-gray-400"></span>
-              Waiting...
-            </span>
-          )}
-        </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          {isGenerating && streamingStep === 'interview_preparation' && displayInterview.length === 0 && (
-            <div className="flex items-center justify-center gap-2 py-4 text-sm text-blue-700">
-              <span className="inline-block h-3 w-3 animate-pulse rounded-full bg-blue-600"></span>
-              Preparing interview questions...
-            </div>
-          )}
-          {!isGenerating && displayInterview.length === 0 && <p className="text-sm text-gray-500">Run the workflow to populate interview prompts.</p>}
-          <ul className="space-y-3 text-sm text-gray-700">
-            {displayInterview.map(item => (
-              <li key={item.question} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
-                <p className="font-semibold text-gray-900">{item.question}</p>
-                <p className="text-xs text-gray-500">{item.rationale}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
+      </main>
     </div>
   );
 }

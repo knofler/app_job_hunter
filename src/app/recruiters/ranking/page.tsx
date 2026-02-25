@@ -242,440 +242,342 @@ export default function RecruiterRankingPage() {
   const formatPercent = (value?: number | null) => `${clampPercent(value)}%`;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/40 px-6 py-10">
-      <div className="mx-auto max-w-6xl">
-        <header className="mb-8 rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-semibold text-slate-900">Recruiter Ranking</h1>
-              <p className="mt-2 text-sm text-slate-600">
-                Compare curated job descriptions with multiple resumes and generate a ranked shortlist.
-              </p>
-            </div>
-            <div className="rounded-full bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-700">
-              AI Ranking Workspace
-            </div>
-          </div>
-        </header>
+    <div className="flex" style={{ height: "calc(100vh - 64px)" }}>
 
-        {error ? (
-          <div className="mb-6 rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {error}
-          </div>
-        ) : null}
+      {/* ─── LEFT PANEL: Inputs ─────────────────────────────── */}
+      <aside className="w-[400px] flex-shrink-0 border-r border-border bg-card flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto p-5 space-y-6">
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-slate-900">Job Description</h2>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-medium text-slate-600">Single select</span>
+          {/* Step 1: Job Description */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">1</span>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground">Job Description</h2>
+              <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">Single select</span>
             </div>
-            <p className="mt-2 text-sm text-slate-500">Upload a JD or pick one from your saved list.</p>
+
+            {/* Drag-drop zone for JD */}
             <div
-              className={`mt-4 rounded-2xl border-2 border-dashed px-5 py-6 text-sm transition ${
-                jobDragActive
-                  ? "border-emerald-400 bg-emerald-50 text-emerald-700 shadow-sm"
-                  : "border-slate-200 bg-gradient-to-br from-white to-slate-50 text-slate-500"
+              className={`rounded-xl border-2 border-dashed px-4 py-4 text-sm transition cursor-pointer ${
+                jobDragActive ? "border-primary bg-primary/5 text-primary" : "border-border bg-muted/30 text-muted-foreground hover:border-primary/40"
               }`}
-              onDragOver={event => {
-                event.preventDefault();
-                setJobDragActive(true);
-              }}
+              onDragOver={e => { e.preventDefault(); setJobDragActive(true); }}
               onDragLeave={() => setJobDragActive(false)}
               onDrop={handleJobDrop}
             >
-              <div className="flex items-center gap-4">
-                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-lg shadow-sm">📄</span>
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-card shadow-sm text-base">📄</span>
                 <div>
-                  <div className="text-sm font-semibold">Drop job descriptions here</div>
-                  <div className="text-xs text-slate-500">Multiple files supported. We’ll store and de-dup automatically.</div>
+                  <p className="text-xs font-semibold text-foreground">Drop a JD file here</p>
+                  <p className="text-xs text-muted-foreground">PDF or DOCX supported</p>
                 </div>
               </div>
             </div>
-            <input
-              type="text"
-              className="mt-4 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-              placeholder="Search job descriptions..."
-              value={jobSearch}
-              onChange={event => setJobSearch(event.target.value)}
-            />
+
+            <div className="relative">
+              <input type="text" className="w-full rounded-lg border border-border bg-muted px-3 py-2 pl-8 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                placeholder="Search job descriptions..." value={jobSearch} onChange={e => setJobSearch(e.target.value)} />
+              <svg className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+
             <Listbox value={selectedJobId} onChange={setSelectedJobId}>
-              <div className="relative mt-3">
-                <Listbox.Button className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-left text-sm font-medium text-slate-700 shadow-sm transition focus:border-emerald-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100">
-                  <span>
-                    {selectedJob
-                      ? `${selectedJob.title} — ${selectedJob.company} · ${formatDate(
-                          selectedJob.uploaded_at || selectedJob.updated_at || selectedJob.created_at,
-                        )}`
-                      : "Select a job"}
+              <div className="relative">
+                <Listbox.Button className="flex w-full items-center justify-between rounded-lg border border-border bg-muted/50 px-3 py-2.5 text-left text-sm font-medium text-foreground transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
+                  <span className="truncate">
+                    {selectedJob ? `${selectedJob.title} — ${selectedJob.company}` : "Select a job description"}
                   </span>
-                  <svg className="h-4 w-4 text-slate-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path
-                      fillRule="evenodd"
-                      d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z"
-                      clipRule="evenodd"
-                    />
+                  <svg className="ml-2 h-4 w-4 flex-shrink-0 text-muted-foreground" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" />
                   </svg>
                 </Listbox.Button>
-                <Listbox.Options className="absolute z-10 mt-2 max-h-72 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2 text-sm shadow-xl">
-                  {filteredJobs.length === 0 ? (
-                    <div className="px-3 py-2 text-xs text-slate-400">No job descriptions found.</div>
-                  ) : (
-                    filteredJobs.map(job => (
-                      <Listbox.Option
-                        key={job.id}
-                        value={job.id}
-                        className={({ active }) =>
-                          `cursor-pointer rounded-xl px-3 py-2 transition ${
-                            active ? "bg-emerald-50 text-emerald-800" : "text-slate-700"
-                          }`
-                        }
-                      >
-                        <div className="text-sm font-semibold">{job.title}</div>
-                        <div className="text-xs text-slate-500">
-                          {job.company} · {formatDate(job.uploaded_at || job.updated_at || job.created_at)}
-                        </div>
+                <Listbox.Options className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-border bg-card p-1.5 text-sm shadow-xl">
+                  {filteredJobs.length === 0
+                    ? <div className="px-3 py-2 text-xs text-muted-foreground">No job descriptions found.</div>
+                    : filteredJobs.map(job => (
+                      <Listbox.Option key={job.id} value={job.id}
+                        className={({ active }) => `cursor-pointer rounded-lg px-3 py-2 transition ${active ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"}`}>
+                        <div className="text-sm font-semibold truncate">{job.title}</div>
+                        <div className="text-xs text-muted-foreground">{job.company} · {formatDate(job.uploaded_at || job.updated_at || job.created_at)}</div>
                       </Listbox.Option>
                     ))
-                  )}
+                  }
                 </Listbox.Options>
               </div>
             </Listbox>
-            <div className="mt-2 text-[11px] text-slate-500">
-              Showing newest uploads first. Use search to narrow the list.
-            </div>
-            {selectedJob ? (
-              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-sm text-slate-600">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Selected JD</div>
-                <div className="mt-1 text-sm font-semibold text-slate-800">{jobTitle || "Job description"}</div>
-                <div className="mt-1 text-xs text-slate-500">
-                  Uploaded {formatDate(selectedJob.uploaded_at || selectedJob.updated_at || selectedJob.created_at)}
-                </div>
-                <p className="mt-2 line-clamp-6 whitespace-pre-wrap text-xs text-slate-600">{jobDescriptionText}</p>
-              </div>
-            ) : null}
-            <div className="mt-4 text-xs text-slate-500">
-              Tip: Use search to filter by title, company, or location.
-            </div>
-          </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-slate-900">Resumes</h2>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-medium text-slate-600">Multi select</span>
+            {selectedJob && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold mb-1">Selected</p>
+                <p className="text-sm font-semibold text-foreground">{jobTitle || selectedJob.title}</p>
+                <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{jobDescriptionText ? jobDescriptionText.substring(0, 120) + "..." : "No description"}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Step 2: Resumes */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">2</span>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground">Resumes</h2>
+              {selectedResumeIds.length > 0 && (
+                <span className="ml-auto rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">{selectedResumeIds.length} selected</span>
+              )}
             </div>
-            <p className="mt-2 text-sm text-slate-500">Search and select multiple resumes to rank.</p>
+
+            {/* Drag-drop zone for resumes */}
             <div
-              className={`mt-4 rounded-2xl border-2 border-dashed px-5 py-6 text-sm transition ${
-                resumeDragActive
-                  ? "border-emerald-400 bg-emerald-50 text-emerald-700 shadow-sm"
-                  : "border-slate-200 bg-gradient-to-br from-white to-slate-50 text-slate-500"
+              className={`rounded-xl border-2 border-dashed px-4 py-4 text-sm transition cursor-pointer ${
+                resumeDragActive ? "border-primary bg-primary/5 text-primary" : "border-border bg-muted/30 text-muted-foreground hover:border-primary/40"
               }`}
-              onDragOver={event => {
-                event.preventDefault();
-                setResumeDragActive(true);
-              }}
+              onDragOver={e => { e.preventDefault(); setResumeDragActive(true); }}
               onDragLeave={() => setResumeDragActive(false)}
               onDrop={handleResumeDrop}
             >
-              <div className="flex items-center gap-4">
-                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-lg shadow-sm">🧑‍💼</span>
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-card shadow-sm text-base">📋</span>
                 <div>
-                  <div className="text-sm font-semibold">Drop resumes here</div>
-                  <div className="text-xs text-slate-500">Multiple files supported. Duplicates are auto-upserted.</div>
+                  <p className="text-xs font-semibold text-foreground">Drop resumes here</p>
+                  <p className="text-xs text-muted-foreground">Multiple files supported</p>
                 </div>
               </div>
             </div>
-            <input
-              type="text"
-              className="mt-4 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-              placeholder="Search resumes..."
-              value={resumeSearch}
-              onChange={event => setResumeSearch(event.target.value)}
-            />
-            <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
-              <span>{filteredResumes.length} resumes</span>
-              <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
-                {selectedResumeIds.length} selected
-              </span>
+
+            <div className="relative">
+              <input type="text" className="w-full rounded-lg border border-border bg-muted px-3 py-2 pl-8 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                placeholder="Search resumes..." value={resumeSearch} onChange={e => setResumeSearch(e.target.value)} />
+              <svg className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
             </div>
-            <div className="mt-3 max-h-72 space-y-2 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+
+            {selectedResumeIds.length > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">{selectedResumeIds.length} resume{selectedResumeIds.length > 1 ? "s" : ""} selected</span>
+                <button type="button" onClick={() => setSelectedResumeIds([])} className="text-xs text-rose-600 hover:text-rose-800">Clear all</button>
+              </div>
+            )}
+
+            <div className="space-y-1.5 max-h-64 overflow-y-auto">
               {filteredResumes.map(resume => {
                 const isSelected = selectedResumeIds.includes(resume.id);
                 return (
-                  <button
-                    key={resume.id}
-                    type="button"
-                    onClick={() => toggleResumeSelection(resume.id)}
-                    className={`flex w-full items-start gap-3 rounded-xl border px-3 py-2 text-left text-sm transition ${
-                      isSelected
-                        ? "border-emerald-200 bg-emerald-50/60"
-                        : "border-slate-200 bg-white hover:border-emerald-100 hover:bg-emerald-50/20"
-                    }`}
-                  >
-                    <span
-                      className={`mt-1 flex h-4 w-4 items-center justify-center rounded border text-[10px] font-bold ${
-                        isSelected
-                          ? "border-emerald-500 bg-emerald-500 text-white"
-                          : "border-slate-300 bg-white text-transparent"
-                      }`}
-                    >
-                      ✓
-                    </span>
-                    <div className="flex-1">
-                      <div className="text-sm font-semibold text-slate-800">
-                        {resume.candidate_name ? `${resume.candidate_name} — ` : ""}
-                        {resume.name}
-                      </div>
-                      <div className="mt-1 text-[11px] text-slate-500">
-                        Uploaded {formatDate(resume.uploaded_at || resume.last_updated)}
-                      </div>
-                      {resume.summary ? (
-                        <div className="mt-1 text-xs text-slate-500 line-clamp-2">{resume.summary}</div>
-                      ) : null}
+                  <label key={resume.id}
+                    className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2.5 transition ${isSelected ? "border-primary bg-primary/5" : "border-border bg-muted hover:border-primary/30"}`}>
+                    <input type="checkbox" checked={isSelected} onChange={() => toggleResumeSelection(resume.id)} className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-semibold text-foreground">{resume.name}</p>
+                      {resume.candidate_name && <p className="text-xs text-muted-foreground">{resume.candidate_name}</p>}
                     </div>
-                  </button>
+                  </label>
                 );
               })}
-              {filteredResumes.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
-                  No resumes match this search.
-                </div>
-              ) : null}
+              {filteredResumes.length === 0 && <p className="text-xs text-muted-foreground py-2">No resumes found.</p>}
             </div>
-            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-500">
-              Click a resume to add/remove it from the selection.
-            </div>
-          </section>
-        </div>
-
-        <div className="mt-6 flex items-center gap-3">
-          <button
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-            onClick={handleRunRanking}
-            disabled={isLoading}
-          >
-            {isLoading ? "Ranking..." : "Run Ranking"}
-          </button>
-          {isUploading ? (
-            <span className="text-xs text-slate-500">Uploading files...</span>
-          ) : null}
-        </div>
-
-        <section className="mt-8">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-slate-900">Scoring Results</h2>
-            {selectedJob ? (
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
-                Against: {selectedJob.title}
-              </span>
-            ) : null}
           </div>
-          {rankedResults.length === 0 ? (
-            <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-white p-6 text-sm text-slate-500">
-              No results yet. Run ranking to see scores.
-            </div>
-          ) : (
-            <div className="mt-6 space-y-6">
-              {rankedResults.map(result => {
-                const resume = resumes.find(item => item.id === result.resume_id);
-                const scorePercent = clampPercent(result.score);
-                const confidencePercent = clampPercent(result.confidence ?? result.score);
-                const breakdown = result.breakdown ?? [];
-                const positiveSignals = result.positive_signals ?? [];
-                const negativeSignals = result.negative_signals ?? [];
-                const missingKeywords = result.missing_keywords ?? result.skills_analysis?.missing ?? [];
-                const matchedKeywords = result.matched_keywords ?? result.skills_analysis?.found ?? [];
-                const improvements = result.improvement_suggestions ?? [];
+        </div>
 
-                return (
-                  <article
-                    key={`${result.candidate_id}-${result.resume_id}`}
-                    className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div>
-                        <div className="text-xs uppercase tracking-wide text-slate-500">Scoring Result</div>
-                        <div className="mt-1 text-xs font-semibold text-emerald-700">
-                          Category: {result.status || "Comprehensive Resume Analysis"}
-                        </div>
-                        <div className="mt-1 text-lg font-semibold text-slate-900">
-                          {resume?.candidate_name ? `${resume.candidate_name} — ` : ""}
-                          {resume?.name ?? result.resume_id}
-                        </div>
-                        <div className="text-sm text-slate-500">
-                          {result.summary || result.notes || "No summary provided yet."}
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">
-                          {scorePercent}% Match
-                        </span>
-                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-                          Rank #{result.rank}
-                        </span>
-                        {result.priority ? (
-                          <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
-                            {result.priority}
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
+        {/* Run button — sticky at bottom */}
+        <div className="flex-shrink-0 border-t border-border bg-card p-4 space-y-2">
+          {error && <p className="rounded border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700">{error}</p>}
+          {isUploading && <p className="text-xs text-muted-foreground">Uploading files...</p>}
+          <button type="button" onClick={handleRunRanking} disabled={isLoading || !selectedJobId || selectedResumeIds.length === 0}
+            className="w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center gap-2">
+            {isLoading ? (
+              <>
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                Ranking resumes...
+              </>
+            ) : (
+              <>
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                Run Ranking
+              </>
+            )}
+          </button>
+        </div>
+      </aside>
 
-                    <div className="mt-5 grid gap-4 lg:grid-cols-[2fr_1fr]">
-                      <div className="space-y-4">
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-4">
-                            <div className="text-xs font-semibold text-emerald-700">Positive Signals</div>
-                            {positiveSignals.length > 0 ? (
-                              <ul className="mt-2 space-y-1 text-xs text-emerald-800">
-                                {positiveSignals.map(signal => (
-                                  <li key={signal}>+ {signal}</li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <p className="mt-2 text-xs text-emerald-700">No positive signals identified.</p>
-                            )}
-                          </div>
-                          <div className="rounded-xl border border-rose-100 bg-rose-50/40 p-4">
-                            <div className="text-xs font-semibold text-rose-700">Negative Signals</div>
-                            {negativeSignals.length > 0 ? (
-                              <ul className="mt-2 space-y-1 text-xs text-rose-800">
-                                {negativeSignals.map(signal => (
-                                  <li key={signal}>- {signal}</li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <p className="mt-2 text-xs text-rose-700">No risks flagged.</p>
-                            )}
-                          </div>
-                        </div>
+      {/* ─── RIGHT PANEL: Results ────────────────────────────── */}
+      <main className="flex-1 min-w-0 overflow-y-auto bg-muted/30">
+        <div className="p-6 space-y-4">
 
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div>
-                            <div className="text-xs font-semibold text-slate-600">Missing Keywords</div>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {missingKeywords.length > 0 ? (
-                                missingKeywords.map(keyword => (
-                                  <span
-                                    key={keyword}
-                                    className="rounded-full bg-rose-100 px-2 py-1 text-[11px] font-medium text-rose-700"
-                                  >
-                                    {keyword}
-                                  </span>
-                                ))
-                              ) : (
-                                <span className="text-xs text-slate-400">None</span>
-                              )}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-xs font-semibold text-slate-600">Matched Keywords</div>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {matchedKeywords.length > 0 ? (
-                                matchedKeywords.map(keyword => (
-                                  <span
-                                    key={keyword}
-                                    className="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-medium text-emerald-700"
-                                  >
-                                    {keyword}
-                                  </span>
-                                ))
-                              ) : (
-                                <span className="text-xs text-slate-400">None</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {improvements.length > 0 ? (
-                          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                            <div className="text-xs font-semibold text-slate-700">Improvement Suggestions</div>
-                            <ul className="mt-2 space-y-1 text-xs text-slate-600">
-                              {improvements.map(item => (
-                                <li key={item}>• {item}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : null}
-
-                        {result.skills_analysis ? (
-                          <div className="rounded-xl border border-slate-200 bg-white p-4">
-                            <div className="text-xs font-semibold text-slate-700">Skills Analysis</div>
-                            <div className="mt-2 grid gap-3 md:grid-cols-2">
-                              <div>
-                                <div className="text-[11px] font-medium text-emerald-700">Found</div>
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                  {(result.skills_analysis.found ?? []).length > 0 ? (
-                                    (result.skills_analysis.found ?? []).map(skill => (
-                                      <span
-                                        key={skill}
-                                        className="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-medium text-emerald-700"
-                                      >
-                                        {skill}
-                                      </span>
-                                    ))
-                                  ) : (
-                                    <span className="text-xs text-slate-400">None</span>
-                                  )}
-                                </div>
-                              </div>
-                              <div>
-                                <div className="text-[11px] font-medium text-rose-700">Missing</div>
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                  {(result.skills_analysis.missing ?? []).length > 0 ? (
-                                    (result.skills_analysis.missing ?? []).map(skill => (
-                                      <span
-                                        key={skill}
-                                        className="rounded-full bg-rose-100 px-2 py-1 text-[11px] font-medium text-rose-700"
-                                      >
-                                        {skill}
-                                      </span>
-                                    ))
-                                  ) : (
-                                    <span className="text-xs text-slate-400">None</span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ) : null}
-                      </div>
-
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <div className="flex items-center justify-between text-xs text-slate-600">
-                          <span>Confidence</span>
-                          <span>{formatPercent(confidencePercent)}</span>
-                        </div>
-                        <div className="mt-2 h-2 rounded-full bg-slate-200">
-                          <div
-                            className="h-2 rounded-full bg-emerald-500"
-                            style={{ width: `${confidencePercent}%` }}
-                          />
-                        </div>
-                        <div className="mt-4 space-y-2">
-                          {breakdown.length > 0 ? (
-                            breakdown.map(item => (
-                              <div key={item.label} className="flex items-center justify-between text-xs text-slate-600">
-                                <span>{item.label}</span>
-                                <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-slate-700">
-                                  {formatPercent(item.score)}
-                                </span>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="text-xs text-slate-400">No breakdown available.</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
+          {/* Empty state */}
+          {rankedResults.length === 0 && !isLoading && (
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                <svg className="h-8 w-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-foreground">Ready to rank</h3>
+              <p className="mt-1 max-w-sm text-sm text-muted-foreground">Select a job description and resumes on the left, then click <strong>Run Ranking</strong>.</p>
             </div>
           )}
-        </section>
-      </div>
+
+          {/* Loading state */}
+          {isLoading && (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="h-10 w-10 animate-spin rounded-full border-3 border-primary border-t-transparent mb-4" />
+              <p className="text-sm font-semibold text-primary">Ranking resumes against job description...</p>
+              <p className="mt-1 text-xs text-muted-foreground">This may take a moment</p>
+            </div>
+          )}
+
+          {/* Results header */}
+          {rankedResults.length > 0 && (
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Ranking Results</h2>
+                {selectedJob && <p className="text-xs text-muted-foreground">Against: {selectedJob.title}</p>}
+              </div>
+              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">{rankedResults.length} candidate{rankedResults.length > 1 ? "s" : ""} ranked</span>
+            </div>
+          )}
+
+          {/* Results cards */}
+          {rankedResults.map((result, index) => {
+            const resume = resumes.find(item => item.id === result.resume_id);
+            const scorePercent = clampPercent(result.score);
+            const confidencePercent = clampPercent(result.confidence ?? result.score);
+            const breakdown = result.breakdown ?? [];
+            const positiveSignals = result.positive_signals ?? [];
+            const negativeSignals = result.negative_signals ?? [];
+            const missingKeywords = result.missing_keywords ?? result.skills_analysis?.missing ?? [];
+            const matchedKeywords = result.matched_keywords ?? result.skills_analysis?.found ?? [];
+            const improvements = result.improvement_suggestions ?? [];
+
+            const scoreColor = scorePercent >= 80 ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+              : scorePercent >= 60 ? "bg-blue-100 text-blue-700 border-blue-200"
+              : scorePercent >= 40 ? "bg-amber-100 text-amber-700 border-amber-200"
+              : "bg-rose-100 text-rose-700 border-rose-200";
+
+            return (
+              <article key={`${result.candidate_id}-${result.resume_id}`}
+                className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                {/* Card header */}
+                <div className="flex items-start justify-between gap-4 p-5 border-b border-border/50">
+                  <div className="flex items-start gap-3">
+                    <div className={`flex-shrink-0 flex h-12 w-12 items-center justify-center rounded-full border-2 text-lg font-bold ${scoreColor}`}>
+                      {scorePercent}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">
+                        {resume?.candidate_name ? `${resume.candidate_name} — ` : ""}{resume?.name ?? result.resume_id}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{result.summary || result.notes || "No summary"}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-foreground">#{result.rank ?? index + 1}</span>
+                    {result.priority && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">{result.priority}</span>}
+                  </div>
+                </div>
+
+                {/* Card body */}
+                <div className="p-5 grid gap-4 lg:grid-cols-[2fr_1fr]">
+                  <div className="space-y-4">
+                    {/* Signals */}
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 p-3">
+                        <p className="text-xs font-semibold text-emerald-700 mb-2">Positive Signals</p>
+                        {positiveSignals.length > 0
+                          ? <ul className="space-y-0.5 text-xs text-emerald-800">{positiveSignals.map(s => <li key={s}>+ {s}</li>)}</ul>
+                          : <p className="text-xs text-emerald-600">None identified.</p>}
+                      </div>
+                      <div className="rounded-lg border border-rose-100 bg-rose-50/60 p-3">
+                        <p className="text-xs font-semibold text-rose-700 mb-2">Negative Signals</p>
+                        {negativeSignals.length > 0
+                          ? <ul className="space-y-0.5 text-xs text-rose-800">{negativeSignals.map(s => <li key={s}>- {s}</li>)}</ul>
+                          : <p className="text-xs text-rose-600">None flagged.</p>}
+                      </div>
+                    </div>
+
+                    {/* Keywords */}
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground mb-2">Matched Keywords</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {matchedKeywords.length > 0
+                            ? matchedKeywords.map(k => <span key={k} className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">{k}</span>)
+                            : <span className="text-xs text-muted-foreground">None</span>}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground mb-2">Missing Keywords</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {missingKeywords.length > 0
+                            ? missingKeywords.map(k => <span key={k} className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-medium text-rose-700">{k}</span>)
+                            : <span className="text-xs text-muted-foreground">None</span>}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Skills analysis */}
+                    {result.skills_analysis && (
+                      <div className="rounded-lg border border-border bg-muted/40 p-3">
+                        <p className="text-xs font-semibold text-muted-foreground mb-2">Skills Analysis</p>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <div>
+                            <p className="text-[11px] font-medium text-emerald-700 mb-1">Found</p>
+                            <div className="flex flex-wrap gap-1">
+                              {(result.skills_analysis.found ?? []).map(s => <span key={s} className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] text-emerald-700">{s}</span>)}
+                              {(result.skills_analysis.found ?? []).length === 0 && <span className="text-xs text-muted-foreground">None</span>}
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-[11px] font-medium text-rose-700 mb-1">Missing</p>
+                            <div className="flex flex-wrap gap-1">
+                              {(result.skills_analysis.missing ?? []).map(s => <span key={s} className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] text-rose-700">{s}</span>)}
+                              {(result.skills_analysis.missing ?? []).length === 0 && <span className="text-xs text-muted-foreground">None</span>}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Improvements */}
+                    {improvements.length > 0 && (
+                      <div className="rounded-lg border border-amber-100 bg-amber-50/50 p-3">
+                        <p className="text-xs font-semibold text-amber-700 mb-2">Improvement Suggestions</p>
+                        <ul className="space-y-0.5 text-xs text-amber-800">
+                          {improvements.map(item => <li key={item}>• {item}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Confidence panel */}
+                  <div className="rounded-lg border border-border bg-muted/40 p-4">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                      <span>Confidence</span>
+                      <span className="font-semibold">{formatPercent(confidencePercent)}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted">
+                      <div className={`h-2 rounded-full transition-all ${confidencePercent >= 70 ? "bg-emerald-500" : confidencePercent >= 50 ? "bg-blue-500" : "bg-amber-500"}`}
+                        style={{ width: `${confidencePercent}%` }} />
+                    </div>
+                    {breakdown.length > 0 && (
+                      <div className="mt-4 space-y-2">
+                        {breakdown.map(item => (
+                          <div key={item.label} className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">{item.label}</span>
+                            <span className="rounded-full bg-card px-2 py-0.5 text-[11px] font-semibold text-foreground">{formatPercent(item.score)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {breakdown.length === 0 && <p className="mt-3 text-xs text-muted-foreground">No breakdown.</p>}
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </main>
     </div>
   );
 }
