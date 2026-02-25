@@ -187,3 +187,16 @@ export async function streamProjectRun(
     }
   }
 }
+
+// ─── Context ──────────────────────────────────────────────────────────────────
+
+export async function getProjectContext(projectId: string): Promise<{ project_id: string; context: string }> {
+  return apiFetch(`${BASE}/${projectId}/context`);
+}
+
+export async function setProjectContext(projectId: string, context: string): Promise<{ project_id: string; context: string }> {
+  return apiFetch(`${BASE}/${projectId}/context`, {
+    method: "PUT",
+    body: JSON.stringify({ context }),
+  });
+}

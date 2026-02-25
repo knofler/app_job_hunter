@@ -1,15 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { use } from "react";
+import { use, useCallback, useEffect, useRef, useState } from "react";
 import {
   addResumesToProject,
-  createCombinedReport,
   getProject,
+  getProjectContext,
   listReports,
   listRuns,
   removeResumeFromProject,
+  setProjectContext,
   streamProjectRun,
   updateProject,
   type Project,
@@ -18,60 +18,34 @@ import {
   type RankedCandidate,
   type StreamEvent,
 } from "@/lib/projects-api";
+import { fetchFromApi } from "@/lib/api";
 
 const DEFAULT_ORG = "global";
 
-// ── Score badge ────────────────────────────────────────────────────────────────
+// ── Score badge ──────────────────────────────────────────────────────────────
 function ScoreBadge({ score }: { score: number }) {
   const cls =
-    score >= 90 ? "bg-emerald-500/10 text-emerald-400" :
-    score >= 75 ? "bg-blue-500/10 text-blue-400" :
-    score >= 60 ? "bg-amber-500/10 text-amber-400" :
-    score >= 40 ? "bg-orange-500/10 text-orange-400" :
-                  "bg-rose-500/10 text-rose-400";
-  return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold ${cls}`}>{score}%</span>;
-}
-
-// ── Ranked candidate card ──────────────────────────────────────────────────────
-function CandidateCard({ candidate }: { candidate: RankedCandidate }) {
+    score >= 90 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+    score >= 75 ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
+    score >= 60 ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
+                  "bg-rose-500/10 text-rose-400 border-rose-500/20";
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground font-mono">#{candidate.rank}</span>
-            <h4 className="font-semibold text-foreground">{candidate.name || "Unknown"}</h4>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{candidate.summary}</p>
-        </div>
-        <ScoreBadge score={candidate.score} />
-      </div>
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {candidate.strengths?.slice(0, 3).map((s) => (
-          <span key={s} className="rounded bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-400">{s}</span>
-        ))}
-        {candidate.gaps?.slice(0, 2).map((g) => (
-          <span key={g} className="rounded bg-rose-500/10 px-2 py-0.5 text-xs text-rose-400">{g}</span>
-        ))}
-      </div>
-      <p className="mt-2 text-xs text-muted-foreground">
-        <span className="font-medium text-foreground/70">Rec: </span>{candidate.recommendation}
-      </p>
-    </div>
+    <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold ${cls}`}>
+      {score}
+    </span>
   );
 }
 
-// ── Run type config ─────────────────────────────────────────────────────────────
+// ── Run Modal ────────────────────────────────────────────────────────────────
 const RUN_TYPES = [
-  { id: "top_n", label: "Top N Candidates", icon: "🏆", description: "Rank the overall best candidates" },
-  { id: "leadership", label: "Leadership Focus", icon: "👔", description: "Weight leadership and management qualities" },
-  { id: "skills", label: "Skills Match", icon: "🛠", description: "Rank by technical skills alignment" },
-  { id: "specific_skill", label: "Specific Skill", icon: "🎯", description: "Find experts in one skill" },
-  { id: "salary_fit", label: "Salary Fit", icon: "💰", description: "Match candidates within budget" },
-  { id: "custom", label: "Custom Prompt", icon: "✏️", description: "Write your own assessment criteria" },
+  { value: "top_n", label: "Top N Candidates", icon: "🏆", description: "Rank best overall candidates" },
+  { value: "leadership", label: "Leadership Fit", icon: "👔", description: "Assess leadership qualities" },
+  { value: "skill_based", label: "Skill Match", icon: "🔧", description: "Rank by specific skill set" },
+  { value: "specific_skill", label: "Single Skill", icon: "🎯", description: "Focus on one key skill" },
+  { value: "custom_prompt", label: "Custom Prompt", icon: "✏️", description: "Your own assessment criteria" },
+  { value: "salary_fit", label: "Salary Fit", icon: "💰", description: "Match within salary budget" },
 ];
 
-// ── New Run modal ──────────────────────────────────────────────────────────────
 function NewRunModal({
   projectId,
   onClose,
@@ -83,228 +57,234 @@ function NewRunModal({
 }) {
   const [runType, setRunType] = useState("top_n");
   const [topN, setTopN] = useState(5);
+  const [customPrompt, setCustomPrompt] = useState("");
   const [specificSkill, setSpecificSkill] = useState("");
   const [maxSalary, setMaxSalary] = useState("");
-  const [customPrompt, setCustomPrompt] = useState("");
-  const [streaming, setStreaming] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [events, setEvents] = useState<StreamEvent[]>([]);
-  const [done, setDone] = useState(false);
-  const [error, setError] = useState("");
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const logRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [events]);
 
-  async function startRun() {
-    setStreaming(true);
+  async function handleRun() {
+    setIsStreaming(true);
     setEvents([]);
-    setError("");
     const params: Record<string, unknown> = { top_n: topN };
-    if (specificSkill) params.specific_skill = specificSkill;
-    if (maxSalary) params.max_salary = maxSalary;
-    if (customPrompt) params.custom_prompt = customPrompt;
-
+    if (runType === "custom_prompt") params.custom_prompt = customPrompt;
+    if (runType === "specific_skill") params.specific_skill = specificSkill;
+    if (runType === "salary_fit") params.max_salary = maxSalary;
     try {
-      await streamProjectRun(projectId, runType, params, DEFAULT_ORG, (event) => {
-        setEvents((prev) => [...prev, event]);
-        if (event.type === "complete") setDone(true);
+      await streamProjectRun(projectId, runType, DEFAULT_ORG, params, (ev) => {
+        setEvents((prev) => [...prev, ev]);
       });
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Stream failed");
     } finally {
-      setStreaming(false);
+      setIsStreaming(false);
+      onComplete();
     }
   }
 
-  const resultEvent = events.find((e) => e.type === "result") as Extract<StreamEvent, { type: "result" }> | undefined;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-lg bg-card border border-border rounded-xl shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-muted/30">
+          <h2 className="text-sm font-bold text-foreground">New AI Assessment Run</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl">×</button>
+        </div>
+
+        {!isStreaming && events.length === 0 ? (
+          <div className="p-5 space-y-4">
+            <div className="grid grid-cols-2 gap-2">
+              {RUN_TYPES.map((rt) => (
+                <button
+                  key={rt.value}
+                  onClick={() => setRunType(rt.value)}
+                  className={`flex items-start gap-2.5 rounded-lg border p-3 text-left transition ${
+                    runType === rt.value ? "border-primary bg-primary/5" : "border-border hover:border-primary/30 hover:bg-muted/50"
+                  }`}
+                >
+                  <span className="text-lg shrink-0">{rt.icon}</span>
+                  <div>
+                    <p className={`text-xs font-semibold ${runType === rt.value ? "text-primary" : "text-foreground"}`}>{rt.label}</p>
+                    <p className="text-xs text-muted-foreground">{rt.description}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-3 pt-2 border-t border-border">
+              <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
+                Top N candidates
+                <input type="number" min={1} max={20} value={topN} onChange={e => setTopN(Number(e.target.value))}
+                  className="input h-9 w-24 text-sm" />
+              </label>
+              {runType === "custom_prompt" && (
+                <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
+                  Assessment prompt
+                  <textarea value={customPrompt} onChange={e => setCustomPrompt(e.target.value)} rows={3}
+                    className="input h-auto resize-none text-sm" placeholder="Describe your assessment criteria…" />
+                </label>
+              )}
+              {runType === "specific_skill" && (
+                <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
+                  Skill to focus on
+                  <input value={specificSkill} onChange={e => setSpecificSkill(e.target.value)}
+                    className="input h-9 text-sm" placeholder="e.g. Python, SQL, leadership" />
+                </label>
+              )}
+              {runType === "salary_fit" && (
+                <label className="flex flex-col gap-1 text-sm font-medium text-foreground">
+                  Max salary budget
+                  <input value={maxSalary} onChange={e => setMaxSalary(e.target.value)}
+                    className="input h-9 text-sm" placeholder="e.g. $120,000" />
+                </label>
+              )}
+            </div>
+
+            <button onClick={handleRun}
+              className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              Start Run
+            </button>
+          </div>
+        ) : (
+          <div className="p-5 space-y-3">
+            <div ref={logRef} className="bg-muted rounded-lg p-3 h-64 overflow-y-auto space-y-1 font-mono text-xs">
+              {events.map((ev, i) => (
+                <div key={i} className={
+                  ev.type === "error" ? "text-rose-400" :
+                  ev.type === "complete" ? "text-emerald-400 font-semibold" :
+                  ev.type === "result" ? "text-primary" : "text-muted-foreground"
+                }>
+                  {ev.type === "status" ? `▶ ${ev.message}` :
+                   ev.type === "result" ? `✓ Results: ${Array.isArray(ev.data) ? ev.data.length : 0} candidates ranked` :
+                   ev.type === "complete" ? "✓ Run complete" :
+                   ev.type === "error" ? `✗ ${ev.message}` : JSON.stringify(ev)}
+                </div>
+              ))}
+              {isStreaming && <div className="text-muted-foreground animate-pulse">Running…</div>}
+            </div>
+            {!isStreaming && (
+              <button onClick={onClose}
+                className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90">
+                Done
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Resume Picker Modal ───────────────────────────────────────────────────────
+function ResumePickerModal({
+  projectResumeIds,
+  onAdd,
+  onClose,
+}: {
+  projectResumeIds: string[];
+  onAdd: (ids: string[]) => void;
+  onClose: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [allResumes, setAllResumes] = useState<Array<{ id: string; name: string; candidate_name: string; summary?: string }>>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchFromApi(`/api/recruiter-ranking/resumes?org_id=${DEFAULT_ORG}&limit=100`)
+      .then((d) => setAllResumes(d?.items ?? []))
+      .catch(() => setAllResumes([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = allResumes.filter(r =>
+    !projectResumeIds.includes(r.id) &&
+    (r.name.toLowerCase().includes(search.toLowerCase()) ||
+     (r.candidate_name ?? "").toLowerCase().includes(search.toLowerCase()))
+  );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="w-full max-w-2xl rounded-2xl border border-border bg-card shadow-2xl flex flex-col max-h-[90vh]">
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-border">
-          <h2 className="text-lg font-semibold text-foreground">New AI Assessment Run</h2>
-          <button onClick={onClose} disabled={streaming} className="text-muted-foreground hover:text-foreground">
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-md bg-card border border-border rounded-xl shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-muted/30">
+          <h2 className="text-sm font-bold text-foreground">Add Resumes to Project</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl">×</button>
+        </div>
+        <div className="p-4 space-y-3">
+          <input
+            type="text" placeholder="Search candidates…" value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="input h-9 text-sm w-full"
+          />
+          <div className="max-h-72 overflow-y-auto space-y-1.5">
+            {loading && <p className="text-xs text-muted-foreground">Loading resumes…</p>}
+            {!loading && filtered.length === 0 && <p className="text-xs text-muted-foreground">No resumes found</p>}
+            {filtered.map(r => (
+              <label key={r.id} className={`flex items-start gap-3 cursor-pointer rounded-lg border p-3 transition ${
+                selected.has(r.id) ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
+              }`}>
+                <input type="checkbox" checked={selected.has(r.id)}
+                  onChange={e => {
+                    const next = new Set(selected);
+                    if (e.target.checked) next.add(r.id); else next.delete(r.id);
+                    setSelected(next);
+                  }}
+                  className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-foreground truncate">{r.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{r.candidate_name}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+          <button
+            disabled={selected.size === 0}
+            onClick={() => { onAdd(Array.from(selected)); onClose(); }}
+            className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40 transition-opacity"
+          >
+            Add {selected.size > 0 ? `${selected.size} resume${selected.size > 1 ? "s" : ""}` : "Resumes"}
           </button>
-        </div>
-
-        {/* Body */}
-        <div className="overflow-y-auto flex-1 p-5 space-y-5">
-          {!streaming && !done && (
-            <>
-              {/* Run type selector */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Assessment Type</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {RUN_TYPES.map((rt) => (
-                    <button
-                      key={rt.id}
-                      onClick={() => setRunType(rt.id)}
-                      className={`rounded-xl border p-3 text-left transition-all ${
-                        runType === rt.id
-                          ? "border-primary bg-primary/10"
-                          : "border-border bg-muted/30 hover:border-border/80"
-                      }`}
-                    >
-                      <span className="text-base">{rt.icon}</span>
-                      <p className="text-sm font-medium text-foreground mt-1">{rt.label}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{rt.description}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Params */}
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">Top N candidates</label>
-                  <input
-                    type="number" min={1} max={20} value={topN}
-                    onChange={(e) => setTopN(parseInt(e.target.value) || 5)}
-                    className="w-24 rounded-lg border border-border bg-input px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none"
-                  />
-                </div>
-                {runType === "specific_skill" && (
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Skill to focus on</label>
-                    <input type="text" value={specificSkill} onChange={(e) => setSpecificSkill(e.target.value)}
-                      placeholder="e.g. Apache Spark, Kubernetes"
-                      className="w-full rounded-lg border border-border bg-input px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                    />
-                  </div>
-                )}
-                {runType === "salary_fit" && (
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Max salary / budget</label>
-                    <input type="text" value={maxSalary} onChange={(e) => setMaxSalary(e.target.value)}
-                      placeholder="e.g. $150,000 AUD"
-                      className="w-full rounded-lg border border-border bg-input px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                    />
-                  </div>
-                )}
-                {runType === "custom" && (
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Custom assessment prompt</label>
-                    <textarea value={customPrompt} onChange={(e) => setCustomPrompt(e.target.value)}
-                      rows={3} placeholder="Describe how you want candidates ranked…"
-                      className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none resize-none"
-                    />
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-
-          {/* Streaming log */}
-          {(streaming || done || events.length > 0) && (
-            <div ref={scrollRef} className="rounded-xl border border-border bg-muted/30 p-4 space-y-2 overflow-y-auto max-h-48">
-              {events.map((ev, i) => (
-                <div key={i} className={`text-xs flex items-start gap-2 ${
-                  ev.type === "error" ? "text-rose-400" :
-                  ev.type === "complete" ? "text-emerald-400" :
-                  ev.type === "result" ? "text-primary" : "text-muted-foreground"
-                }`}>
-                  <span className="font-mono">{ev.type === "status" ? "⟳" : ev.type === "result" ? "✓" : ev.type === "complete" ? "✅" : "✗"}</span>
-                  <span>{"message" in ev ? ev.message : ev.type === "result" ? `${ev.data?.length ?? 0} candidates ranked — Run ID: ${ev.run_id}` : "Complete"}</span>
-                </div>
-              ))}
-              {streaming && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                  Running AI assessment…
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Results preview */}
-          {resultEvent && resultEvent.data && resultEvent.data.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-foreground">Top Results</h3>
-              {resultEvent.data.slice(0, 3).map((c) => (
-                <CandidateCard key={c.resume_id} candidate={c} />
-              ))}
-              {resultEvent.data.length > 3 && (
-                <p className="text-xs text-muted-foreground text-center">+{resultEvent.data.length - 3} more — view full run in Runs tab</p>
-              )}
-            </div>
-          )}
-
-          {error && <p className="text-sm text-rose-400">{error}</p>}
-        </div>
-
-        {/* Footer */}
-        <div className="p-5 border-t border-border flex gap-3">
-          {!done ? (
-            <>
-              <button onClick={onClose} disabled={streaming} className="flex-1 rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50">
-                Cancel
-              </button>
-              <button onClick={startRun} disabled={streaming} className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-                {streaming ? <><span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" /> Running…</> : "Start Run"}
-              </button>
-            </>
-          ) : (
-            <button onClick={() => { onComplete(); onClose(); }} className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark transition-colors">
-              Done — View Results
-            </button>
-          )}
         </div>
       </div>
     </div>
   );
 }
 
-// ── Run list item ───────────────────────────────────────────────────────────────
-function RunItem({ run, onSelect, selected }: { run: ProjectRun; selected: boolean; onSelect: () => void }) {
-  const rtConfig = RUN_TYPES.find((r) => r.id === run.run_type);
-  return (
-    <button
-      onClick={onSelect}
-      className={`w-full rounded-lg border p-3 text-left transition-all ${
-        selected ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40"
-      }`}
-    >
-      <div className="flex items-center gap-2">
-        <span>{rtConfig?.icon ?? "🤖"}</span>
-        <span className="text-sm font-medium text-foreground truncate">{run.run_label}</span>
-        <span className="ml-auto text-xs text-muted-foreground">{run.ranked?.length ?? 0} results</span>
-      </div>
-      <p className="mt-1 text-xs text-muted-foreground">
-        {new Date(run.created_at).toLocaleDateString("en-AU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-      </p>
-    </button>
-  );
-}
-
-// ── Main page ──────────────────────────────────────────────────────────────────
+// ── Main Page ────────────────────────────────────────────────────────────────
 export default function ProjectWorkspacePage({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params);
+
   const [project, setProject] = useState<Project | null>(null);
   const [runs, setRuns] = useState<ProjectRun[]>([]);
   const [reports, setReports] = useState<ProjectReport[]>([]);
+  const [context, setContextText] = useState("");
+  const [contextDraft, setContextDraft] = useState("");
+  const [contextSaving, setContextSaving] = useState(false);
   const [selectedRun, setSelectedRun] = useState<ProjectRun | null>(null);
-  const [activeTab, setActiveTab] = useState<"runs" | "reports">("runs");
-  const [showRunModal, setShowRunModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<"runs" | "context" | "resumes">("resumes");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [addingResumes, setAddingResumes] = useState(false);
-  const [newResumeIds, setNewResumeIds] = useState("");
+  const [showRunModal, setShowRunModal] = useState(false);
+  const [showResumePicker, setShowResumePicker] = useState(false);
 
   const fetchAll = useCallback(async () => {
     try {
-      const [proj, runList, reportList] = await Promise.all([
+      const [proj, runList, reportList, ctx] = await Promise.all([
         getProject(projectId),
         listRuns(projectId),
         listReports(projectId),
+        getProjectContext(projectId).catch(() => ({ context: "" })),
       ]);
       setProject(proj);
       setRuns(runList);
       setReports(reportList);
+      setContextText(ctx.context ?? "");
+      setContextDraft(ctx.context ?? "");
       if (runList.length > 0 && !selectedRun) setSelectedRun(runList[0]);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load project");
@@ -313,36 +293,42 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
     }
   }, [projectId, selectedRun]);
 
-  useEffect(() => { fetchAll(); }, [projectId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchAll(); }, [projectId]); // eslint-disable-line
 
-  async function handleAddResumes() {
-    const ids = newResumeIds.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
-    if (!ids.length) return;
+  async function handleAddResumes(ids: string[]) {
     try {
       const updated = await addResumesToProject(projectId, ids);
       setProject(updated);
-      setNewResumeIds("");
-      setAddingResumes(false);
-    } catch (err: unknown) {
+    } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to add resumes");
     }
   }
 
   async function handleRemoveResume(resumeId: string) {
+    if (!confirm("Remove this resume from the project?")) return;
     try {
       const updated = await removeResumeFromProject(projectId, resumeId);
       setProject(updated);
-    } catch (err: unknown) {
+    } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to remove resume");
+    }
+  }
+
+  async function handleSaveContext() {
+    setContextSaving(true);
+    try {
+      const result = await setProjectContext(projectId, contextDraft);
+      setContextText(result.context);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to save context");
+    } finally {
+      setContextSaving(false);
     }
   }
 
   if (loading) return (
     <div className="flex items-center justify-center h-96">
-      <div className="flex flex-col items-center gap-3">
-        <span className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        <p className="text-sm text-muted-foreground">Loading project…</p>
-      </div>
+      <span className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
     </div>
   );
 
@@ -359,205 +345,251 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
         <NewRunModal
           projectId={projectId}
           onClose={() => setShowRunModal(false)}
-          onComplete={fetchAll}
+          onComplete={() => { setShowRunModal(false); fetchAll(); }}
+        />
+      )}
+      {showResumePicker && (
+        <ResumePickerModal
+          projectResumeIds={project.resume_ids}
+          onAdd={handleAddResumes}
+          onClose={() => setShowResumePicker(false)}
         />
       )}
 
-      <div className="flex min-h-screen bg-background">
-        {/* ── Left panel: project info + resumes ───────────────────────────── */}
-        <aside
-          className="w-80 shrink-0 border-r border-border bg-card overflow-y-auto"
-          style={{ height: "calc(100vh - 56px)", position: "sticky", top: "56px" }}
-        >
-          <div className="p-4 border-b border-border">
-            <Link href="/recruiters/projects" className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mb-3">
-              ← Projects
+      <div className="flex h-full" style={{ height: "calc(100vh - 56px)" }}>
+        {/* ── LEFT: Project Info ── */}
+        <aside className="w-72 shrink-0 border-r border-border bg-card flex flex-col overflow-hidden">
+          {/* Header */}
+          <div className="px-4 py-4 border-b border-border">
+            <Link href="/recruiters/projects" className="text-xs text-muted-foreground hover:text-primary mb-2 flex items-center gap-1">
+              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Projects
             </Link>
-            <h1 className="font-bold text-foreground">{project.name}</h1>
-            {project.description && (
-              <p className="mt-1 text-xs text-muted-foreground">{project.description}</p>
-            )}
-            <div className="mt-3 flex gap-2 flex-wrap">
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">{runs.length} run{runs.length !== 1 ? "s" : ""}</span>
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{project.resume_ids?.length ?? 0} resume{(project.resume_ids?.length ?? 0) !== 1 ? "s" : ""}</span>
-            </div>
+            <h1 className="text-sm font-bold text-foreground leading-tight mt-1">{project.name}</h1>
+            {project.description && <p className="text-xs text-muted-foreground mt-1">{project.description}</p>}
           </div>
 
-          {/* Resumes */}
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Resumes</h3>
-              <button onClick={() => setAddingResumes(!addingResumes)} className="text-xs text-primary hover:underline">
-                + Add
+          {/* Tab bar */}
+          <div className="flex border-b border-border shrink-0">
+            {(["resumes", "runs", "context"] as const).map(tab => (
+              <button key={tab} onClick={() => setActiveTab(tab)}
+                className={`flex-1 py-2.5 text-xs font-medium capitalize transition-colors ${
+                  activeTab === tab ? "text-primary border-b-2 border-primary bg-primary/5" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {tab === "resumes" ? `Resumes (${project.resume_ids.length})` :
+                 tab === "runs" ? `Runs (${runs.length})` : "Context"}
               </button>
-            </div>
+            ))}
+          </div>
 
-            {addingResumes && (
-              <div className="mb-3 space-y-2">
-                <textarea
-                  value={newResumeIds}
-                  onChange={(e) => setNewResumeIds(e.target.value)}
-                  rows={2}
-                  placeholder="Paste resume IDs (comma or line separated)…"
-                  className="w-full rounded-lg border border-border bg-input px-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none resize-none"
-                />
-                <div className="flex gap-2">
-                  <button onClick={() => setAddingResumes(false)} className="flex-1 text-xs text-muted-foreground border border-border rounded py-1 hover:text-foreground">Cancel</button>
-                  <button onClick={handleAddResumes} className="flex-1 text-xs bg-primary text-white rounded py-1 hover:bg-primary-dark">Add</button>
-                </div>
+          {/* Tab content */}
+          <div className="flex-1 overflow-y-auto">
+            {/* RESUMES TAB */}
+            {activeTab === "resumes" && (
+              <div className="p-3 space-y-2">
+                <button onClick={() => setShowResumePicker(true)}
+                  className="w-full flex items-center justify-center gap-2 rounded-lg border border-dashed border-primary/40 py-2 text-xs text-primary hover:bg-primary/5 transition-colors">
+                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add Resumes
+                </button>
+                {project.resume_ids.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-xs text-muted-foreground">No resumes attached.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Add resumes to run AI assessments.</p>
+                  </div>
+                ) : (
+                  project.resume_ids.map((rid, i) => (
+                    <div key={rid} className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-foreground truncate">Resume {i + 1}</p>
+                        <p className="text-xs text-muted-foreground font-mono truncate">{rid.slice(-8)}</p>
+                      </div>
+                      <button onClick={() => handleRemoveResume(rid)}
+                        className="text-xs text-muted-foreground hover:text-rose-400 ml-2 shrink-0">✕</button>
+                    </div>
+                  ))
+                )}
               </div>
             )}
 
-            {project.resume_ids && project.resume_ids.length > 0 ? (
-              <ul className="space-y-1 max-h-48 overflow-y-auto">
-                {project.resume_ids.map((rid) => (
-                  <li key={rid} className="flex items-center gap-2 text-xs text-muted-foreground group">
-                    <span className="h-1.5 w-1.5 rounded-full bg-border flex-none" />
-                    <span className="flex-1 font-mono truncate">{rid.slice(0, 20)}…</span>
-                    <button
-                      onClick={() => handleRemoveResume(rid)}
-                      className="opacity-0 group-hover:opacity-100 text-rose-400 hover:text-rose-300"
-                    >×</button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-xs text-muted-foreground">No resumes added yet.</p>
-            )}
-          </div>
-
-          {/* Run button */}
-          <div className="p-4 border-t border-border">
-            <button
-              onClick={() => setShowRunModal(true)}
-              className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark transition-colors flex items-center justify-center gap-2"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              New AI Run
-            </button>
-          </div>
-        </aside>
-
-        {/* ── Right panel: runs + results ───────────────────────────────────── */}
-        <main className="flex-1 flex flex-col overflow-hidden">
-          {/* Tabs */}
-          <div className="border-b border-border bg-card px-6 pt-4">
-            <div className="flex gap-4">
-              {(["runs", "reports"] as const).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`pb-3 text-sm font-medium capitalize border-b-2 transition-colors ${
-                    activeTab === tab ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {tab} {tab === "runs" ? `(${runs.length})` : `(${reports.length})`}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-1 overflow-hidden">
-            {activeTab === "runs" ? (
-              <>
-                {/* Run list */}
-                <div className="w-64 shrink-0 border-r border-border overflow-y-auto p-3 space-y-2">
-                  {runs.length === 0 ? (
-                    <div className="text-center py-12">
-                      <p className="text-xs text-muted-foreground">No runs yet</p>
-                      <button onClick={() => setShowRunModal(true)} className="mt-2 text-xs text-primary hover:underline">Start first run</button>
-                    </div>
-                  ) : (
-                    runs.map((run) => (
-                      <RunItem
-                        key={run.id}
-                        run={run}
-                        selected={selectedRun?.id === run.id}
-                        onSelect={() => setSelectedRun(run)}
-                      />
-                    ))
-                  )}
-                </div>
-
-                {/* Run results */}
-                <div className="flex-1 overflow-y-auto p-5">
-                  {!selectedRun ? (
-                    <div className="flex flex-col items-center justify-center h-full text-center">
-                      <p className="text-muted-foreground text-sm">Select a run to view results</p>
-                    </div>
-                  ) : (
-                    <div className="max-w-2xl space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h2 className="font-semibold text-foreground">{selectedRun.run_label}</h2>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {selectedRun.resume_count} resume{selectedRun.resume_count !== 1 ? "s" : ""} assessed ·{" "}
-                            {new Date(selectedRun.created_at).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                          </p>
-                        </div>
-                        <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-400 capitalize">{selectedRun.status}</span>
-                      </div>
-
-                      {selectedRun.run_notes && (
-                        <p className="text-xs text-muted-foreground italic border-l-2 border-border pl-3">{selectedRun.run_notes}</p>
-                      )}
-
-                      <div className="space-y-3">
-                        {selectedRun.ranked && selectedRun.ranked.length > 0 ? (
-                          selectedRun.ranked.map((c) => <CandidateCard key={c.resume_id} candidate={c} />)
-                        ) : (
-                          <p className="text-sm text-muted-foreground">No results in this run.</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              /* Reports tab */
-              <div className="flex-1 overflow-y-auto p-5">
-                {reports.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-center">
-                    <p className="text-sm text-muted-foreground">No combined reports yet.</p>
-                    <p className="text-xs text-muted-foreground mt-1">Run at least 2 assessments then generate a weighted combined report.</p>
+            {/* RUNS TAB */}
+            {activeTab === "runs" && (
+              <div className="p-3 space-y-2">
+                {runs.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-xs text-muted-foreground">No runs yet.</p>
                   </div>
                 ) : (
-                  <div className="max-w-2xl space-y-6">
-                    {reports.map((report) => (
-                      <div key={report.id} className="rounded-xl border border-border bg-card p-5">
-                        <div className="flex items-center justify-between mb-3">
-                          <h3 className="font-semibold text-foreground">Combined Report</h3>
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(report.created_at).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}
-                          </span>
-                        </div>
-                        <div className="flex gap-2 flex-wrap mb-4">
-                          {Object.entries(report.weights).map(([type, weight]) => (
-                            <span key={type} className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                              {type}: {Math.round(weight * 100)}%
-                            </span>
-                          ))}
-                        </div>
-                        <div className="space-y-2">
-                          {report.ranked.map((c, i) => (
-                            <div key={c.resume_id} className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
-                              <div className="flex items-center gap-3">
-                                <span className="text-xs font-mono text-muted-foreground">#{i + 1}</span>
-                                <span className="text-sm font-medium text-foreground">{c.name}</span>
-                              </div>
-                              <ScoreBadge score={c.weighted_score} />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                  runs.map(run => (
+                    <button key={run.id} onClick={() => setSelectedRun(run)}
+                      className={`w-full text-left rounded-lg border px-3 py-2.5 transition ${
+                        selectedRun?.id === run.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/30 hover:bg-muted/30"
+                      }`}
+                    >
+                      <p className="text-xs font-semibold text-foreground">{run.run_label || run.run_type}</p>
+                      <p className="text-xs text-muted-foreground">{run.ranked?.length ?? 0} candidates · {new Date(run.created_at).toLocaleDateString()}</p>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* CONTEXT TAB */}
+            {activeTab === "context" && (
+              <div className="p-3 space-y-3">
+                <div>
+                  <p className="text-xs font-semibold text-foreground mb-1">Assessment Context</p>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Set the assessment context and criteria for AI runs in this project. This is appended to every AI assessment prompt.
+                  </p>
+                </div>
+                <textarea
+                  value={contextDraft}
+                  onChange={e => setContextDraft(e.target.value)}
+                  rows={10}
+                  className="input h-auto resize-none text-xs w-full"
+                  placeholder={`e.g.\n- Focus on candidates with 5+ years experience\n- Leadership potential is important\n- Must have experience with distributed systems\n- Prefer candidates open to remote work`}
+                />
+                <div className="flex items-center gap-2">
+                  <button onClick={handleSaveContext} disabled={contextSaving || contextDraft === contextText}
+                    className="flex-1 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40 transition-opacity">
+                    {contextSaving ? "Saving…" : "Save Context"}
+                  </button>
+                  {contextDraft !== contextText && (
+                    <button onClick={() => setContextDraft(contextText)}
+                      className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground">
+                      Reset
+                    </button>
+                  )}
+                </div>
+                {context && (
+                  <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-2.5">
+                    <p className="text-xs text-emerald-400 font-medium">✓ Context active — applied to all AI runs</p>
                   </div>
                 )}
               </div>
             )}
           </div>
+
+          {/* Run button — sticky bottom */}
+          <div className="p-3 border-t border-border">
+            <button
+              onClick={() => setShowRunModal(true)}
+              disabled={project.resume_ids.length === 0}
+              className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40 transition-opacity flex items-center justify-center gap-2"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              Run AI Assessment
+            </button>
+            {project.resume_ids.length === 0 && (
+              <p className="text-center text-xs text-muted-foreground mt-1.5">Add resumes to enable runs</p>
+            )}
+          </div>
+        </aside>
+
+        {/* ── RIGHT: Results ── */}
+        <main className="flex-1 min-w-0 overflow-y-auto bg-muted/20">
+          {!selectedRun ? (
+            <div className="flex flex-col items-center justify-center h-full py-32 text-center">
+              <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                <svg className="h-7 w-7 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+              </div>
+              <h2 className="text-lg font-semibold text-foreground">Ready to assess</h2>
+              <p className="mt-1.5 text-sm text-muted-foreground max-w-xs">
+                {project.resume_ids.length === 0
+                  ? "Add resumes on the left, then run an AI assessment."
+                  : "Click \"Run AI Assessment\" to start ranking candidates."}
+              </p>
+              <div className="mt-4 flex gap-3 text-sm text-muted-foreground">
+                <span className={`flex items-center gap-1.5 ${project.resume_ids.length > 0 ? "text-emerald-400" : ""}`}>
+                  {project.resume_ids.length > 0 ? "✓" : "○"} {project.resume_ids.length} resume{project.resume_ids.length !== 1 ? "s" : ""}
+                </span>
+                <span className={`flex items-center gap-1.5 ${context ? "text-emerald-400" : ""}`}>
+                  {context ? "✓" : "○"} {context ? "Context set" : "No context"}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="p-6 space-y-4">
+              {/* Run header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-foreground">{selectedRun.run_label || selectedRun.run_type}</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {new Date(selectedRun.created_at).toLocaleString()} · {selectedRun.ranked?.length ?? 0} candidates
+                  </p>
+                </div>
+                {selectedRun.run_notes && (
+                  <div className="max-w-xs rounded-lg border border-border bg-muted/50 px-3 py-2">
+                    <p className="text-xs text-muted-foreground">{selectedRun.run_notes}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Ranked candidates */}
+              {(selectedRun.ranked ?? []).length === 0 ? (
+                <p className="text-sm text-muted-foreground">No ranked candidates in this run.</p>
+              ) : (
+                <div className="space-y-3">
+                  {selectedRun.ranked.map((c: RankedCandidate) => (
+                    <div key={c.resume_id} className="bg-card border border-border rounded-xl p-4 space-y-2">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                            #{c.rank}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-foreground truncate">{c.name || `Resume ${c.rank}`}</p>
+                            <p className="text-xs text-muted-foreground font-mono">{c.resume_id.slice(-8)}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <ScoreBadge score={c.score} />
+                          {c.recommendation && (
+                            <span className="text-xs text-muted-foreground">{c.recommendation}</span>
+                          )}
+                        </div>
+                      </div>
+                      {c.summary && <p className="text-xs text-muted-foreground">{c.summary}</p>}
+                      {(c.strengths?.length > 0 || c.gaps?.length > 0) && (
+                        <div className="flex gap-4 pt-1">
+                          {c.strengths?.length > 0 && (
+                            <div className="flex-1">
+                              <p className="text-xs font-semibold text-emerald-400 mb-1">Strengths</p>
+                              <div className="flex flex-wrap gap-1">
+                                {c.strengths.map(s => (
+                                  <span key={s} className="rounded-md bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-xs text-emerald-400">{s}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {c.gaps?.length > 0 && (
+                            <div className="flex-1">
+                              <p className="text-xs font-semibold text-amber-400 mb-1">Gaps</p>
+                              <div className="flex flex-wrap gap-1">
+                                {c.gaps.map(g => (
+                                  <span key={g} className="rounded-md bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-xs text-amber-400">{g}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </main>
       </div>
     </>

@@ -3,8 +3,11 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { createProject, deleteProject, listProjects, type Project } from "@/lib/projects-api";
+import { fetchFromApi } from "@/lib/api";
 
 const DEFAULT_ORG = "global";
+
+interface JDOption { id: string; title: string; company?: string; }
 
 function ScoreBadge({ count }: { count: number }) {
   return (
@@ -59,17 +62,42 @@ function NewProjectModal({ onClose, onCreate }: {
   onClose: () => void;
   onCreate: (p: Project) => void;
 }) {
+  const [step, setStep] = useState<1 | 2>(1);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [jdOptions, setJdOptions] = useState<JDOption[]>([]);
+  const [jdSearch, setJdSearch] = useState("");
+  const [selectedJdId, setSelectedJdId] = useState<string | null>(null);
+  const [loadingJds, setLoadingJds] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    if (step === 2) {
+      setLoadingJds(true);
+      fetchFromApi(`/api/jobs/descriptions?org_id=${DEFAULT_ORG}&limit=50`)
+        .then(d => setJdOptions(d?.items ?? []))
+        .catch(() => setJdOptions([]))
+        .finally(() => setLoadingJds(false));
+    }
+  }, [step]);
+
+  const filteredJds = jdOptions.filter(jd =>
+    jd.title?.toLowerCase().includes(jdSearch.toLowerCase()) ||
+    (jd.company ?? "").toLowerCase().includes(jdSearch.toLowerCase())
+  );
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) { setError("Project name is required"); return; }
+    if (!selectedJdId) { setError("Please select a job description"); return; }
     setSaving(true);
     try {
-      const project = await createProject({ name: name.trim(), description: description.trim(), org_id: DEFAULT_ORG });
+      const project = await createProject({
+        name: name.trim(),
+        description: description.trim(),
+        org_id: DEFAULT_ORG,
+        job_id: selectedJdId,
+      });
       onCreate(project);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to create project");
@@ -80,56 +108,84 @@ function NewProjectModal({ onClose, onCreate }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-foreground">New Project</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+      <div className="w-full max-w-md rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-muted/30">
+          <div>
+            <h2 className="text-sm font-bold text-foreground">New Project</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Step {step} of 2 — {step === 1 ? "Project details" : "Attach a Job Description"}</p>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl">×</button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Project Name *</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Data Engineer – Q3 2025"
-              className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              autoFocus
-            />
+        {/* Step indicators */}
+        <div className="flex px-5 py-3 gap-2">
+          {[1, 2].map(s => (
+            <div key={s} className={`flex-1 h-1 rounded-full transition-colors ${s <= step ? "bg-primary" : "bg-muted"}`} />
+          ))}
+        </div>
+
+        {step === 1 ? (
+          <div className="px-5 pb-5 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">Project Name *</label>
+              <input type="text" value={name} onChange={e => setName(e.target.value)} autoFocus
+                placeholder="e.g. Data Engineer – Q3 2025"
+                className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">Description <span className="text-muted-foreground font-normal">(optional)</span></label>
+              <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} resize-none
+                placeholder="Notes about this hiring project…"
+                className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
+              />
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button type="button" onClick={onClose}
+                className="flex-1 rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                Cancel
+              </button>
+              <button type="button" disabled={!name.trim()} onClick={() => setStep(2)}
+                className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40 transition-opacity">
+                Next: Job Description →
+              </button>
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Description</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional notes about this hiring project…"
-              rows={3}
-              className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
-            />
-          </div>
-          {error && <p className="text-xs text-rose-400">{error}</p>}
-          <div className="flex gap-3 pt-1">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark transition-colors disabled:opacity-50"
-            >
-              {saving ? "Creating…" : "Create Project"}
-            </button>
-          </div>
-        </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="px-5 pb-5 space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Select the job description this project is for. All resumes will be assessed against this JD.
+            </p>
+            <input type="text" placeholder="Search JDs…" value={jdSearch} onChange={e => setJdSearch(e.target.value)}
+              className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none" />
+            <div className="max-h-56 overflow-y-auto space-y-1.5">
+              {loadingJds && <p className="text-xs text-muted-foreground">Loading…</p>}
+              {!loadingJds && filteredJds.length === 0 && <p className="text-xs text-muted-foreground">No job descriptions found.</p>}
+              {filteredJds.map(jd => (
+                <button key={jd.id} type="button" onClick={() => setSelectedJdId(jd.id)}
+                  className={`w-full text-left rounded-lg border px-3 py-2.5 transition ${
+                    selectedJdId === jd.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/30 hover:bg-muted/30"
+                  }`}
+                >
+                  <p className={`text-xs font-semibold ${selectedJdId === jd.id ? "text-primary" : "text-foreground"}`}>{jd.title}</p>
+                  {jd.company && <p className="text-xs text-muted-foreground">{jd.company}</p>}
+                </button>
+              ))}
+            </div>
+            {error && <p className="text-xs text-rose-400">{error}</p>}
+            <div className="flex gap-3 pt-1">
+              <button type="button" onClick={() => setStep(1)}
+                className="flex-1 rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                ← Back
+              </button>
+              <button type="submit" disabled={saving || !selectedJdId}
+                className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40 transition-opacity">
+                {saving ? "Creating…" : "Create Project"}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
