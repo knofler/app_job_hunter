@@ -150,49 +150,47 @@ export default function RecruiterChat({ sessionId, jobId, resumeIds, workflowCon
   };
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-lg shadow">
-      <div className="p-4 border-b">
-        <h3 className="font-semibold text-lg">Recruiter Assistant</h3>
-        <p className="text-sm text-gray-600">
+    <div className="flex flex-col h-full bg-card rounded-lg">
+      <div className="p-4 border-b border-border">
+        <h3 className="font-semibold text-base text-foreground">Recruiter Assistant</h3>
+        <p className="text-xs text-muted-foreground mt-0.5">
           {contextDisplay.description}
         </p>
         {contextDisplay.hasContext && (
-          <div className="mt-2 text-xs text-gray-500">
-            {jobId && <span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded mr-1">Job Selected</span>}
-            {resumeIds?.length && <span className="inline-block bg-green-100 text-green-800 px-2 py-1 rounded mr-1">{resumeIds.length} Resume{resumeIds.length > 1 ? 's' : ''} Selected</span>}
-            {workflowContext && <span className="inline-block bg-purple-100 text-purple-800 px-2 py-1 rounded">Workflow Context Available</span>}
+          <div className="mt-2 flex flex-wrap gap-1">
+            {jobId && <span className="inline-block bg-primary/10 text-primary px-2 py-0.5 rounded text-xs font-medium">Job Selected</span>}
+            {resumeIds?.length && <span className="inline-block bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded text-xs font-medium">{resumeIds.length} Resume{resumeIds.length > 1 ? 's' : ''} Selected</span>}
+            {workflowContext && <span className="inline-block bg-secondary/10 text-secondary px-2 py-0.5 rounded text-xs font-medium">Workflow Context</span>}
           </div>
         )}
       </div>
 
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0 scroll-smooth">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0 scroll-smooth">
         {messages.length === 0 && (
-          <div className="text-center text-gray-500 py-8">
-            <p className="text-sm">
-              {contextDisplay.emptyMessage}
-            </p>
+          <div className="flex flex-col items-center justify-center h-full text-center py-8">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+              <svg className="h-5 w-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
+            </div>
+            <p className="text-sm text-muted-foreground">{contextDisplay.emptyMessage}</p>
           </div>
         )}
         {messages.map((msg, idx) => (
-          <div
-            key={idx}
-            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                msg.role === 'user'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-900'
-              }`}
-            >
-              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+          <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[80%] rounded-xl px-3.5 py-2.5 text-sm ${
+              msg.role === 'user'
+                ? 'bg-primary text-white'
+                : 'bg-muted text-foreground border border-border'
+            }`}>
+              <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
             </div>
           </div>
         ))}
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-4 border-t">
+      <div className="p-3 border-t border-border">
         <div className="flex gap-2">
           <input
             type="text"
@@ -201,14 +199,21 @@ export default function RecruiterChat({ sessionId, jobId, resumeIds, workflowCon
             onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
             placeholder={contextDisplay.placeholder}
             disabled={loading}
-            className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
           />
           <button
             onClick={sendMessage}
             disabled={loading || !input.trim()}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark transition-colors disabled:cursor-not-allowed disabled:opacity-50 flex items-center gap-1.5"
           >
-            {loading ? 'Sending...' : 'Send'}
+            {loading ? (
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            ) : (
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+            )}
+            {loading ? '' : 'Send'}
           </button>
         </div>
       </div>
