@@ -76,31 +76,65 @@ function NewProjectModal({ onClose, onCreate }: {
   const [step, setStep] = useState<1 | 2>(1);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+
+  // Step 2 — search tab
+  const [jdTab, setJdTab] = useState<"search" | "upload">("search");
   const [jdOptions, setJdOptions] = useState<JDOption[]>([]);
   const [jdSearch, setJdSearch] = useState("");
   const [selectedJdId, setSelectedJdId] = useState<string | null>(null);
   const [loadingJds, setLoadingJds] = useState(false);
+
+  // Step 2 — upload tab
+  const [jdFile, setJdFile] = useState<File | null>(null);
+  const [uploadingJd, setUploadingJd] = useState(false);
+  const [uploadedJdId, setUploadedJdId] = useState<string | null>(null);
+  const [uploadedJdTitle, setUploadedJdTitle] = useState("");
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (step === 2) {
+    if (step === 2 && jdTab === "search") {
       setLoadingJds(true);
       fetchFromApi(`/api/jobs/descriptions?org_id=${DEFAULT_ORG}&limit=50`)
         .then(d => setJdOptions((d as { items?: JDOption[] })?.items ?? []))
         .catch(() => setJdOptions([]))
         .finally(() => setLoadingJds(false));
     }
-  }, [step]);
+  }, [step, jdTab]);
 
   const filteredJds = jdOptions.filter(jd =>
     jd.title?.toLowerCase().includes(jdSearch.toLowerCase()) ||
     (jd.company ?? "").toLowerCase().includes(jdSearch.toLowerCase())
   );
 
+  async function handleUploadJd() {
+    if (!jdFile) return;
+    setUploadingJd(true);
+    setError("");
+    try {
+      const formData = new FormData();
+      formData.append("file", jdFile);
+      formData.append("org_id", DEFAULT_ORG);
+      const res = await fetch("/api/jobs/upload-jd", { method: "POST", body: formData });
+      if (!res.ok) throw new Error(`Upload failed: ${res.statusText}`);
+      const data = await res.json();
+      const id = data.id ?? data._id ?? data.job_id ?? "";
+      const title = data.title ?? jdFile.name.replace(/\.[^.]+$/, "");
+      if (!id) throw new Error("No JD ID returned");
+      setUploadedJdId(id);
+      setUploadedJdTitle(title);
+      setSelectedJdId(id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploadingJd(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedJdId) { setError("Please select a job description"); return; }
+    if (!selectedJdId) { setError("Please select or upload a job description"); return; }
     setSaving(true);
     try {
       const project = await createProject({
@@ -126,7 +160,7 @@ function NewProjectModal({ onClose, onCreate }: {
             <h2 className="text-sm font-bold text-foreground">New Project</h2>
             <p className="text-xs text-muted-foreground mt-0.5">Step {step} of 2 — {step === 1 ? "Project details" : "Attach a Job Description"}</p>
           </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl">×</button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl leading-none">×</button>
         </div>
 
         {/* Step indicators */}
@@ -142,14 +176,14 @@ function NewProjectModal({ onClose, onCreate }: {
               <label className="block text-sm font-medium text-foreground mb-1">Project Name *</label>
               <input type="text" value={name} onChange={e => setName(e.target.value)} autoFocus
                 placeholder="e.g. Data Engineer – Q3 2025"
-                className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="input w-full text-sm"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">Description <span className="text-muted-foreground font-normal">(optional)</span></label>
-              <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} resize-none
+              <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
                 placeholder="Notes about this hiring project…"
-                className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
+                className="input w-full text-sm resize-none"
               />
             </div>
             <div className="flex gap-3 pt-1">
@@ -164,36 +198,94 @@ function NewProjectModal({ onClose, onCreate }: {
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="px-5 pb-5 space-y-3">
-            <p className="text-xs text-muted-foreground">
-              Select the job description this project is for. All resumes will be assessed against this JD.
-            </p>
-            <input type="text" placeholder="Search JDs…" value={jdSearch} onChange={e => setJdSearch(e.target.value)}
-              className="w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none" />
-            <div className="max-h-56 overflow-y-auto space-y-1.5">
-              {loadingJds && <p className="text-xs text-muted-foreground">Loading…</p>}
-              {!loadingJds && filteredJds.length === 0 && <p className="text-xs text-muted-foreground">No job descriptions found.</p>}
-              {filteredJds.map(jd => (
-                <button key={jd.id} type="button" onClick={() => setSelectedJdId(jd.id)}
-                  className={`w-full text-left rounded-lg border px-3 py-2.5 transition ${
-                    selectedJdId === jd.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/30 hover:bg-muted/30"
-                  }`}
-                >
-                  <p className={`text-xs font-semibold ${selectedJdId === jd.id ? "text-primary" : "text-foreground"}`}>{jd.title}</p>
-                  {jd.company && <p className="text-xs text-muted-foreground">{jd.company}</p>}
+          <form onSubmit={handleSubmit} className="pb-5">
+            {/* JD tabs */}
+            <div className="flex border-b border-border">
+              {(["search", "upload"] as const).map(t => (
+                <button key={t} type="button" onClick={() => { setJdTab(t); setError(""); }}
+                  className={`flex-1 py-2.5 text-xs font-medium capitalize transition-colors ${
+                    jdTab === t ? "text-primary border-b-2 border-primary bg-primary/5" : "text-muted-foreground hover:text-foreground"
+                  }`}>
+                  {t === "search" ? "Search Existing" : "Upload New JD"}
                 </button>
               ))}
             </div>
-            {error && <p className="text-xs text-rose-400">{error}</p>}
-            <div className="flex gap-3 pt-1">
-              <button type="button" onClick={() => setStep(1)}
-                className="flex-1 rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-                ← Back
-              </button>
-              <button type="submit" disabled={saving || !selectedJdId}
-                className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40 transition-opacity">
-                {saving ? "Creating…" : "Create Project"}
-              </button>
+
+            <div className="px-5 pt-4 space-y-3">
+              {jdTab === "search" ? (
+                <>
+                  <input type="text" placeholder="Search job descriptions…" value={jdSearch}
+                    onChange={e => setJdSearch(e.target.value)}
+                    className="input w-full text-sm" />
+                  <div className="max-h-52 overflow-y-auto space-y-1.5">
+                    {loadingJds && <p className="text-xs text-muted-foreground py-4 text-center">Loading…</p>}
+                    {!loadingJds && filteredJds.length === 0 && (
+                      <p className="text-xs text-muted-foreground py-4 text-center">
+                        No job descriptions found.<br />
+                        <button type="button" onClick={() => setJdTab("upload")} className="text-primary hover:underline mt-1">Upload one instead →</button>
+                      </p>
+                    )}
+                    {filteredJds.map(jd => (
+                      <button key={jd.id} type="button" onClick={() => setSelectedJdId(jd.id)}
+                        className={`w-full text-left rounded-lg border px-3 py-2.5 transition ${
+                          selectedJdId === jd.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/30 hover:bg-muted/30"
+                        }`}>
+                        <p className={`text-xs font-semibold ${selectedJdId === jd.id ? "text-primary" : "text-foreground"}`}>{jd.title}</p>
+                        {jd.company && <p className="text-xs text-muted-foreground">{jd.company}</p>}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  {uploadedJdId ? (
+                    <div className="rounded-lg border border-primary/40 bg-primary/5 px-4 py-3 flex items-center gap-3">
+                      <span className="text-primary text-lg">✓</span>
+                      <div>
+                        <p className="text-xs font-semibold text-foreground">{uploadedJdTitle}</p>
+                        <p className="text-xs text-muted-foreground">JD uploaded and selected</p>
+                      </div>
+                      <button type="button" onClick={() => { setUploadedJdId(null); setJdFile(null); setSelectedJdId(null); }}
+                        className="ml-auto text-muted-foreground hover:text-foreground text-xs">Change</button>
+                    </div>
+                  ) : (
+                    <>
+                      <label className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 cursor-pointer transition-colors ${
+                        jdFile ? "border-primary/50 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/30"
+                      }`}>
+                        <input type="file" accept=".pdf,.doc,.docx,.txt" className="hidden"
+                          onChange={e => { setJdFile(e.target.files?.[0] ?? null); setError(""); }} />
+                        <svg className={`h-8 w-8 ${jdFile ? "text-primary" : "text-muted-foreground"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        {jdFile ? (
+                          <span className="text-xs font-medium text-primary">{jdFile.name}</span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground text-center">Click to browse JD file<br /><span className="text-zinc-600">PDF, DOC, DOCX, TXT</span></span>
+                        )}
+                      </label>
+                      <button type="button" disabled={!jdFile || uploadingJd} onClick={handleUploadJd}
+                        className="w-full rounded-lg bg-zinc-700 px-4 py-2 text-sm font-medium text-foreground hover:bg-zinc-600 disabled:opacity-40 transition-colors flex items-center justify-center gap-2">
+                        {uploadingJd && <span className="h-3.5 w-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />}
+                        {uploadingJd ? "Uploading…" : "Upload JD"}
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
+
+              {error && <p className="text-xs text-rose-400">{error}</p>}
+
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setStep(1)}
+                  className="flex-1 rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                  ← Back
+                </button>
+                <button type="submit" disabled={saving || !selectedJdId}
+                  className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40 transition-opacity">
+                  {saving ? "Creating…" : "Create Project"}
+                </button>
+              </div>
             </div>
           </form>
         )}
