@@ -78,7 +78,7 @@ function NewRunModal({
     if (runType === "specific_skill") params.specific_skill = specificSkill;
     if (runType === "salary_fit") params.max_salary = maxSalary;
     try {
-      await streamProjectRun(projectId, runType, DEFAULT_ORG, params, (ev) => {
+      await streamProjectRun(projectId, runType, params, DEFAULT_ORG, (ev) => {
         setEvents((prev) => [...prev, ev]);
       });
     } finally {
