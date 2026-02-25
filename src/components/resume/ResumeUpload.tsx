@@ -49,8 +49,8 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUpload, isUploading = fal
               <p className="text-lg font-medium text-foreground mb-2">Drag & drop your resume</p>
               <p className="text-sm text-muted-foreground mb-6">or click to browse</p>
               <input type="file" id="resume-upload" className="hidden" accept=".pdf,.doc,.docx" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} />
-              <label htmlFor="resume-upload">
-                <Button variant="primary" as="span">Choose File</Button>
+              <label htmlFor="resume-upload" className="inline-flex items-center px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium cursor-pointer hover:opacity-90 transition-opacity">
+                Choose File
               </label>
               <p className="text-xs text-muted-foreground mt-4">PDF, DOC, DOCX (Max 5MB)</p>
             </>
