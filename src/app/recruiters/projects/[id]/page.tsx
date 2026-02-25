@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import {
   addResumesToProject,
+  deleteProject,
   getProject,
   getProjectContext,
   listReports,
@@ -271,6 +273,20 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
   const [error, setError] = useState("");
   const [showRunModal, setShowRunModal] = useState(false);
   const [showResumePicker, setShowResumePicker] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const router = useRouter();
+
+  async function handleDeleteProject() {
+    if (!project) return;
+    if (!confirm(`Delete project "${project.name}"? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      await deleteProject(projectId);
+      router.push("/recruiters/projects");
+    } catch {
+      setDeleting(false);
+    }
+  }
 
   const fetchAll = useCallback(async () => {
     try {
@@ -369,6 +385,17 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
             </Link>
             <h1 className="text-sm font-bold text-foreground leading-tight mt-1">{project.name}</h1>
             {project.description && <p className="text-xs text-muted-foreground mt-1">{project.description}</p>}
+            <button
+              onClick={handleDeleteProject}
+              disabled={deleting}
+              className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-rose-400 transition-colors disabled:opacity-50"
+              title="Delete project"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              {deleting ? "Deleting…" : "Delete project"}
+            </button>
           </div>
 
           {/* Tab bar */}
