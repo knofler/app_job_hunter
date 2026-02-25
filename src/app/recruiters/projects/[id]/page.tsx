@@ -192,16 +192,25 @@ function ResumePickerModal({
   onAdd: (ids: string[]) => void;
   onClose: () => void;
 }) {
+  const [tab, setTab] = useState<"search" | "upload">("search");
+
+  // ── Search tab state ──
   const [search, setSearch] = useState("");
   const [allResumes, setAllResumes] = useState<Array<{ id: string; name: string; candidate_name: string; summary?: string }>>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
+  const [loadingList, setLoadingList] = useState(true);
+
+  // ── Upload tab state ──
+  const [file, setFile] = useState<File | null>(null);
+  const [candidateName, setCandidateName] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
 
   useEffect(() => {
     fetchFromApi(`/api/recruiter-ranking/resumes?org_id=${DEFAULT_ORG}&limit=100`)
       .then((d) => setAllResumes((d as { items?: typeof allResumes })?.items ?? []))
       .catch(() => setAllResumes([]))
-      .finally(() => setLoading(false));
+      .finally(() => setLoadingList(false));
   }, []);
 
   const filtered = allResumes.filter(r =>
@@ -210,47 +219,128 @@ function ResumePickerModal({
      (r.candidate_name ?? "").toLowerCase().includes(search.toLowerCase()))
   );
 
+  async function handleUpload() {
+    if (!file) return;
+    setUploading(true);
+    setUploadError("");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("user_id", candidateName || file.name.replace(/\.[^.]+$/, ""));
+      formData.append("resume_type", "applicant");
+      formData.append("org_id", DEFAULT_ORG);
+      const res = await fetch("/api/resumes", { method: "POST", body: formData });
+      if (!res.ok) throw new Error(`Upload failed: ${res.statusText}`);
+      const data = await res.json();
+      const newId: string = data.id ?? data._id ?? data.resume_id ?? "";
+      if (newId) {
+        onAdd([newId]);
+        onClose();
+      } else {
+        throw new Error("No resume ID returned");
+      }
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed");
+      setUploading(false);
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="w-full max-w-md bg-card border border-border rounded-xl shadow-2xl overflow-hidden">
+        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-muted/30">
           <h2 className="text-sm font-bold text-foreground">Add Resumes to Project</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl">×</button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl leading-none">×</button>
         </div>
-        <div className="p-4 space-y-3">
-          <input
-            type="text" placeholder="Search candidates…" value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="input h-9 text-sm w-full"
-          />
-          <div className="max-h-72 overflow-y-auto space-y-1.5">
-            {loading && <p className="text-xs text-muted-foreground">Loading resumes…</p>}
-            {!loading && filtered.length === 0 && <p className="text-xs text-muted-foreground">No resumes found</p>}
-            {filtered.map(r => (
-              <label key={r.id} className={`flex items-start gap-3 cursor-pointer rounded-lg border p-3 transition ${
-                selected.has(r.id) ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
+
+        {/* Tabs */}
+        <div className="flex border-b border-border">
+          {(["search", "upload"] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              className={`flex-1 py-2.5 text-xs font-medium capitalize transition-colors ${
+                tab === t ? "text-primary border-b-2 border-primary bg-primary/5" : "text-muted-foreground hover:text-foreground"
               }`}>
-                <input type="checkbox" checked={selected.has(r.id)}
-                  onChange={e => {
-                    const next = new Set(selected);
-                    if (e.target.checked) next.add(r.id); else next.delete(r.id);
-                    setSelected(next);
-                  }}
-                  className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-foreground truncate">{r.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{r.candidate_name}</p>
-                </div>
-              </label>
-            ))}
-          </div>
-          <button
-            disabled={selected.size === 0}
-            onClick={() => { onAdd(Array.from(selected)); onClose(); }}
-            className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40 transition-opacity"
-          >
-            Add {selected.size > 0 ? `${selected.size} resume${selected.size > 1 ? "s" : ""}` : "Resumes"}
-          </button>
+              {t === "search" ? "Search Existing" : "Upload New"}
+            </button>
+          ))}
+        </div>
+
+        <div className="p-4 space-y-3">
+          {tab === "search" ? (
+            <>
+              <input
+                type="text" placeholder="Search candidates…" value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="input h-9 text-sm w-full"
+              />
+              <div className="max-h-64 overflow-y-auto space-y-1.5">
+                {loadingList && <p className="text-xs text-muted-foreground py-4 text-center">Loading resumes…</p>}
+                {!loadingList && filtered.length === 0 && <p className="text-xs text-muted-foreground py-4 text-center">No resumes found</p>}
+                {filtered.map(r => (
+                  <label key={r.id} className={`flex items-start gap-3 cursor-pointer rounded-lg border p-3 transition ${
+                    selected.has(r.id) ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
+                  }`}>
+                    <input type="checkbox" checked={selected.has(r.id)}
+                      onChange={e => {
+                        const next = new Set(selected);
+                        if (e.target.checked) next.add(r.id); else next.delete(r.id);
+                        setSelected(next);
+                      }}
+                      className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-foreground truncate">{r.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{r.candidate_name}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              <button
+                disabled={selected.size === 0}
+                onClick={() => { onAdd(Array.from(selected)); onClose(); }}
+                className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40 transition-opacity"
+              >
+                Add {selected.size > 0 ? `${selected.size} resume${selected.size > 1 ? "s" : ""}` : "Resumes"}
+              </button>
+            </>
+          ) : (
+            <>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Candidate Name (optional)</label>
+                <input
+                  type="text" placeholder="e.g. Jane Smith"
+                  value={candidateName} onChange={e => setCandidateName(e.target.value)}
+                  className="input h-9 text-sm w-full"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Resume File</label>
+                <label className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 cursor-pointer transition-colors ${
+                  file ? "border-primary/50 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/30"
+                }`}>
+                  <input type="file" accept=".pdf,.doc,.docx" className="hidden"
+                    onChange={e => { setFile(e.target.files?.[0] ?? null); setUploadError(""); }} />
+                  <svg className={`h-8 w-8 ${file ? "text-primary" : "text-muted-foreground"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  {file ? (
+                    <span className="text-xs font-medium text-primary text-center">{file.name}</span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground text-center">Click to browse<br /><span className="text-zinc-600">PDF, DOC, DOCX</span></span>
+                  )}
+                </label>
+              </div>
+              {uploadError && <p className="text-xs text-rose-400">{uploadError}</p>}
+              <button
+                disabled={!file || uploading}
+                onClick={handleUpload}
+                className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40 transition-opacity flex items-center justify-center gap-2"
+              >
+                {uploading && <span className="h-3.5 w-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />}
+                {uploading ? "Uploading…" : "Upload & Add to Project"}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
