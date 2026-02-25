@@ -57,11 +57,11 @@ export default function RecruiterDashboardPage() {
     const loadData = async () => {
       try {
         const [projRes, seedRes] = await Promise.all([
-          fetchFromApi("/api/projects?org_id=global&page=1&page_size=20").catch(() => null),
+          fetchFromApi("/api/projects?org_id=global&page=1&page_size=20").catch(() => null) as Promise<{ items?: unknown[] } | null>,
           fetchFromApi("/api/admin/seed/status").catch(() => null),
         ]);
-        if (projRes?.items) setProjects(projRes.items);
-        else if (Array.isArray(projRes)) setProjects(projRes);
+        if ((projRes as { items?: unknown[] })?.items) setProjects((projRes as { items: ProjectSummary[] }).items);
+        else if (Array.isArray(projRes)) setProjects(projRes as ProjectSummary[]);
         if (seedRes) setSeedStatus(seedRes);
       } finally {
         setLoading(false);
