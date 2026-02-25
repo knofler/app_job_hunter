@@ -3,15 +3,23 @@
 interface JobCardProps {
   job: {
     id: string;
-    company: string;
-    location: string;
+    company?: string | null;
+    location?: string | null;
     title: string;
     match_score?: number;
+    matchScore?: number;
     employment_type?: string;
+    type?: string;
     salary_range?: string;
+    salary?: string;
     posted_at?: string;
+    postedAt?: string;
     description?: string;
+    skills?: string[];
+    applied?: boolean;
   };
+  onApply?: (jobId: string) => void;
+  onViewDetails?: (jobId: string) => void;
 }
 
 function MatchScoreRing({ score }: { score: number }) {
