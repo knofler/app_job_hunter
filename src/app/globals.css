@@ -184,7 +184,7 @@
   /* Input Styles */
   .input {
     @apply flex h-10 w-full rounded-md border border-border bg-input px-3 py-2;
-    @apply text-sm transition-colors;
+    @apply text-sm text-foreground transition-colors;
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
     @apply disabled:cursor-not-allowed disabled:opacity-50;
   }

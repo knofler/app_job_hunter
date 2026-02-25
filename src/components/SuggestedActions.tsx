@@ -40,20 +40,20 @@ export default function SuggestedActions() {
   }, [candidateId]);
 
   return (
-    <div className="bg-white rounded-xl shadow p-6">
+    <div className="bg-card rounded-xl border border-border p-6">
       <div className="text-base font-semibold mb-2">Top AI-Suggested Actions</div>
       {!candidateId ? (
-        <div className="text-xs text-gray-500">Switch to the candidate persona to see personalised actions.</div>
+        <div className="text-xs text-muted-foreground">Switch to the candidate persona to see personalised actions.</div>
       ) : loading ? (
-        <div className="text-gray-400 text-sm">Loading...</div>
+        <div className="text-muted-foreground text-sm">Loading...</div>
       ) : (
         <>
-          <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700">
+          <ul className="list-disc pl-5 space-y-1 text-sm text-foreground">
             {actions.map((action) => (
               <li key={action.id} className="flex flex-col">
                 <span>{action.text}</span>
                 {(action.priority || action.category) && (
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-muted-foreground">
                     {[action.priority, action.category].filter(Boolean).join(" • ")}
                   </span>
                 )}
@@ -61,7 +61,7 @@ export default function SuggestedActions() {
             ))}
           </ul>
           {usingFallback && (
-            <div className="text-xs text-gray-400 mt-3">Showing cached actions while the API is unavailable.</div>
+            <div className="text-xs text-muted-foreground mt-3">Showing cached actions while the API is unavailable.</div>
           )}
         </>
       )}

@@ -67,30 +67,30 @@ export default function ApplicationPipeline() {
   }, [pipeline]);
 
   return (
-    <div className="bg-white rounded-xl shadow p-6">
+    <div className="bg-card rounded-xl border border-border p-6">
       <div className="text-base font-semibold mb-4">Application Pipeline</div>
       {!candidateId ? (
-        <div className="text-xs text-gray-500">Switch to the candidate persona to review your applications.</div>
+        <div className="text-xs text-muted-foreground">Switch to the candidate persona to review your applications.</div>
       ) : loading ? (
-        <div className="text-sm text-gray-400">Loading...</div>
+        <div className="text-sm text-muted-foreground">Loading...</div>
       ) : (
         <>
           <div className="flex gap-4 overflow-x-auto">
             {pipelineTotals.map(({ label, count }) => (
               <div key={label} className="flex-1 min-w-[140px]">
                 <div className="font-bold mb-2">{label}</div>
-                <div className="bg-gray-100 rounded p-2 min-h-[60px]">{count} job{count === 1 ? "" : "s"}</div>
+                <div className="bg-muted rounded p-2 min-h-[60px]">{count} job{count === 1 ? "" : "s"}</div>
               </div>
             ))}
             {otherCount > 0 && (
               <div className="flex-1 min-w-[140px]">
                 <div className="font-bold mb-2">Other</div>
-                <div className="bg-gray-100 rounded p-2 min-h-[60px]">{otherCount} job{otherCount === 1 ? "" : "s"}</div>
+                <div className="bg-muted rounded p-2 min-h-[60px]">{otherCount} job{otherCount === 1 ? "" : "s"}</div>
               </div>
             )}
           </div>
           {usingFallback && (
-            <div className="text-xs text-gray-400 mt-3">Showing cached pipeline while the API is unavailable.</div>
+            <div className="text-xs text-muted-foreground mt-3">Showing cached pipeline while the API is unavailable.</div>
           )}
         </>
       )}
