@@ -76,7 +76,7 @@ function NewProjectModal({ onClose, onCreate }: {
     if (step === 2) {
       setLoadingJds(true);
       fetchFromApi(`/api/jobs/descriptions?org_id=${DEFAULT_ORG}&limit=50`)
-        .then(d => setJdOptions(d?.items ?? []))
+        .then(d => setJdOptions((d as { items?: JDOption[] })?.items ?? []))
         .catch(() => setJdOptions([]))
         .finally(() => setLoadingJds(false));
     }

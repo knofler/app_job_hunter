@@ -199,7 +199,7 @@ function ResumePickerModal({
 
   useEffect(() => {
     fetchFromApi(`/api/recruiter-ranking/resumes?org_id=${DEFAULT_ORG}&limit=100`)
-      .then((d) => setAllResumes(d?.items ?? []))
+      .then((d) => setAllResumes((d as { items?: typeof allResumes })?.items ?? []))
       .catch(() => setAllResumes([]))
       .finally(() => setLoading(false));
   }, []);
