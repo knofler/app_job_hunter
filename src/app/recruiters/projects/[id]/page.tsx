@@ -500,12 +500,12 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                   placeholder={`e.g.\n- Focus on candidates with 5+ years experience\n- Leadership potential is important\n- Must have experience with distributed systems\n- Prefer candidates open to remote work`}
                 />
                 <div className="flex items-center gap-2">
-                  <button onClick={handleSaveContext} disabled={contextSaving || contextDraft === contextText}
+                  <button onClick={handleSaveContext} disabled={contextSaving || contextDraft === context}
                     className="flex-1 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40 transition-opacity">
                     {contextSaving ? "Saving…" : "Save Context"}
                   </button>
-                  {contextDraft !== contextText && (
-                    <button onClick={() => setContextDraft(contextText)}
+                  {contextDraft !== context && (
+                    <button onClick={() => setContextDraft(context)}
                       className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground">
                       Reset
                     </button>
