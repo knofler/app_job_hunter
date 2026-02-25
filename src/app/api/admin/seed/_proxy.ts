@@ -7,7 +7,7 @@ export async function proxyToSeed(request: NextRequest, path: string, method: "G
   const adminToken = process.env.ADMIN_API_KEY || process.env.NEXT_PUBLIC_ADMIN_TOKEN;
   if (adminToken) headers["X-Admin-Token"] = adminToken;
 
-  const response = await fetch(`${apiBaseUrl}/admin/seed/${path}`, {
+  const response = await fetch(`${apiBaseUrl}/api/admin/seed/${path}`, {
     method,
     headers,
     cache: "no-store",

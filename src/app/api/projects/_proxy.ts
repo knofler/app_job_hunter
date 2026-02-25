@@ -13,7 +13,7 @@ export async function proxyProjects(
   if (adminToken) headers["X-Admin-Token"] = adminToken;
   if (body) headers["Content-Type"] = "application/json";
 
-  const url = `${apiBaseUrl}/projects${path}`;
+  const url = `${apiBaseUrl}/api/projects${path}`;
   const fetchMethod = method || request.method;
 
   const options: RequestInit = {
