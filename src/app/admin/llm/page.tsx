@@ -289,7 +289,7 @@ export default function AdminLLMSettingsPage() {
   if (authLoading || !user || loading) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-10">
-        <p className="text-sm text-gray-600">Loading...</p>
+        <p className="text-sm text-muted-foreground">Loading...</p>
       </div>
     );
   }
@@ -297,8 +297,8 @@ export default function AdminLLMSettingsPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-10 space-y-8">
       <header className="space-y-2">
-        <h1 className="text-3xl font-bold text-gray-900">LLM Provider Settings</h1>
-        <p className="text-sm text-gray-600 max-w-3xl">
+        <h1 className="text-3xl font-bold text-foreground">LLM Provider Settings</h1>
+        <p className="text-sm text-muted-foreground max-w-3xl">
           Configure the default LLM provider and assign custom models to each recruiter workflow step. API keys are
           encrypted at rest on the backend. Leaving a key blank retains the existing stored secret.
         </p>
@@ -312,59 +312,59 @@ export default function AdminLLMSettingsPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-10">
-        <section className="space-y-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-semibold text-gray-900">Default provider</h2>
+        <section className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <h2 className="text-xl font-semibold text-foreground">Default provider</h2>
           <div className="grid gap-4 md:grid-cols-2">
-            <label className="flex flex-col gap-1 text-sm text-gray-700">
+            <label className="flex flex-col gap-1 text-sm text-foreground/80">
               Provider
               <select
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                className="rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground"
                 value={defaultConfig.provider}
                 onChange={event => handleDefaultChange("provider", event.target.value)}
               >
                 {providerOptions}
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-sm text-gray-700">
+            <label className="flex flex-col gap-1 text-sm text-foreground/80">
               Model
               <input
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                className="rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground"
                 value={defaultConfig.model}
                 onChange={event => handleDefaultChange("model", event.target.value)}
                 placeholder="gpt-4o-mini"
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm text-gray-700">
+            <label className="flex flex-col gap-1 text-sm text-foreground/80">
               API key (leave blank to keep existing)
               <input
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                className="rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground"
                 value={defaultConfig.api_key}
                 onChange={event => handleDefaultChange("api_key", event.target.value)}
                 placeholder="sk-..."
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm text-gray-700">
+            <label className="flex flex-col gap-1 text-sm text-foreground/80">
               Base URL (optional)
               <input
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                className="rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground"
                 value={defaultConfig.base_url}
                 onChange={event => handleDefaultChange("base_url", event.target.value)}
                 placeholder="https://api.openai.com/v1"
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm text-gray-700">
+            <label className="flex flex-col gap-1 text-sm text-foreground/80">
               Temperature
               <input
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                className="rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground"
                 value={defaultConfig.temperature}
                 onChange={event => handleDefaultChange("temperature", event.target.value)}
                 placeholder="0.2"
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm text-gray-700">
+            <label className="flex flex-col gap-1 text-sm text-foreground/80">
               Max tokens
               <input
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                className="rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground"
                 value={defaultConfig.max_tokens}
                 onChange={event => handleDefaultChange("max_tokens", event.target.value)}
                 placeholder="2048"
@@ -374,8 +374,8 @@ export default function AdminLLMSettingsPage() {
         </section>
 
         <section className="space-y-6">
-          <h2 className="text-xl font-semibold text-gray-900">Workflow step overrides</h2>
-          <p className="text-sm text-gray-600">
+          <h2 className="text-xl font-semibold text-foreground">Workflow step overrides</h2>
+          <p className="text-sm text-muted-foreground">
             Enable a custom provider/model per step when you need more control. Disabling a step reverts it to the
             default provider.
           </p>
@@ -383,13 +383,13 @@ export default function AdminLLMSettingsPage() {
             {WORKFLOW_STEPS.map(step => {
               const state = stepConfigs[step.id] ?? { useCustom: false, config: toFormConfig() };
               return (
-                <div key={step.id} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <div key={step.id} className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900">{step.label}</h3>
-                      <p className="text-xs text-gray-500">Step ID: {step.id}</p>
+                      <h3 className="text-lg font-semibold text-foreground">{step.label}</h3>
+                      <p className="text-xs text-muted-foreground">Step ID: {step.id}</p>
                     </div>
-                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <label className="flex items-center gap-2 text-sm text-foreground/80">
                       <input
                         type="checkbox"
                         checked={state.useCustom}
@@ -400,56 +400,56 @@ export default function AdminLLMSettingsPage() {
                   </div>
                   {state.useCustom && (
                     <div className="mt-4 grid gap-4 md:grid-cols-2">
-                      <label className="flex flex-col gap-1 text-sm text-gray-700">
+                      <label className="flex flex-col gap-1 text-sm text-foreground/80">
                         Provider
                         <select
-                          className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                          className="rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground"
                           value={state.config.provider}
                           onChange={event => handleStepChange(step.id, "provider", event.target.value)}
                         >
                           {providerOptions}
                         </select>
                       </label>
-                      <label className="flex flex-col gap-1 text-sm text-gray-700">
+                      <label className="flex flex-col gap-1 text-sm text-foreground/80">
                         Model
                         <input
-                          className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                          className="rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground"
                           value={state.config.model}
                           onChange={event => handleStepChange(step.id, "model", event.target.value)}
                           placeholder="custom-model"
                         />
                       </label>
-                      <label className="flex flex-col gap-1 text-sm text-gray-700">
+                      <label className="flex flex-col gap-1 text-sm text-foreground/80">
                         API key (leave blank to keep existing)
                         <input
-                          className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                          className="rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground"
                           value={state.config.api_key}
                           onChange={event => handleStepChange(step.id, "api_key", event.target.value)}
                           placeholder="sk-..."
                         />
                       </label>
-                      <label className="flex flex-col gap-1 text-sm text-gray-700">
+                      <label className="flex flex-col gap-1 text-sm text-foreground/80">
                         Base URL (optional)
                         <input
-                          className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                          className="rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground"
                           value={state.config.base_url}
                           onChange={event => handleStepChange(step.id, "base_url", event.target.value)}
                           placeholder="https://api.example.com"
                         />
                       </label>
-                      <label className="flex flex-col gap-1 text-sm text-gray-700">
+                      <label className="flex flex-col gap-1 text-sm text-foreground/80">
                         Temperature
                         <input
-                          className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                          className="rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground"
                           value={state.config.temperature}
                           onChange={event => handleStepChange(step.id, "temperature", event.target.value)}
                           placeholder="0.2"
                         />
                       </label>
-                      <label className="flex flex-col gap-1 text-sm text-gray-700">
+                      <label className="flex flex-col gap-1 text-sm text-foreground/80">
                         Max tokens
                         <input
-                          className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                          className="rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground"
                           value={state.config.max_tokens}
                           onChange={event => handleStepChange(step.id, "max_tokens", event.target.value)}
                           placeholder="2048"
@@ -458,7 +458,7 @@ export default function AdminLLMSettingsPage() {
                     </div>
                   )}
                   {!state.useCustom && (
-                    <p className="mt-3 text-xs text-gray-500">Using default provider configuration.</p>
+                    <p className="mt-3 text-xs text-muted-foreground">Using default provider configuration.</p>
                   )}
                 </div>
               );
@@ -474,7 +474,7 @@ export default function AdminLLMSettingsPage() {
           >
             {saving ? "Saving…" : "Save settings"}
           </button>
-          <span className="text-xs text-gray-500">Changes take effect immediately for new recruiter workflow runs.</span>
+          <span className="text-xs text-muted-foreground">Changes take effect immediately for new recruiter workflow runs.</span>
         </div>
       </form>
     </div>

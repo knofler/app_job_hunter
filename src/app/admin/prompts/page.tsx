@@ -216,7 +216,7 @@ export default function AdminPromptsPage() {
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto px-4 py-10">
-        <p className="text-sm text-gray-600">Loading...</p>
+        <p className="text-sm text-muted-foreground">Loading...</p>
       </div>
     );
   }
@@ -224,8 +224,8 @@ export default function AdminPromptsPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 space-y-8">
       <header className="space-y-2">
-        <h1 className="text-3xl font-bold text-gray-900">AI Prompts Management</h1>
-        <p className="text-sm text-gray-600 max-w-3xl">
+        <h1 className="text-3xl font-bold text-foreground">AI Prompts Management</h1>
+        <p className="text-sm text-muted-foreground max-w-3xl">
           Manage AI prompts used throughout the application. Changes take effect immediately for new AI operations.
         </p>
       </header>
@@ -238,7 +238,7 @@ export default function AdminPromptsPage() {
       )}
 
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold text-gray-900">Prompts</h2>
+        <h2 className="text-xl font-semibold text-foreground">Prompts</h2>
         <button
           onClick={() => setShowCreateForm(true)}
           className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
@@ -249,25 +249,25 @@ export default function AdminPromptsPage() {
 
       {showCreateForm && (
         <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Create New Prompt</h3>
+          <h3 className="text-lg font-semibold text-foreground mb-4">Create New Prompt</h3>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
-              <label className="flex flex-col gap-1 text-sm text-gray-700">
+              <label className="flex flex-col gap-1 text-sm text-foreground/80">
                 Name
                 <input
                   type="text"
                   required
-                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="rounded-lg border border-border px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="core_skill_analysis"
                 />
               </label>
-              <label className="flex flex-col gap-1 text-sm text-gray-700">
+              <label className="flex flex-col gap-1 text-sm text-foreground/80">
                 Category
                 <select
                   required
-                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="rounded-lg border border-border px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
                   value={formData.category}
                   onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
                 >
@@ -277,12 +277,12 @@ export default function AdminPromptsPage() {
                 </select>
               </label>
             </div>
-            <label className="flex flex-col gap-1 text-sm text-gray-700">
+            <label className="flex flex-col gap-1 text-sm text-foreground/80">
               Content
               <textarea
                 required
                 rows={12}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className="rounded-lg border border-border bg-input px-3 py-2 text-sm font-mono text-foreground focus:border-primary focus:ring-1 focus:ring-primary"
                 value={formData.content}
                 onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
                 placeholder="Enter the AI prompt content..."
@@ -291,14 +291,14 @@ export default function AdminPromptsPage() {
             <div className="flex gap-3">
               <button
                 type="submit"
-                className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:ring-2 focus:ring-primary focus:ring-offset-2"
               >
                 Create Prompt
               </button>
               <button
                 type="button"
                 onClick={cancelEdit}
-                className="inline-flex items-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                className="inline-flex items-center rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground/80 shadow-sm transition hover:bg-muted/50 focus:ring-2 focus:ring-border focus:ring-offset-2"
               >
                 Cancel
               </button>
@@ -309,39 +309,39 @@ export default function AdminPromptsPage() {
 
       <div className="space-y-4">
         {prompts.map(prompt => (
-          <div key={prompt.id} className={`rounded-2xl border bg-white p-6 shadow-sm transition-all ${
-            editingPrompt?.id === prompt.id ? 'ring-2 ring-blue-500 border-blue-300' : 'border-gray-200'
+          <div key={prompt.id} className={`rounded-2xl border bg-card p-6 shadow-sm transition-all ${
+            editingPrompt?.id === prompt.id ? 'ring-2 ring-blue-500 border-blue-300' : 'border-border'
           }`}>
             {editingPrompt?.id === prompt.id ? (
               // Inline edit form
               <div className="space-y-4">
                 <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Edit Prompt: {prompt.name}</h3>
+                  <h3 className="text-lg font-semibold text-foreground">Edit Prompt: {prompt.name}</h3>
                   <button
                     onClick={cancelEdit}
-                    className="inline-flex items-center rounded-lg border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
+                    className="inline-flex items-center rounded-lg border border-border px-3 py-1 text-xs font-semibold text-foreground/80 shadow-sm transition hover:bg-muted/50"
                   >
                     Cancel
                   </button>
                 </div>
                 <form onSubmit={handleUpdate} className="space-y-4">
                   <div className="grid gap-4 md:grid-cols-2">
-                    <label className="flex flex-col gap-1 text-sm text-gray-700">
+                    <label className="flex flex-col gap-1 text-sm text-foreground/80">
                       Name
                       <input
                         type="text"
                         required
-                        className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        className="rounded-lg border border-border px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
                         value={formData.name}
                         onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                         placeholder="core_skill_analysis"
                       />
                     </label>
-                    <label className="flex flex-col gap-1 text-sm text-gray-700">
+                    <label className="flex flex-col gap-1 text-sm text-foreground/80">
                       Category
                       <select
                         required
-                        className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        className="rounded-lg border border-border px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
                         value={formData.category}
                         onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
                       >
@@ -351,12 +351,12 @@ export default function AdminPromptsPage() {
                       </select>
                     </label>
                   </div>
-                  <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <label className="flex flex-col gap-1 text-sm text-foreground/80">
                     Content
                     <textarea
                       required
                       rows={8}
-                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      className="rounded-lg border border-border bg-input px-3 py-2 text-sm font-mono text-foreground focus:border-primary focus:ring-1 focus:ring-primary"
                       value={formData.content}
                       onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
                       placeholder="Enter the AI prompt content..."
@@ -365,7 +365,7 @@ export default function AdminPromptsPage() {
                   <div className="flex gap-3">
                     <button
                       type="submit"
-                      className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                      className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:ring-2 focus:ring-primary focus:ring-offset-2"
                     >
                       Update Prompt
                     </button>
@@ -377,14 +377,14 @@ export default function AdminPromptsPage() {
               <>
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{prompt.name}</h3>
-                    <p className="text-sm text-gray-600">Category: {prompt.category}</p>
-                    <p className="text-xs text-gray-500">Version: {prompt.version} | Updated: {new Date(prompt.updated_at).toLocaleDateString()}</p>
+                    <h3 className="text-lg font-semibold text-foreground">{prompt.name}</h3>
+                    <p className="text-sm text-muted-foreground">Category: {prompt.category}</p>
+                    <p className="text-xs text-muted-foreground">Version: {prompt.version} | Updated: {new Date(prompt.updated_at).toLocaleDateString()}</p>
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => startEdit(prompt)}
-                      className="inline-flex items-center rounded-lg border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
+                      className="inline-flex items-center rounded-lg border border-border px-3 py-1 text-xs font-semibold text-foreground/80 shadow-sm transition hover:bg-muted/50"
                     >
                       Edit
                     </button>
@@ -396,12 +396,12 @@ export default function AdminPromptsPage() {
                     </button>
                   </div>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <pre className="text-sm text-gray-800 whitespace-pre-wrap font-mono">{prompt.content}</pre>
+                <div className="bg-muted/50 rounded-lg p-4">
+                  <pre className="text-sm text-foreground whitespace-pre-wrap font-mono">{prompt.content}</pre>
                 </div>
                 {Object.keys(prompt.variables).length > 0 && (
                   <div className="mt-4">
-                    <h4 className="text-sm font-semibold text-gray-900 mb-2">Variables:</h4>
+                    <h4 className="text-sm font-semibold text-foreground mb-2">Variables:</h4>
                     <div className="flex flex-wrap gap-2">
                       {Object.entries(prompt.variables).map(([key, value]) => (
                         <span key={key} className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">

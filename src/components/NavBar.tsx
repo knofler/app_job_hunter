@@ -26,6 +26,8 @@ const NAV_ITEMS: Record<Persona, NavItem[]> = {
   admin: [
     { label: "LLM Settings", href: "/admin/llm" },
     { label: "AI Prompts", href: "/admin/prompts" },
+    { label: "Organisations", href: "/admin/orgs" },
+    { label: "Seed Data", href: "/admin/seed" },
   ],
 };
 

@@ -64,13 +64,13 @@
 
   /* ── Dark Theme ──────────────────────────────────────── */
   html.dark {
-    --color-background: 9 9 11;          /* zinc-950 — deep charcoal, not navy */
-    --color-foreground: 250 250 250;     /* zinc-50 */
-    --color-muted: 24 24 27;             /* zinc-900 */
-    --color-muted-foreground: 161 161 170; /* zinc-400 */
+    --color-background: 9 9 11;          /* zinc-950 — near-black base */
+    --color-foreground: 244 244 245;     /* zinc-100 — soft white, easy on eyes */
+    --color-muted: 39 39 42;             /* zinc-800 — noticeably lighter than bg for muted areas */
+    --color-muted-foreground: 212 212 216; /* zinc-300 — readable secondary text */
     --color-border: 63 63 70;            /* zinc-700 */
-    --color-input: 24 24 27;             /* zinc-900 */
-    --color-card: 24 24 27;              /* zinc-900 */
+    --color-input: 39 39 42;             /* zinc-800 — input fields distinct from card bg */
+    --color-card: 24 24 27;              /* zinc-900 — card sits between bg and muted */
     --color-card-hover: 39 39 42;        /* zinc-800 */
     --color-primary: 52 211 153;         /* emerald-400 — pops on charcoal */
     --color-primary-dark: 16 185 129;    /* emerald-500 */
