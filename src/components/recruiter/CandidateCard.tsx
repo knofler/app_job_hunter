@@ -19,9 +19,9 @@ export interface CandidateCardProps {
 }
 
 const CandidateCard: React.FC<CandidateCardProps> = ({ candidate, onViewProfile }) => {
-  const getStatusColor = (status: string) => {
-    const colors = { new: 'info', screening: 'warning', interview: 'primary', offer: 'success', rejected: 'error' };
-    return colors[status as keyof typeof colors] || 'neutral';
+  const getStatusColor = (status: string): "error" | "success" | "warning" | "info" | "neutral" | "primary" => {
+    const colors: Record<string, "error" | "success" | "warning" | "info" | "neutral" | "primary"> = { new: 'info', screening: 'warning', interview: 'primary', offer: 'success', rejected: 'error' };
+    return colors[status] ?? 'neutral';
   };
 
   return (
