@@ -31,7 +31,7 @@ export default function ProfilePage() {
     <div className="max-w-2xl mx-auto py-10 px-4">
       <h1 className="text-2xl font-bold mb-4">User Profile</h1>
       
-      <div className="bg-white rounded-xl shadow p-6 space-y-4">
+      <div className="bg-card rounded-xl shadow p-6 space-y-4">
         <div>
           <span className="font-semibold">Name:</span> {user.name || 'N/A'}
         </div>
@@ -43,18 +43,18 @@ export default function ProfilePage() {
         </div>
         <div>
           <span className="font-semibold">Subject (ID):</span>
-          <span className="text-sm text-gray-600 ml-2">{user.sub}</span>
+          <span className="text-sm text-muted-foreground ml-2">{user.sub}</span>
         </div>
         <div>
           <span className="font-semibold">Roles:</span>
-          <span className="text-sm text-gray-600 ml-2">
+          <span className="text-sm text-muted-foreground ml-2">
             {(user as UserWithCustomClaims)['https://ai-job-hunter/roles']?.join(', ') ||
              'No roles assigned'}
           </span>
         </div>
         <div>
           <span className="font-semibold">Organization:</span>
-          <span className="text-sm text-gray-600 ml-2">
+          <span className="text-sm text-muted-foreground ml-2">
             {(user as UserWithCustomClaims)['https://ai-job-hunter/org_id'] ||
              'No organization'}
           </span>
@@ -71,15 +71,15 @@ export default function ProfilePage() {
       </div>
 
       {/* Resume section can be added back when integrating with backend */}
-      <div className="bg-white rounded-xl shadow p-6 mt-6">
+      <div className="bg-card rounded-xl shadow p-6 mt-6">
         <h2 className="text-lg font-semibold mb-2">Resume Management</h2>
-        <p className="text-sm text-gray-600">Resume upload and management will be available after authentication setup.</p>
+        <p className="text-sm text-muted-foreground">Resume upload and management will be available after authentication setup.</p>
       </div>
 
       {/* Debug: Show all user properties */}
       <div className="bg-yellow-50 border border-yellow-200 rounded-xl shadow p-6 mt-6">
         <h2 className="text-lg font-semibold mb-2 text-yellow-800">🔍 Debug: Full User Object</h2>
-        <pre className="text-xs bg-white p-4 rounded overflow-auto max-h-96">
+        <pre className="text-xs bg-card p-4 rounded overflow-auto max-h-96">
           {JSON.stringify(user, null, 2)}
         </pre>
       </div>

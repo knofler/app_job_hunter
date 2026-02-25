@@ -64,7 +64,7 @@ export default function TopMatchedJobs() {
                   <div className="font-medium">{job.title}</div>
                   <div className="text-xs text-gray-500">{job.company} • {job.location}</div>
                 </div>
-                <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-bold">
+                <span className="bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded text-xs font-bold">
                   {Math.round(job.match_score ?? 0)}% Match
                 </span>
               </li>

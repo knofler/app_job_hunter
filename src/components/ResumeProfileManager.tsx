@@ -37,7 +37,7 @@ export default function ResumeProfileManager() {
       </div>
       <div className="flex gap-2 mb-2">
         <input
-          className="border rounded px-2 py-1 text-sm"
+          className="border border-border rounded bg-input px-2 py-1 text-sm text-foreground"
           placeholder="New profile name"
           value={newName}
           onChange={e => setNewName(e.target.value)}
