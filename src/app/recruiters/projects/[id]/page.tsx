@@ -718,11 +718,6 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                     {new Date(selectedRun.created_at).toLocaleString()} · {selectedRun.ranked?.length ?? 0} candidates
                   </p>
                 </div>
-                {selectedRun.run_notes && (
-                  <div className="max-w-xs rounded-lg border border-border bg-muted/50 px-3 py-2">
-                    <p className="text-xs text-muted-foreground">{selectedRun.run_notes}</p>
-                  </div>
-                )}
               </div>
 
               {/* Ranked candidates */}
@@ -777,6 +772,16 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                     </div>
                   ))}
                 </div>
+              )}
+
+              {/* AI run notes — shown below results */}
+              {selectedRun.run_notes && (
+                <details className="rounded-lg border border-border bg-muted/20">
+                  <summary className="cursor-pointer px-3 py-2 text-xs text-muted-foreground hover:text-foreground select-none">
+                    💬 AI Run Notes
+                  </summary>
+                  <p className="px-3 pb-3 pt-1 text-xs text-muted-foreground leading-relaxed">{selectedRun.run_notes}</p>
+                </details>
               )}
             </div>
           )}
