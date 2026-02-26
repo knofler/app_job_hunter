@@ -104,11 +104,18 @@ export default function AdminLLMSettingsPage() {
     let isMounted = true;
     async function load() {
       try {
-        const [providerResponse, settings] = await Promise.all([fetchProviders(), fetchSettings()]);
-        if (!isMounted) {
+        const [providerResponse, settingsResult] = await Promise.allSettled([fetchProviders(), fetchSettings()]);
+        if (!isMounted) return;
+
+        if (providerResponse.status === "fulfilled") {
+          setProviders(providerResponse.value.providers);
+        }
+
+        if (settingsResult.status === "rejected") {
+          setError((settingsResult.reason as Error).message || "Failed to load LLM settings");
           return;
         }
-        setProviders(providerResponse.providers);
+        const settings = settingsResult.value;
         setDefaultConfig(toFormConfig(settings.default));
 
         const configuredSteps: Record<string, StepFormState> = {};

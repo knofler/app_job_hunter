@@ -38,14 +38,16 @@ export type LLMSettingsPayload = {
   }>;
 };
 
+import { getApiBaseUrl } from "@/lib/api";
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  // Always use relative paths so calls go through the Next.js proxy on Vercel.
-  // The proxy runs server-side and injects the private ADMIN_API_KEY.
-  const fullUrl = url.startsWith('/') ? url : `/${url}`;
+  const baseUrl = getApiBaseUrl();
+  const fullUrl = url.startsWith('/') ? `${baseUrl}${url}` : url;
   const response = await fetch(fullUrl, {
     ...init,
     headers: {
       "Content-Type": "application/json",
+      "X-Admin-Token": process.env.NEXT_PUBLIC_ADMIN_TOKEN || "changeme-admin-token",
       ...(init?.headers ?? {}),
     },
     cache: "no-store",
