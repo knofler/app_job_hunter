@@ -44,23 +44,41 @@ function ScoreBadge({ score }: { score: number }) {
 
 // ── Shared PDF text cleaner ───────────────────────────────────────────────────
 function cleanPdf(text: string): string[] {
-  // Detect word-per-line PDF extraction artifact: each word on its own line
-  // separated by "\n \n" (newline, space, newline). Section boundaries use "\n \n \n".
+  // Detect fragmented PDF extraction: word-per-line OR char-per-line artifact.
+  // Both formats result in >70% of non-empty lines being ≤ 20 chars.
   const roughLines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
-  const isWordPerLine =
+  const isFragmented =
     roughLines.length > 10 &&
-    roughLines.filter(l => l.length <= 20).length / roughLines.length > 0.75;
+    roughLines.filter(l => l.length <= 20).length / roughLines.length > 0.70;
 
-  if (isWordPerLine) {
-    // Paragraph/section breaks (double blank "\n \n \n") → single newline
-    text = text.replace(/\n \n \n/g, "\n");
-    // Word boundaries (single blank "\n \n") → space
+  if (isFragmented) {
+    const PARA = "\u2029"; // private-use paragraph separator placeholder
+
+    // Fix 1: Drop-cap artifacts — 1–2 non-lowercase chars before a bare newline
+    // that continues an uppercase word. e.g. "S\nOFTWARE" → "SOFTWARE", "(M\nICHAEL" → "(MICHAEL"
+    text = text.replace(/^([^a-z\n ]{1,2})\n(?=[A-Z])/mg, "$1");
+
+    // Fix 2: Lone closing punctuation on its own line — e.g. "MICHAEL\n)" → "MICHAEL)"
+    text = text.replace(/^([)}\],:;])\n/mg, "$1");
+
+    // Fix 3: Paragraph breaks (3+ newlines with optional spaces) → placeholder
+    text = text.replace(/(\n[ \t]*){3,}/g, PARA);
+    text = text.replace(/\n \n \n/g, PARA); // explicit triple-blank fallback
+
+    // Fix 4: Word separators (single blank "\n \n") → space
     text = text.replace(/\n \n/g, " ");
+
+    // Fix 5: Remaining bare newlines → space (joins char-level fragments)
+    text = text.replace(/\n/g, " ");
+
+    // Fix 6: Restore paragraph breaks
+    text = text.replace(new RegExp(PARA, "g"), "\n");
   }
 
   return text
     .split("\n")
     .map(l => l.replace(/[ \t]{2,}/g, " ").replace(/[♂♀⚥⚨]/g, "").trimEnd())
+    .filter(l => l.trim() !== "")
     .filter((l, i, arr) => !(l.trim() === "" && arr[i - 1]?.trim() === ""));
 }
 
@@ -286,7 +304,7 @@ function parseResume(text: string): ResumeBlock[] {
   const nameParts = rawName.split(/\s+/);
   let nameEnd = nameParts.length;
   for (let j = 1; j < nameParts.length; j++) {
-    if (JOB_TITLE_WORDS.has(nameParts[j].toLowerCase()) || /[|&@(]/.test(nameParts[j])) {
+    if (JOB_TITLE_WORDS.has(nameParts[j].toLowerCase()) || /[|&@]/.test(nameParts[j])) {
       nameEnd = j; break;
     }
   }
@@ -344,9 +362,9 @@ function parseResume(text: string): ResumeBlock[] {
       continue;
     }
 
-    if (t.startsWith("•") || t.startsWith("-") || t.startsWith("*")) {
+    if (t.startsWith("•") || t.startsWith("-") || t.startsWith("*") || t.startsWith("◆") || t.startsWith("⬥") || t.startsWith("●")) {
       flushText();
-      const item = t.replace(/^[•*-]\s*/, "");
+      const item = t.replace(/^[•*◆⬥●-]\s*/, "");
       if (curEntry) curEntry.bullets.push(item);
       else pendingBullets.push(item);
       continue;
