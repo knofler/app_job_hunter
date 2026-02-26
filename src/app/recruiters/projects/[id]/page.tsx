@@ -201,8 +201,8 @@ function ResumePickerModal({
   const [loadingList, setLoadingList] = useState(true);
 
   // ── Upload tab state ──
-  const [file, setFile] = useState<File | null>(null);
-  const [candidateName, setCandidateName] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
 
@@ -220,28 +220,35 @@ function ResumePickerModal({
   );
 
   async function handleUpload() {
-    if (!file) return;
+    if (files.length === 0) return;
     setUploading(true);
     setUploadError("");
+    const newIds: string[] = [];
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("user_id", candidateName || file.name.replace(/\.[^.]+$/, ""));
-      formData.append("resume_type", "applicant");
-      formData.append("org_id", DEFAULT_ORG);
-      const res = await fetch("/api/resumes", { method: "POST", body: formData });
-      if (!res.ok) throw new Error(`Upload failed: ${res.statusText}`);
-      const data = await res.json();
-      const newId: string = data.id ?? data._id ?? data.resume_id ?? "";
-      if (newId) {
-        onAdd([newId]);
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        setUploadProgress(`Uploading ${i + 1} of ${files.length}: ${f.name}`);
+        const formData = new FormData();
+        formData.append("file", f);
+        formData.append("user_id", f.name.replace(/\.[^.]+$/, ""));
+        formData.append("resume_type", "applicant");
+        formData.append("org_id", DEFAULT_ORG);
+        const res = await fetch("/api/resumes", { method: "POST", body: formData });
+        if (!res.ok) throw new Error(`Upload failed for ${f.name}: ${res.statusText}`);
+        const data = await res.json();
+        const newId: string = data.id ?? data._id ?? data.resume_id ?? "";
+        if (newId) newIds.push(newId);
+      }
+      if (newIds.length > 0) {
+        onAdd(newIds);
         onClose();
       } else {
-        throw new Error("No resume ID returned");
+        throw new Error("No resume IDs returned");
       }
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed");
       setUploading(false);
+      setUploadProgress("");
     }
   }
 
@@ -306,38 +313,34 @@ function ResumePickerModal({
           ) : (
             <>
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Candidate Name (optional)</label>
-                <input
-                  type="text" placeholder="e.g. Jane Smith"
-                  value={candidateName} onChange={e => setCandidateName(e.target.value)}
-                  className="input h-9 text-sm w-full"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Resume File</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Resume Files (select multiple)</label>
                 <label className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 cursor-pointer transition-colors ${
-                  file ? "border-primary/50 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/30"
+                  files.length > 0 ? "border-primary/50 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/30"
                 }`}>
-                  <input type="file" accept=".pdf,.doc,.docx" className="hidden"
-                    onChange={e => { setFile(e.target.files?.[0] ?? null); setUploadError(""); }} />
-                  <svg className={`h-8 w-8 ${file ? "text-primary" : "text-muted-foreground"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <input type="file" accept=".pdf,.doc,.docx" multiple className="hidden"
+                    onChange={e => { setFiles(Array.from(e.target.files ?? [])); setUploadError(""); }} />
+                  <svg className={`h-8 w-8 ${files.length > 0 ? "text-primary" : "text-muted-foreground"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  {file ? (
-                    <span className="text-xs font-medium text-primary text-center">{file.name}</span>
+                  {files.length > 0 ? (
+                    <div className="text-center">
+                      <p className="text-xs font-medium text-primary">{files.length} file{files.length > 1 ? "s" : ""} selected</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{files.map(f => f.name).join(", ")}</p>
+                    </div>
                   ) : (
-                    <span className="text-xs text-muted-foreground text-center">Click to browse<br /><span className="text-zinc-600">PDF, DOC, DOCX</span></span>
+                    <span className="text-xs text-muted-foreground text-center">Click to browse (select multiple)<br /><span className="text-zinc-600">PDF, DOC, DOCX</span></span>
                   )}
                 </label>
               </div>
+              {uploadProgress && <p className="text-xs text-primary">{uploadProgress}</p>}
               {uploadError && <p className="text-xs text-rose-400">{uploadError}</p>}
               <button
-                disabled={!file || uploading}
+                disabled={files.length === 0 || uploading}
                 onClick={handleUpload}
                 className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40 transition-opacity flex items-center justify-center gap-2"
               >
                 {uploading && <span className="h-3.5 w-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />}
-                {uploading ? "Uploading…" : "Upload & Add to Project"}
+                {uploading ? (uploadProgress || "Uploading…") : `Upload ${files.length > 0 ? files.length + " File" + (files.length > 1 ? "s" : "") : ""} & Add`}
               </button>
             </>
           )}
