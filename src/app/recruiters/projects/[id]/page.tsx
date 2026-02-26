@@ -869,6 +869,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
   const [showResumePicker, setShowResumePicker] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [leftPanelOpen, setLeftPanelOpen] = useState(false);
   const router = useRouter();
 
   async function handleDeleteProject() {
@@ -1087,9 +1088,25 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
         />
       )}
 
-      <div className="flex h-full" style={{ height: "calc(100vh - 56px)" }}>
+      <div className="flex h-full relative" style={{ height: "calc(100vh - 56px)" }}>
+
+        {/* ── Mobile overlay backdrop ── */}
+        {leftPanelOpen && (
+          <div
+            className="md:hidden fixed inset-0 z-30 bg-black/60"
+            onClick={() => setLeftPanelOpen(false)}
+          />
+        )}
+
         {/* ── LEFT: Project Info ── */}
-        <aside className="w-[32rem] shrink-0 border-r border-border bg-card flex flex-col overflow-hidden">
+        <aside className={`
+          z-40 flex flex-col overflow-hidden border-r border-border bg-card
+          md:w-80 md:shrink-0 md:static md:flex
+          ${leftPanelOpen
+            ? "fixed inset-y-0 left-0 w-80 flex"
+            : "hidden md:flex"
+          }
+        `} style={{ top: 56 }}>
           {/* Header */}
           <div className="px-4 py-4 border-b border-border">
             <Link href="/recruiters/projects" className="text-xs text-muted-foreground hover:text-primary mb-2 flex items-center gap-1">
@@ -1512,8 +1529,33 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
         </aside>
 
         {/* ── RIGHT: Preview Panel ── */}
-        <main className="flex-1 min-w-0 overflow-y-auto bg-muted/20">
+        <main className="flex-1 min-w-0 overflow-y-auto bg-muted/20 flex flex-col">
 
+          {/* Mobile top bar — only visible on small screens */}
+          <div className="md:hidden flex items-center gap-3 px-3 py-2.5 border-b border-border bg-card shrink-0">
+            <button
+              onClick={() => setLeftPanelOpen(true)}
+              className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+              </svg>
+              <span className="font-medium">{project?.name ?? "Project"}</span>
+            </button>
+            <div className="flex-1 flex items-center gap-1 overflow-x-auto">
+              <button
+                onClick={() => setShowRunModal(true)}
+                className="shrink-0 flex items-center gap-1 rounded-md bg-primary px-2.5 py-1.5 text-xs font-semibold text-white"
+              >
+                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Run
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto">
           {/* JD Preview */}
           {rightPanel === "jd" && (
             <div className="p-6">
@@ -1675,6 +1717,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
               )}
             </div>
           )}
+          </div>{/* end flex-1 overflow-y-auto */}
         </main>
       </div>
     </>
