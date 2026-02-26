@@ -599,21 +599,63 @@ function NewRunModal({
             </button>
           </div>
         ) : (
-          <div className="p-5 space-y-3">
-            <div ref={logRef} className="bg-muted rounded-lg p-3 h-64 overflow-y-auto space-y-1 font-mono text-xs">
-              {events.map((ev, i) => (
-                <div key={i} className={
-                  ev.type === "error" ? "text-rose-400" :
-                  ev.type === "complete" ? "text-emerald-400 font-semibold" :
-                  ev.type === "result" ? "text-primary" : "text-muted-foreground"
-                }>
-                  {ev.type === "status" ? `▶ ${ev.message}` :
-                   ev.type === "result" ? `✓ Results: ${Array.isArray(ev.data) ? ev.data.length : 0} candidates ranked` :
-                   ev.type === "complete" ? `✓ Run complete${ev.duration_seconds != null ? ` · ${ev.duration_seconds}s` : ""}` :
-                   ev.type === "error" ? `✗ ${ev.message}` : JSON.stringify(ev)}
-                </div>
-              ))}
-              {isStreaming && <div className="text-muted-foreground animate-pulse">Running…</div>}
+          <div className="p-5 space-y-4">
+            {/* Step progress */}
+            <div className="space-y-2">
+              {[
+                { step: "loading",          label: "Loading resumes",           icon: "📂" },
+                { step: "core_skills",      label: "Extracting core skills",    icon: "🔍" },
+                { step: "ai_analysis",      label: "AI-powered analysis",       icon: "🤖" },
+                { step: "ranked_shortlist", label: "Ranking candidates",        icon: "🏆" },
+                { step: "detailed_readout", label: "Detailed readouts",         icon: "📋" },
+                { step: "engagement_plan",  label: "Engagement plan",           icon: "🤝" },
+                { step: "fairness_guidance",label: "Fairness guidance",         icon: "⚖️" },
+              ].map(({ step, label, icon }) => {
+                const statusEv = events.find(e => e.type === "status" && e.step === step);
+                const resultEv = events.find(e => e.type === "result" && e.step === step);
+                const errorEv  = events.find(e => e.type === "error"  && e.step === step);
+                const isActive = !!statusEv && !resultEv && !errorEv;
+                const isDone   = !!resultEv;
+                const isError  = !!errorEv;
+                const isPending = !statusEv && !resultEv && !errorEv;
+                return (
+                  <div key={step} className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-300 ${
+                    isActive ? "bg-primary/10 border border-primary/20" :
+                    isDone   ? "bg-emerald-500/5 border border-emerald-500/15" :
+                    isError  ? "bg-rose-500/5 border border-rose-500/15" :
+                               "border border-transparent opacity-40"
+                  }`}>
+                    <span className="text-base shrink-0 w-6 text-center">
+                      {isDone  ? "✅" :
+                       isError ? "❌" :
+                       isActive ? <span className="inline-block animate-spin text-primary">⟳</span> :
+                       icon}
+                    </span>
+                    <span className={`text-xs font-medium flex-1 ${
+                      isActive ? "text-primary" :
+                      isDone   ? "text-emerald-400" :
+                      isError  ? "text-rose-400" :
+                                 "text-muted-foreground"
+                    }`}>{label}</span>
+                    {isActive && (
+                      <span className="flex gap-0.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce [animation-delay:0ms]" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce [animation-delay:150ms]" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce [animation-delay:300ms]" />
+                      </span>
+                    )}
+                    {isError && <span className="text-xs text-rose-400 truncate max-w-[120px]">{errorEv?.message?.slice(0, 40)}</span>}
+                  </div>
+                );
+              })}
+            </div>
+            {/* Overall status */}
+            <div className="text-center text-xs text-muted-foreground border-t border-border pt-3">
+              {isStreaming
+                ? <span className="animate-pulse text-primary font-medium">AI is analysing your candidates…</span>
+                : events.some(e => e.type === "complete")
+                  ? <span className="text-emerald-400 font-semibold">✓ Analysis complete</span>
+                  : <span className="text-rose-400">Analysis ended with errors</span>}
             </div>
             {!isStreaming && (
               <button onClick={() => { onComplete(); onClose(); }}

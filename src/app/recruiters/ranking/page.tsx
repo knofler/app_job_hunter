@@ -420,10 +420,29 @@ export default function RecruiterRankingPage() {
 
           {/* Loading state */}
           {isLoading && (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="h-10 w-10 animate-spin rounded-full border-3 border-primary border-t-transparent mb-4" />
-              <p className="text-sm font-semibold text-primary">Ranking resumes against job description...</p>
-              <p className="mt-1 text-xs text-muted-foreground">This may take a moment</p>
+            <div className="flex flex-col items-center justify-center py-16 text-center gap-5">
+              <div className="relative h-16 w-16">
+                <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+                <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+                <div className="absolute inset-0 flex items-center justify-center text-2xl">🤖</div>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-primary">AI is analysing candidates…</p>
+                <p className="mt-1 text-xs text-muted-foreground">Ranking resumes against the job description</p>
+              </div>
+              <div className="flex flex-col gap-2 w-60">
+                {[
+                  { label: "Loading resume contexts",  delay: "0ms"   },
+                  { label: "Extracting core skills",   delay: "600ms" },
+                  { label: "Running AI analysis",      delay: "1200ms"},
+                  { label: "Building ranked shortlist",delay: "1800ms"},
+                ].map(({ label, delay }) => (
+                  <div key={label} className="flex items-center gap-2 text-xs text-muted-foreground animate-pulse" style={{ animationDelay: delay }}>
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                    {label}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
