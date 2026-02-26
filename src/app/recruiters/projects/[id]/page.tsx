@@ -848,6 +848,8 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
   const [context, setContextText] = useState("");
   const [customContext, setCustomContext] = useState("");
   const [contextSaving, setContextSaving] = useState(false);
+  const [customDimText, setCustomDimText] = useState<Record<string, string>>({});
+  const [expandedCoreDims, setExpandedCoreDims] = useState<string[]>([]);
   const [resumeNames, setResumeNames] = useState<Record<string, string>>({});
   const [resumeDetails, setResumeDetails] = useState<Record<string, { name: string; preview: string; summary: string; skills: string[] }>>({});
   const [contextScore, setContextScore] = useState<ContextScore | null>(null);
@@ -896,6 +898,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
       if (ctx.context_config) {
         setSelectedContextKeys(ctx.context_config.enhancements ?? []);
         setCustomContext(ctx.context_config.custom ?? "");
+        if (ctx.context_config.dim_overrides) setCustomDimText(ctx.context_config.dim_overrides);
       } else if (ctx.context) {
         setCustomContext(ctx.context);
       }
@@ -970,6 +973,8 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
         compiled += "Assessment criteria:\n";
         allActive.forEach(d => {
           compiled += `- ${d.label}: ${d.description}\n`;
+          const override = customDimText[d.key]?.trim();
+          if (override) compiled += `  (Custom note: ${override})\n`;
         });
       }
       if (customContext.trim()) {
@@ -979,6 +984,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
       const config: ContextConfig = {
         enhancements: selectedContextKeys,
         custom: customContext,
+        dim_overrides: Object.keys(customDimText).length > 0 ? customDimText : undefined,
       };
       const result = await setProjectContext(projectId, compiled, config);
       setContextText(result.context);
@@ -1246,13 +1252,52 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                           <p className="text-xs font-semibold text-foreground">Core — always applied</p>
                           <span className="text-xs font-semibold text-emerald-400">+{coreGain.toFixed(0)}%</span>
                         </div>
-                        <div className="grid grid-cols-2 gap-1.5">
-                          {coreDims.map(d => (
-                            <div key={d.key} className="rounded-md border border-emerald-500/30 bg-emerald-500/5 px-2 py-1.5">
-                              <p className="text-xs font-medium text-emerald-400 leading-tight">✓ {d.label}</p>
-                              <p className="text-[10px] text-muted-foreground mt-0.5">+{d.predicted_improvement.toFixed(0)}%</p>
-                            </div>
-                          ))}
+                        <div className="space-y-1.5">
+                          {coreDims.map(d => {
+                            const expanded = expandedCoreDims.includes(d.key);
+                            return (
+                              <div key={d.key} className="rounded-md border border-emerald-500/30 bg-emerald-500/5 overflow-hidden">
+                                <button
+                                  onClick={() => setExpandedCoreDims(prev => expanded ? prev.filter(k => k !== d.key) : [...prev, d.key])}
+                                  className="w-full flex items-center justify-between px-2 py-1.5 text-left"
+                                >
+                                  <div>
+                                    <p className="text-xs font-medium text-emerald-400 leading-tight">✓ {d.label}</p>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">+{d.predicted_improvement.toFixed(0)}%</p>
+                                  </div>
+                                  <span className="text-[10px] text-emerald-400/60 ml-2">{expanded ? "▲" : "▼"}</span>
+                                </button>
+                                {expanded && (
+                                  <div className="px-2 pb-2 space-y-2 border-t border-emerald-500/20 pt-2">
+                                    <p className="text-[10px] text-muted-foreground leading-relaxed">{d.description}</p>
+                                    <div className="space-y-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[10px] text-muted-foreground/60 w-20 shrink-0">JD relevance</span>
+                                        <div className="flex-1 h-1 rounded-full bg-border overflow-hidden">
+                                          <div className="h-full rounded-full bg-emerald-500/70 transition-all" style={{ width: `${(d.jd_relevance * 100).toFixed(0)}%` }} />
+                                        </div>
+                                        <span className="text-[10px] text-muted-foreground">{(d.jd_relevance * 100).toFixed(0)}%</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[10px] text-muted-foreground/60 w-20 shrink-0">Coverage</span>
+                                        <div className="flex-1 h-1 rounded-full bg-border overflow-hidden">
+                                          <div className="h-full rounded-full bg-emerald-500/70 transition-all" style={{ width: `${(d.coverage * 100).toFixed(0)}%` }} />
+                                        </div>
+                                        <span className="text-[10px] text-muted-foreground">{(d.coverage * 100).toFixed(0)}%</span>
+                                      </div>
+                                    </div>
+                                    <textarea
+                                      value={customDimText[d.key] ?? ""}
+                                      onChange={e => setCustomDimText(prev => ({ ...prev, [d.key]: e.target.value }))}
+                                      rows={2}
+                                      placeholder="Add custom notes for this dimension (optional)"
+                                      className="input h-auto resize-none text-[10px] w-full mt-1"
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
 
@@ -1267,23 +1312,56 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                             {allSelected ? "Deselect All" : "Select All"}
                           </button>
                         </div>
-                        <div className="grid grid-cols-2 gap-1.5">
+                        <div className="space-y-1.5">
                           {enhDims.map(d => {
                             const on = selectedContextKeys.includes(d.key);
                             return (
-                              <button
-                                key={d.key}
-                                onClick={() => toggleKey(d.key)}
-                                title={d.description}
-                                className={`rounded-md border px-2 py-1.5 text-left transition-colors ${
-                                  on
-                                    ? "border-primary/40 bg-primary/10 text-primary"
-                                    : "border-border bg-background text-muted-foreground hover:border-primary/30 hover:text-foreground"
-                                }`}
-                              >
-                                <p className="text-xs font-medium leading-tight">{on ? "✓" : "+"} {d.label}</p>
-                                <p className="text-[10px] mt-0.5 opacity-70">+{d.predicted_improvement.toFixed(0)}% predicted</p>
-                              </button>
+                              <div key={d.key} className={`rounded-md border overflow-hidden transition-colors ${
+                                on
+                                  ? "border-primary/40 bg-primary/10"
+                                  : "border-border bg-background"
+                              }`}>
+                                <button
+                                  onClick={() => toggleKey(d.key)}
+                                  className="w-full flex items-center justify-between px-2 py-1.5 text-left"
+                                >
+                                  <div>
+                                    <p className={`text-xs font-medium leading-tight ${on ? "text-primary" : "text-muted-foreground"}`}>
+                                      {on ? "✓" : "+"} {d.label}
+                                    </p>
+                                    <p className="text-[10px] mt-0.5 opacity-70">+{d.predicted_improvement.toFixed(0)}% predicted</p>
+                                  </div>
+                                  {on && <span className="text-[10px] text-primary/60 ml-2">▼</span>}
+                                </button>
+                                {on && (
+                                  <div className="px-2 pb-2 space-y-2 border-t border-primary/20 pt-2">
+                                    <p className="text-[10px] text-muted-foreground leading-relaxed">{d.description}</p>
+                                    <div className="space-y-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[10px] text-muted-foreground/60 w-20 shrink-0">JD relevance</span>
+                                        <div className="flex-1 h-1 rounded-full bg-border overflow-hidden">
+                                          <div className="h-full rounded-full bg-primary/70 transition-all" style={{ width: `${(d.jd_relevance * 100).toFixed(0)}%` }} />
+                                        </div>
+                                        <span className="text-[10px] text-muted-foreground">{(d.jd_relevance * 100).toFixed(0)}%</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[10px] text-muted-foreground/60 w-20 shrink-0">Coverage</span>
+                                        <div className="flex-1 h-1 rounded-full bg-border overflow-hidden">
+                                          <div className="h-full rounded-full bg-primary/70 transition-all" style={{ width: `${(d.coverage * 100).toFixed(0)}%` }} />
+                                        </div>
+                                        <span className="text-[10px] text-muted-foreground">{(d.coverage * 100).toFixed(0)}%</span>
+                                      </div>
+                                    </div>
+                                    <textarea
+                                      value={customDimText[d.key] ?? ""}
+                                      onChange={e => setCustomDimText(prev => ({ ...prev, [d.key]: e.target.value }))}
+                                      rows={2}
+                                      placeholder="Add custom notes for this dimension (optional)"
+                                      className="input h-auto resize-none text-[10px] w-full mt-1"
+                                    />
+                                  </div>
+                                )}
+                              </div>
                             );
                           })}
                         </div>
@@ -1340,9 +1418,9 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                   >
                     {contextSaving ? "Saving…" : "Save Context"}
                   </button>
-                  {(selectedContextKeys.length > 0 || customContext) && (
+                  {(selectedContextKeys.length > 0 || customContext || Object.keys(customDimText).length > 0) && (
                     <button
-                      onClick={() => { setSelectedContextKeys([]); setCustomContext(""); }}
+                      onClick={() => { setSelectedContextKeys([]); setCustomContext(""); setCustomDimText({}); }}
                       className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-rose-400"
                     >
                       Clear

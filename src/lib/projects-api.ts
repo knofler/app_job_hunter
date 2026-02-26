@@ -194,6 +194,7 @@ export async function streamProjectRun(
 export interface ContextConfig {
   enhancements: string[];
   custom: string;
+  dim_overrides?: Record<string, string>;
 }
 
 export async function getProjectContext(projectId: string): Promise<{ project_id: string; context: string; context_config: ContextConfig | null }> {

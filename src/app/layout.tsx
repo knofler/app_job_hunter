@@ -19,6 +19,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "AI Job Hunter",
   description: "AI-powered career co-pilot for job seekers",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "JobHunter",
+  },
+  themeColor: "#10b981",
 };
 
 export default function RootLayout({
