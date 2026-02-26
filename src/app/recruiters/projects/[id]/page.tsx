@@ -1101,9 +1101,9 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
         {/* ── LEFT: Project Info ── */}
         <aside className={`
           z-40 flex flex-col overflow-hidden border-r border-border bg-card
-          md:w-80 md:shrink-0 md:static md:flex
+          md:w-64 md:shrink-0 md:static md:flex
           ${leftPanelOpen
-            ? "fixed inset-y-0 left-0 w-80 flex"
+            ? "fixed inset-y-0 left-0 w-64 flex"
             : "hidden md:flex"
           }
         `} style={{ top: 56 }}>
