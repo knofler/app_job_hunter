@@ -19,6 +19,10 @@ import {
   type ProjectRun,
   type RankedCandidate,
   type StreamEvent,
+  type ContextScore,
+  type ContextDimension,
+  type ContextConfig,
+  scoreContext,
 } from "@/lib/projects-api";
 import { fetchFromApi } from "@/lib/api";
 
@@ -35,6 +39,382 @@ function ScoreBadge({ score }: { score: number }) {
     <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold ${cls}`}>
       {score}
     </span>
+  );
+}
+
+// ── Shared PDF text cleaner ───────────────────────────────────────────────────
+function cleanPdf(text: string): string[] {
+  return text
+    .split("\n")
+    .map(l => l.replace(/[ \t]{2,}/g, " ").replace(/[♂♀⚥⚨]/g, "").trimEnd())
+    .filter((l, i, arr) => !(l.trim() === "" && arr[i - 1]?.trim() === ""));
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// JD FORMATTER — modern job-posting layout
+// ════════════════════════════════════════════════════════════════════════════
+const JD_SECTION_KEYWORDS = [
+  "agency overview", "primary purpose", "key accountabilities",
+  "key challenges", "key relationships", "role dimensions",
+  "decision making", "essential requirements", "capabilities",
+  "key knowledge", "knowledge and experience", "about the role",
+  "responsibilities", "requirements", "qualifications",
+  "what we offer", "about us", "the role", "your role",
+  "additional information", "reporting line", "direct reports",
+];
+
+function isJdSection(line: string): boolean {
+  const t = line.trim().toLowerCase().replace(/:$/, "");
+  return JD_SECTION_KEYWORDS.some(s => t === s || t.startsWith(s));
+}
+
+type JdParsed = {
+  title: string;
+  org: string;
+  meta: [string, string][];
+  sections: Array<{ heading: string; bullets: string[]; paras: string[] }>;
+};
+
+function parseJd(raw: string, fallbackTitle?: string): JdParsed {
+  const lines = cleanPdf(raw).filter(l =>
+    !/^Role Description\s+.+\d+\s*$/.test(l.trim()) &&
+    !/^Role Description\s*$/.test(l.trim()) &&
+    !/^Role Description Fields/i.test(l.trim())
+  );
+
+  let title = fallbackTitle ?? "";
+  let org = "";
+  const meta: [string, string][] = [];
+  const sections: JdParsed["sections"] = [];
+  let inMeta = true;
+  let cur: JdParsed["sections"][0] | null = null;
+  let paraAccum: string[] = [];
+
+  function flushPara() {
+    if (paraAccum.length && cur) { cur.paras.push(paraAccum.join(" ")); paraAccum = []; }
+    else if (paraAccum.length) { paraAccum = []; }
+  }
+
+  for (const line of lines) {
+    const t = line.trim();
+    if (!t) { flushPara(); continue; }
+
+    if (isJdSection(t)) {
+      flushPara();
+      inMeta = false;
+      cur = { heading: t.replace(/:$/, ""), bullets: [], paras: [] };
+      sections.push(cur);
+      continue;
+    }
+
+    if (t.startsWith("•") || t.startsWith("‣") || t.startsWith("-")) {
+      flushPara();
+      inMeta = false;
+      if (!cur) { cur = { heading: "", bullets: [], paras: [] }; sections.push(cur); }
+      cur.bullets.push(t.replace(/^[•‣\-]\s*/, ""));
+      continue;
+    }
+
+    // Metadata: "Field  Value" (two or more spaces separating key from value)
+    if (inMeta) {
+      const parts = line.split(/  +/);
+      if (parts.length >= 2 && parts[0].trim() && parts[1].trim()) {
+        const key = parts[0].trim();
+        const val = parts.slice(1).join("  ").trim();
+        if (!title && /^Data Engineer|^Software|^Senior|^Junior|^Lead|^Principal/i.test(val)) title = val;
+        if (/department|agency/i.test(key)) org = val;
+        meta.push([key, val]);
+        continue;
+      }
+      // Short un-split line before metadata = likely the job title
+      if (!title && t.length < 60 && !/^Role/.test(t)) { title = t; continue; }
+    }
+
+    if (cur) {
+      if (cur.bullets.length === 0) paraAccum.push(t);
+      else cur.bullets[cur.bullets.length - 1] += " " + t; // continuation of bullet
+    }
+  }
+  flushPara();
+  return { title: title || fallbackTitle || "Job Description", org, meta, sections };
+}
+
+function FormatJd({ text, jobTitle }: { text: string; jobTitle?: string }) {
+  if (!text.trim()) return (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3">
+        <svg className="h-5 w-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      </div>
+      <p className="text-sm text-muted-foreground">No description available.</p>
+    </div>
+  );
+
+  const { title, org, meta, sections } = parseJd(text, jobTitle);
+
+  // Spotlight meta rows: cluster, department, classification, date
+  const spotlightKeys = ["cluster", "department", "classification", "date of approval", "agency website"];
+  const spotlightMeta = meta.filter(([k]) => spotlightKeys.some(s => k.toLowerCase().includes(s)));
+  const detailMeta = meta.filter(([k]) => !spotlightKeys.some(s => k.toLowerCase().includes(s)));
+
+  return (
+    <div className="space-y-5">
+      {/* ── Hero header ── */}
+      <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-6">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent pointer-events-none" />
+        <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-primary/70 mb-2">Position</p>
+        <h1 className="text-2xl font-bold text-foreground tracking-tight leading-tight">{title}</h1>
+        {org && (
+          <div className="mt-2 flex items-center gap-1.5">
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-xs text-primary font-medium">
+              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+              {org}
+            </span>
+          </div>
+        )}
+        {spotlightMeta.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {spotlightMeta.map(([k, v], i) => (
+              <span key={i} className="text-[11px] text-muted-foreground">
+                <span className="text-muted-foreground/50">{k}: </span>{v}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Detail metadata grid ── */}
+      {detailMeta.length > 0 && (
+        <div className="rounded-xl border border-border/50 bg-muted/20 overflow-hidden">
+          <div className="grid grid-cols-[auto_1fr] divide-y divide-border/30">
+            {detailMeta.map(([k, v], i) => (
+              <div key={i} className="contents">
+                <div className="px-3 py-2 bg-muted/30 text-[11px] text-muted-foreground/60 font-medium">{k}</div>
+                <div className="px-3 py-2 text-[11px] text-foreground">{v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Sections ── */}
+      {sections.map((sec, i) => (
+        <div key={i} className="space-y-2">
+          {sec.heading && (
+            <div className="flex items-center gap-2">
+              <span className="h-4 w-0.5 rounded-full bg-primary shrink-0" />
+              <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-primary">
+                {sec.heading}
+              </h3>
+            </div>
+          )}
+          {sec.paras.map((p, j) => (
+            <p key={j} className="text-sm text-muted-foreground leading-relaxed pl-3">{p}</p>
+          ))}
+          {sec.bullets.length > 0 && (
+            <ul className="space-y-2 pl-3">
+              {sec.bullets.map((item, j) => (
+                <li key={j} className="flex gap-3 text-sm text-muted-foreground">
+                  <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary/60 shrink-0" />
+                  <span className="leading-relaxed">{item}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// RESUME FORMATTER — modern resume template
+// ════════════════════════════════════════════════════════════════════════════
+const RESUME_SECTIONS = new Set([
+  "education", "experience", "skills", "technical skills", "projects",
+  "certifications", "certification", "summary", "objective",
+  "work experience", "professional experience", "professional summary",
+  "core competencies", "publications", "awards", "activities",
+  "languages", "interests", "volunteering", "volunteer", "leadership",
+  "references", "additional", "achievements", "key skills",
+]);
+
+const DATE_RE = /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s+\d{4}|\d{4}\s*[-–]\s*(?:\d{4}|Present|Current)/i;
+
+type ResumeBlock =
+  | { kind: "header"; name: string; contact: string }
+  | { kind: "section"; text: string }
+  | { kind: "entry"; org: string; date: string; subtitle: string[]; bullets: string[] }
+  | { kind: "bullets"; items: string[] }
+  | { kind: "text"; text: string };
+
+function parseResume(text: string): ResumeBlock[] {
+  const lines = cleanPdf(text);
+  const blocks: ResumeBlock[] = [];
+
+  const stripIcons = (s: string) =>
+    s.replace(/\/[a-zA-Z]+[^\s]*/g, "").replace(/\s+/g, " ").trim();
+
+  let i = 0;
+  // Skip blanks, grab name
+  while (i < lines.length && !lines[i].trim()) i++;
+  const name = stripIcons(lines[i] ?? ""); i++;
+  // Contact line
+  let contact = "";
+  if (i < lines.length) {
+    const cl = stripIcons(lines[i]);
+    if (cl.includes("@") || cl.includes("+") || /\d{7,}/.test(cl)) { contact = cl; i++; }
+  }
+  blocks.push({ kind: "header", name, contact });
+
+  let curSection = "";
+  let curEntry: Extract<ResumeBlock, { kind: "entry" }> | null = null;
+  let pendingBullets: string[] = [];
+  let pendingText: string[] = [];
+
+  function flushBullets() {
+    if (!pendingBullets.length) return;
+    if (curEntry) { curEntry.bullets.push(...pendingBullets); pendingBullets = []; }
+    else { blocks.push({ kind: "bullets", items: [...pendingBullets] }); pendingBullets = []; }
+  }
+  function flushText() {
+    if (!pendingText.length) return;
+    if (curEntry) { curEntry.subtitle.push(pendingText.join(" ")); pendingText = []; }
+    else { blocks.push({ kind: "text", text: pendingText.join(" ") }); pendingText = []; }
+  }
+  function flushEntry() {
+    if (curEntry) { blocks.push({ ...curEntry }); curEntry = null; }
+  }
+
+  for (; i < lines.length; i++) {
+    const raw = lines[i];
+    const t = stripIcons(raw);
+    if (!t) { flushBullets(); flushText(); continue; }
+
+    const lower = t.toLowerCase().replace(/:$/, "");
+
+    if (RESUME_SECTIONS.has(lower)) {
+      flushBullets(); flushText(); flushEntry();
+      curSection = lower;
+      blocks.push({ kind: "section", text: t.replace(/:$/, "") });
+      continue;
+    }
+
+    if (t.startsWith("•") || t.startsWith("-") || t.startsWith("*")) {
+      flushText();
+      const item = t.replace(/^[•\-\*]\s*/, "");
+      if (curEntry) curEntry.bullets.push(item);
+      else pendingBullets.push(item);
+      continue;
+    }
+
+    // Entry line detection (company/institution with date)
+    const inExpOrEdu = ["experience", "education", "work experience", "professional experience"].includes(curSection);
+    const dateMatch = t.match(DATE_RE);
+    if (inExpOrEdu && dateMatch) {
+      flushBullets(); flushText(); flushEntry();
+      const datePart = dateMatch[0];
+      const orgPart = t.replace(datePart, "").replace(/\s+$/, "").trim();
+      curEntry = { kind: "entry", org: orgPart, date: datePart, subtitle: [], bullets: [] };
+      continue;
+    }
+
+    // Sub-line of an entry (role title, location, etc.)
+    if (curEntry && !pendingBullets.length) { curEntry.subtitle.push(t); continue; }
+
+    flushBullets(); flushText();
+    pendingText.push(t);
+  }
+  flushBullets(); flushText(); flushEntry();
+  return blocks;
+}
+
+const SECTION_ICONS: Record<string, string> = {
+  education: "🎓", experience: "💼", "work experience": "💼",
+  "professional experience": "💼", skills: "⚡", "technical skills": "⚡",
+  "key skills": "⚡", projects: "🚀", certifications: "🏅",
+  certification: "🏅", summary: "👤", "professional summary": "👤",
+  achievements: "🌟", awards: "🌟", languages: "🌐",
+};
+
+function FormatResume({ text }: { text: string }) {
+  if (!text.trim()) return (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <p className="text-sm text-muted-foreground">No content available.</p>
+    </div>
+  );
+  const blocks = parseResume(text);
+
+  return (
+    <div className="space-y-4">
+      {blocks.map((b, i) => {
+        if (b.kind === "header") return (
+          <div key={i} className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-6">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent pointer-events-none" />
+            <div className="relative">
+              <h1 className="text-2xl font-bold text-foreground tracking-tight">{b.name || "—"}</h1>
+              {b.contact && (
+                <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">{b.contact}</p>
+              )}
+            </div>
+          </div>
+        );
+
+        if (b.kind === "section") {
+          const icon = SECTION_ICONS[b.text.toLowerCase()] ?? "◆";
+          return (
+            <div key={i} className="flex items-center gap-2 pt-1">
+              <span className="text-sm">{icon}</span>
+              <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-primary flex-1">{b.text}</h3>
+              <span className="h-px flex-1 bg-border/50" />
+            </div>
+          );
+        }
+
+        if (b.kind === "entry") return (
+          <div key={i} className="group rounded-xl border border-border/40 bg-card/50 hover:border-primary/20 hover:bg-card transition-colors p-3.5 space-y-2">
+            <div className="flex items-start justify-between gap-3">
+              <span className="text-sm font-semibold text-foreground leading-snug">{b.org}</span>
+              {b.date && (
+                <span className="shrink-0 rounded-full bg-primary/8 border border-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary/80">
+                  {b.date}
+                </span>
+              )}
+            </div>
+            {b.subtitle.map((s, j) => (
+              <p key={j} className="text-xs text-muted-foreground italic">{s}</p>
+            ))}
+            {b.bullets.length > 0 && (
+              <ul className="space-y-1.5 pt-0.5">
+                {b.bullets.map((item, j) => (
+                  <li key={j} className="flex gap-2.5 text-sm text-muted-foreground">
+                    <span className="mt-2 h-1 w-1 rounded-full bg-primary/50 shrink-0" />
+                    <span className="leading-relaxed">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        );
+
+        if (b.kind === "bullets") return (
+          <ul key={i} className="space-y-1.5">
+            {b.items.map((item, j) => (
+              <li key={j} className="flex gap-2.5 text-sm text-muted-foreground">
+                <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary/60 shrink-0" />
+                <span className="leading-relaxed">{item}</span>
+              </li>
+            ))}
+          </ul>
+        );
+
+        if (b.kind === "text") return (
+          <p key={i} className="text-sm text-muted-foreground leading-relaxed">{b.text}</p>
+        );
+        return null;
+      })}
+    </div>
   );
 }
 
@@ -358,11 +738,19 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
   const [runs, setRuns] = useState<ProjectRun[]>([]);
   const [reports, setReports] = useState<ProjectReport[]>([]);
   const [context, setContextText] = useState("");
-  const [contextDraft, setContextDraft] = useState("");
+  const [customContext, setCustomContext] = useState("");
   const [contextSaving, setContextSaving] = useState(false);
-  const [prompts, setPrompts] = useState<Array<{ name: string; content: string; metadata?: { description?: string } }>>([]);
   const [resumeNames, setResumeNames] = useState<Record<string, string>>({});
+  const [resumeDetails, setResumeDetails] = useState<Record<string, { name: string; preview: string; summary: string; skills: string[] }>>({});
+  const [contextScore, setContextScore] = useState<ContextScore | null>(null);
+  const [selectedContextKeys, setSelectedContextKeys] = useState<string[]>([]);
+  const [scoringLoading, setScoringLoading] = useState(false);
   const [selectedRun, setSelectedRun] = useState<ProjectRun | null>(null);
+  const [rightPanel, setRightPanel] = useState<"run" | "resume" | "jd">("run");
+  const [previewResumeId, setPreviewResumeId] = useState<string | null>(null);
+  const [resumeLoading, setResumeLoading] = useState(false);
+  const [previewJd, setPreviewJd] = useState<{ id: string; title: string; description: string } | null>(null);
+  const [jdLoading, setJdLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"runs" | "context" | "resumes">("resumes");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -390,23 +778,33 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
         getProject(projectId),
         listRuns(projectId),
         listReports(projectId),
-        getProjectContext(projectId).catch(() => ({ context: "" })),
+        getProjectContext(projectId).catch(() => ({ context: "", context_config: null })),
       ]);
       setProject(proj);
       setRuns(runList);
       setReports(reportList);
       setContextText(ctx.context ?? "");
-      setContextDraft(ctx.context ?? "");
+      // Restore saved context_config
+      if (ctx.context_config) {
+        setSelectedContextKeys(ctx.context_config.enhancements ?? []);
+        setCustomContext(ctx.context_config.custom ?? "");
+      } else if (ctx.context) {
+        setCustomContext(ctx.context);
+      }
       if (runList.length > 0 && !selectedRun) setSelectedRun(runList[0]);
 
-      // Fetch names for resumes in this project
       if (proj.resume_ids?.length > 0) {
         fetch(`/api/recruiter-ranking/resumes?org_id=global&limit=200`)
           .then(r => r.ok ? r.json() : { items: [] })
-          .then((d: { items?: Array<{ id: string; name: string }> }) => {
-            const map: Record<string, string> = {};
-            (d.items ?? []).forEach(r => { map[r.id] = r.name; });
-            setResumeNames(map);
+          .then((d: { items?: Array<{ id: string; name: string; preview?: string; summary?: string; skills?: string[] }> }) => {
+            const names: Record<string, string> = {};
+            const details: Record<string, { name: string; preview: string; summary: string; skills: string[] }> = {};
+            (d.items ?? []).forEach(r => {
+              names[r.id] = r.name;
+              details[r.id] = { name: r.name, preview: r.preview ?? "", summary: r.summary ?? "", skills: r.skills ?? [] };
+            });
+            setResumeNames(names);
+            setResumeDetails(details);
           })
           .catch(() => {});
       }
@@ -417,13 +815,19 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
     }
   }, [projectId, selectedRun]);
 
-  // Load admin prompts for context presets (once)
+  // Fetch context scores when context tab becomes active or selected keys change
+  const fetchContextScore = useCallback(async (keys: string[]) => {
+    setScoringLoading(true);
+    try {
+      const result = await scoreContext(projectId, keys);
+      setContextScore(result);
+    } catch { /* silent */ }
+    finally { setScoringLoading(false); }
+  }, [projectId]);
+
   useEffect(() => {
-    fetch("/api/admin/prompts")
-      .then(r => r.ok ? r.json() : { prompts: [] })
-      .then(d => setPrompts(d.prompts ?? []))
-      .catch(() => {});
-  }, []);
+    if (activeTab === "context") fetchContextScore(selectedContextKeys);
+  }, [activeTab, selectedContextKeys, fetchContextScore]);
 
   useEffect(() => { fetchAll(); }, [projectId]); // eslint-disable-line
 
@@ -448,13 +852,73 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
   async function handleSaveContext() {
     setContextSaving(true);
     try {
-      const result = await setProjectContext(projectId, contextDraft);
+      // Compile context text from selected dimensions + custom text
+      const coreDims = contextScore?.dimensions.filter(d => d.core) ?? [];
+      const selectedEnhDims = contextScore?.dimensions.filter(d => !d.core && selectedContextKeys.includes(d.key)) ?? [];
+      const allActive = [...coreDims, ...selectedEnhDims];
+
+      let compiled = "";
+      if (allActive.length > 0) {
+        compiled += "Assessment criteria:\n";
+        allActive.forEach(d => {
+          compiled += `- ${d.label}: ${d.description}\n`;
+        });
+      }
+      if (customContext.trim()) {
+        compiled += (compiled ? "\nAdditional context:\n" : "") + customContext.trim();
+      }
+
+      const config: ContextConfig = {
+        enhancements: selectedContextKeys,
+        custom: customContext,
+      };
+      const result = await setProjectContext(projectId, compiled, config);
       setContextText(result.context);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to save context");
     } finally {
       setContextSaving(false);
     }
+  }
+
+  async function handlePreviewResume(rid: string) {
+    setPreviewResumeId(rid);
+    setSelectedRun(null);
+    setRightPanel("resume");
+    // Fetch fresh resume data on demand
+    if (!resumeDetails[rid]?.preview) {
+      setResumeLoading(true);
+      try {
+        const res = await fetch(`/api/resumes/${rid}`);
+        if (res.ok) {
+          const data = await res.json();
+          const r = data.resume ?? data;
+          setResumeDetails(prev => ({
+            ...prev,
+            [rid]: {
+              name: r.candidate_name ?? r.name ?? resumeNames[rid] ?? "",
+              preview: r.preview ?? r.content ?? r.extracted_text ?? "",
+              summary: r.summary ?? "",
+              skills: Array.isArray(r.skills) ? r.skills : [],
+            },
+          }));
+        }
+      } catch { /* silent */ }
+      finally { setResumeLoading(false); }
+    }
+  }
+
+  async function handlePreviewJd(jobId: string) {
+    if (previewJd?.id === jobId) { setRightPanel("jd"); return; }
+    setJdLoading(true);
+    setRightPanel("jd");
+    try {
+      const res = await fetch(`/api/jobs/${jobId}`);
+      const data = await res.json();
+      const job = data.job ?? data;
+      setPreviewJd({ id: jobId, title: job.title ?? "Job Description", description: job.description || job.jd_content || "" });
+    } catch { /* silent */ }
+    finally { setJdLoading(false); }
   }
 
   if (loading) return (
@@ -489,7 +953,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
 
       <div className="flex h-full" style={{ height: "calc(100vh - 56px)" }}>
         {/* ── LEFT: Project Info ── */}
-        <aside className="w-72 shrink-0 border-r border-border bg-card flex flex-col overflow-hidden">
+        <aside className="w-[32rem] shrink-0 border-r border-border bg-card flex flex-col overflow-hidden">
           {/* Header */}
           <div className="px-4 py-4 border-b border-border">
             <Link href="/recruiters/projects" className="text-xs text-muted-foreground hover:text-primary mb-2 flex items-center gap-1">
@@ -500,6 +964,23 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
             </Link>
             <h1 className="text-sm font-bold text-foreground leading-tight mt-1">{project.name}</h1>
             {project.description && <p className="text-xs text-muted-foreground mt-1">{project.description}</p>}
+
+            {/* JD Banner */}
+            {project.job_id ? (
+              <button
+                onClick={() => handlePreviewJd(project.job_id!)}
+                className={`mt-2 w-full flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-left transition-colors ${
+                  rightPanel === "jd" ? "border-blue-500/40 bg-blue-500/10 text-blue-400" : "border-border bg-muted/30 text-muted-foreground hover:border-blue-500/30 hover:text-foreground"
+                }`}
+              >
+                <svg className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span className="text-xs truncate">{previewJd?.title ?? "View Job Description"}</span>
+              </button>
+            ) : (
+              <p className="mt-2 text-xs text-muted-foreground italic">No JD linked</p>
+            )}
             {!confirmDelete ? (
               <button
                 onClick={() => setConfirmDelete(true)}
@@ -563,14 +1044,18 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                   </div>
                 ) : (
                   project.resume_ids.map((rid) => (
-                    <div key={rid} className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
+                    <div key={rid} className={`flex items-center justify-between rounded-lg border px-3 py-2 cursor-pointer transition-colors ${
+                      rightPanel === "resume" && previewResumeId === rid ? "border-primary/40 bg-primary/5" : "border-border bg-muted/30 hover:border-primary/30 hover:bg-muted/50"
+                    }`}
+                      onClick={() => handlePreviewResume(rid)}
+                    >
                       <div className="min-w-0">
                         <p className="text-xs font-medium text-foreground truncate">
                           {resumeNames[rid] ?? `Resume …${rid.slice(-6)}`}
                         </p>
                         <p className="text-xs text-muted-foreground font-mono truncate">{rid.slice(-8)}</p>
                       </div>
-                      <button onClick={() => handleRemoveResume(rid)}
+                      <button onClick={(e) => { e.stopPropagation(); handleRemoveResume(rid); }}
                         className="text-xs text-muted-foreground hover:text-rose-400 ml-2 shrink-0">✕</button>
                     </div>
                   ))
@@ -587,7 +1072,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                   </div>
                 ) : (
                   runs.map(run => (
-                    <button key={run.id} onClick={() => setSelectedRun(run)}
+                    <button key={run.id} onClick={() => { setSelectedRun(run); setRightPanel("run"); setPreviewResumeId(null); }}
                       className={`w-full text-left rounded-lg border px-3 py-2.5 transition ${
                         selectedRun?.id === run.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/30 hover:bg-muted/30"
                       }`}
@@ -603,60 +1088,146 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
             {/* CONTEXT TAB */}
             {activeTab === "context" && (
               <div className="p-3 space-y-3">
+                {/* Header */}
                 <div>
-                  <p className="text-xs font-semibold text-foreground mb-1">Assessment Context</p>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Set the context and criteria for AI runs. This is appended to every AI assessment prompt.
+                  <p className="text-xs font-semibold text-foreground mb-0.5">Assessment Context</p>
+                  <p className="text-xs text-muted-foreground">
+                    Context dimensions improve AI analysis quality. Select what matters for this role.
                   </p>
                 </div>
 
-                {/* Preset prompt buttons */}
-                {prompts.length > 0 && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1.5 font-medium">Load from preset:</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {prompts.map(p => (
-                        <button
-                          key={p.name}
-                          onClick={() => setContextDraft(prev =>
-                            prev ? `${prev}\n\n---\n${p.content}` : p.content
-                          )}
-                          title={p.metadata?.description ?? p.name}
-                          className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors capitalize"
-                        >
-                          {p.name.replace(/_/g, " ")}
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-xs text-zinc-600 mt-1">Click to append preset · edit below to customise</p>
+                {scoringLoading && !contextScore && (
+                  <div className="flex items-center gap-2 py-2">
+                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                    <span className="text-xs text-muted-foreground">Analysing JD & resumes…</span>
                   </div>
                 )}
 
-                <textarea
-                  value={contextDraft}
-                  onChange={e => setContextDraft(e.target.value)}
-                  rows={10}
-                  className="input h-auto resize-none text-xs w-full"
-                  placeholder={`e.g.\n- Focus on candidates with 5+ years experience\n- Leadership potential is important\n- Must have experience with distributed systems\n- Prefer candidates open to remote work`}
-                />
+                {contextScore && (() => {
+                  const coreDims = contextScore.dimensions.filter(d => d.core);
+                  const enhDims = contextScore.dimensions.filter(d => !d.core);
+                  const allEnhKeys = enhDims.map(d => d.key);
+                  const allSelected = allEnhKeys.every(k => selectedContextKeys.includes(k));
+                  const coreGain = coreDims.reduce((s, d) => s + d.predicted_improvement, 0);
+
+                  function toggleKey(key: string) {
+                    setSelectedContextKeys(prev =>
+                      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+                    );
+                  }
+
+                  return (
+                    <>
+                      {/* CORE section */}
+                      <div className="rounded-lg border border-border bg-muted/30 p-2.5 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-semibold text-foreground">Core — always applied</p>
+                          <span className="text-xs font-semibold text-emerald-400">+{coreGain.toFixed(0)}%</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {coreDims.map(d => (
+                            <div key={d.key} className="rounded-md border border-emerald-500/30 bg-emerald-500/5 px-2 py-1.5">
+                              <p className="text-xs font-medium text-emerald-400 leading-tight">✓ {d.label}</p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">+{d.predicted_improvement.toFixed(0)}%</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Enhancement pills */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-semibold text-foreground">Add more context</p>
+                          <button
+                            onClick={() => setSelectedContextKeys(allSelected ? [] : allEnhKeys)}
+                            className="text-[10px] text-primary hover:underline font-medium"
+                          >
+                            {allSelected ? "Deselect All" : "Select All"}
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {enhDims.map(d => {
+                            const on = selectedContextKeys.includes(d.key);
+                            return (
+                              <button
+                                key={d.key}
+                                onClick={() => toggleKey(d.key)}
+                                title={d.description}
+                                className={`rounded-md border px-2 py-1.5 text-left transition-colors ${
+                                  on
+                                    ? "border-primary/40 bg-primary/10 text-primary"
+                                    : "border-border bg-background text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                                }`}
+                              >
+                                <p className="text-xs font-medium leading-tight">{on ? "✓" : "+"} {d.label}</p>
+                                <p className="text-[10px] mt-0.5 opacity-70">+{d.predicted_improvement.toFixed(0)}% predicted</p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Stack Score bar */}
+                      <div className="rounded-lg border border-border bg-muted/30 p-2.5 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-semibold text-foreground">Context Stack Score</p>
+                          <span className={`text-xs font-bold ${
+                            contextScore.stack_score >= 80 ? "text-emerald-400" :
+                            contextScore.stack_score >= 70 ? "text-blue-400" : "text-amber-400"
+                          }`}>{contextScore.stack_score.toFixed(0)}%</span>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-border overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              contextScore.stack_score >= 80 ? "bg-emerald-500" :
+                              contextScore.stack_score >= 70 ? "bg-blue-500" : "bg-amber-500"
+                            }`}
+                            style={{ width: `${contextScore.stack_score}%` }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          baseline {contextScore.baseline}% → core {(contextScore.baseline + coreGain).toFixed(0)}% → selected {contextScore.stack_score.toFixed(0)}% signal quality
+                        </p>
+                        {!contextScore.jd_found && (
+                          <p className="text-[10px] text-amber-400">⚠ No JD linked — scores estimated without JD analysis</p>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()}
+
+                {/* Custom context textarea */}
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-foreground">Custom context</p>
+                  <p className="text-[10px] text-muted-foreground">Any additional criteria not covered above</p>
+                  <textarea
+                    value={customContext}
+                    onChange={e => setCustomContext(e.target.value)}
+                    rows={5}
+                    className="input h-auto resize-none text-xs w-full"
+                    placeholder={`e.g. Must have 5+ years experience, open to relocation, prefer AWS over GCP`}
+                  />
+                </div>
+
+                {/* Save / Clear */}
                 <div className="flex items-center gap-2">
-                  <button onClick={handleSaveContext} disabled={contextSaving || contextDraft === context}
-                    className="flex-1 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40 transition-opacity">
+                  <button
+                    onClick={handleSaveContext}
+                    disabled={contextSaving}
+                    className="flex-1 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40 transition-opacity"
+                  >
                     {contextSaving ? "Saving…" : "Save Context"}
                   </button>
-                  {contextDraft !== context && (
-                    <button onClick={() => setContextDraft(context)}
-                      className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground">
-                      Reset
-                    </button>
-                  )}
-                  {contextDraft && (
-                    <button onClick={() => setContextDraft("")}
-                      className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-rose-400">
+                  {(selectedContextKeys.length > 0 || customContext) && (
+                    <button
+                      onClick={() => { setSelectedContextKeys([]); setCustomContext(""); }}
+                      className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-rose-400"
+                    >
                       Clear
                     </button>
                   )}
                 </div>
+
                 {context && (
                   <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-2.5">
                     <p className="text-xs text-emerald-400 font-medium">✓ Context active — applied to all AI runs</p>
@@ -684,9 +1255,70 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
           </div>
         </aside>
 
-        {/* ── RIGHT: Results ── */}
+        {/* ── RIGHT: Preview Panel ── */}
         <main className="flex-1 min-w-0 overflow-y-auto bg-muted/20">
-          {!selectedRun ? (
+
+          {/* JD Preview */}
+          {rightPanel === "jd" && (
+            <div className="p-6">
+              {jdLoading ? (
+                <div className="space-y-3">
+                  <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 to-transparent p-6 animate-pulse">
+                    <div className="h-3 bg-muted rounded w-1/4 mb-3" />
+                    <div className="h-5 bg-muted rounded w-2/3 mb-2" />
+                    <div className="h-3 bg-muted rounded w-1/2" />
+                  </div>
+                  {[1,2].map(i => (
+                    <div key={i} className="rounded-xl border border-border bg-card p-4 animate-pulse space-y-2">
+                      <div className="h-3 bg-muted rounded w-1/4" />
+                      <div className="h-3 bg-muted rounded w-full" />
+                    </div>
+                  ))}
+                </div>
+              ) : previewJd ? (
+                <FormatJd text={previewJd.description} jobTitle={previewJd.title} />
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <p className="text-sm text-muted-foreground">Failed to load job description.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Resume Preview */}
+          {rightPanel === "resume" && previewResumeId && (
+            <div className="p-6">
+              {resumeLoading && !resumeDetails[previewResumeId] ? (
+                <div className="space-y-3">
+                  <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 to-transparent p-6 animate-pulse">
+                    <div className="h-4 bg-muted rounded w-1/2 mb-3" />
+                    <div className="h-3 bg-muted rounded w-3/4" />
+                  </div>
+                  {[1,2,3].map(i => (
+                    <div key={i} className="rounded-xl border border-border bg-card p-4 animate-pulse space-y-2">
+                      <div className="h-3 bg-muted rounded w-1/4" />
+                      <div className="h-3 bg-muted rounded w-full" />
+                      <div className="h-3 bg-muted rounded w-3/4" />
+                    </div>
+                  ))}
+                </div>
+              ) : resumeDetails[previewResumeId]?.preview ? (
+                <FormatResume text={resumeDetails[previewResumeId].preview} />
+              ) : resumeDetails[previewResumeId] ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  {resumeLoading && <span className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent mb-3" />}
+                  <p className="text-sm text-muted-foreground">No preview content available for this resume.</p>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <p className="text-sm text-muted-foreground">Could not load resume.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Run Results */}
+          {rightPanel === "run" && !selectedRun && (
             <div className="flex flex-col items-center justify-center h-full py-32 text-center">
               <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
                 <svg className="h-7 w-7 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -697,18 +1329,20 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
               <p className="mt-1.5 text-sm text-muted-foreground max-w-xs">
                 {project.resume_ids.length === 0
                   ? "Add resumes on the left, then run an AI assessment."
-                  : "Click \"Run AI Assessment\" to start ranking candidates."}
+                  : "Click a resume to preview it, or run an AI assessment."}
               </p>
               <div className="mt-4 flex gap-3 text-sm text-muted-foreground">
                 <span className={`flex items-center gap-1.5 ${project.resume_ids.length > 0 ? "text-emerald-400" : ""}`}>
                   {project.resume_ids.length > 0 ? "✓" : "○"} {project.resume_ids.length} resume{project.resume_ids.length !== 1 ? "s" : ""}
                 </span>
                 <span className={`flex items-center gap-1.5 ${context ? "text-emerald-400" : ""}`}>
-                  {context ? "✓" : "○"} {context ? "Context set" : "No context"}
+                  {context ? "✓" : "○"} {context ? `Context (${selectedContextKeys.length + 2} dims)` : "No context"}
                 </span>
               </div>
             </div>
-          ) : (
+          )}
+
+          {rightPanel === "run" && selectedRun && (
             <div className="p-6 space-y-4">
               {/* Run header */}
               <div className="flex items-center justify-between">
@@ -774,7 +1408,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                 </div>
               )}
 
-              {/* AI run notes — shown below results */}
+              {/* AI run notes */}
               {selectedRun.run_notes && (
                 <details className="rounded-lg border border-border bg-muted/20">
                   <summary className="cursor-pointer px-3 py-2 text-xs text-muted-foreground hover:text-foreground select-none">

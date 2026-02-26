@@ -190,13 +190,49 @@ export async function streamProjectRun(
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
-export async function getProjectContext(projectId: string): Promise<{ project_id: string; context: string }> {
+export interface ContextConfig {
+  enhancements: string[];
+  custom: string;
+}
+
+export async function getProjectContext(projectId: string): Promise<{ project_id: string; context: string; context_config: ContextConfig | null }> {
   return apiFetch(`${BASE}/${projectId}/context`);
 }
 
-export async function setProjectContext(projectId: string, context: string): Promise<{ project_id: string; context: string }> {
+export async function setProjectContext(
+  projectId: string,
+  context: string,
+  context_config?: ContextConfig,
+): Promise<{ project_id: string; context: string; context_config: ContextConfig | null }> {
   return apiFetch(`${BASE}/${projectId}/context`, {
     method: "PUT",
-    body: JSON.stringify({ context }),
+    body: JSON.stringify({ context, context_config }),
+  });
+}
+
+export interface ContextDimension {
+  key: string;
+  label: string;
+  description: string;
+  core: boolean;
+  selected: boolean;
+  jd_relevance: number;
+  coverage: number;
+  predicted_improvement: number;
+}
+
+export interface ContextScore {
+  baseline: number;
+  stack_score: number;
+  stack_gain: number;
+  resume_count: number;
+  jd_found: boolean;
+  dimensions: ContextDimension[];
+}
+
+export async function scoreContext(projectId: string, selectedKeys: string[]): Promise<ContextScore> {
+  return apiFetch(`${BASE}/${projectId}/context/score`, {
+    method: "POST",
+    body: JSON.stringify({ selected_keys: selectedKeys }),
   });
 }
