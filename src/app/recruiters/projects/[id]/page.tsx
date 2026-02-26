@@ -111,7 +111,7 @@ function parseJd(raw: string, fallbackTitle?: string): JdParsed {
       flushPara();
       inMeta = false;
       if (!cur) { cur = { heading: "", bullets: [], paras: [] }; sections.push(cur); }
-      cur.bullets.push(t.replace(/^[•‣\-]\s*/, ""));
+      cur.bullets.push(t.replace(/^[•‣-]\s*/, ""));
       continue;
     }
 
@@ -303,7 +303,7 @@ function parseResume(text: string): ResumeBlock[] {
 
     if (t.startsWith("•") || t.startsWith("-") || t.startsWith("*")) {
       flushText();
-      const item = t.replace(/^[•\-\*]\s*/, "");
+      const item = t.replace(/^[•*-]\s*/, "");
       if (curEntry) curEntry.bullets.push(item);
       else pendingBullets.push(item);
       continue;
@@ -463,7 +463,8 @@ function NewRunModal({
       });
     } finally {
       setIsStreaming(false);
-      // Don't close modal here — let user read results, then click Done
+      // Auto-close after 1.5s so user can read the summary
+      setTimeout(() => { onComplete(); onClose(); }, 1500);
     }
   }
 
@@ -940,7 +941,21 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
         <NewRunModal
           projectId={projectId}
           onClose={() => setShowRunModal(false)}
-          onComplete={() => { setShowRunModal(false); fetchAll(); }}
+          onComplete={async () => {
+            setShowRunModal(false);
+            setPreviewResumeId(null);
+            setRightPanel("run");
+            setActiveTab("runs");
+            // Refresh and auto-select the newest run
+            try {
+              const [proj, runList] = await Promise.all([getProject(projectId), listRuns(projectId)]);
+              setProject(proj);
+              setRuns(runList);
+              if (runList.length > 0) setSelectedRun(runList[0]);
+              // Also refresh reports
+              listReports(projectId).then(setReports).catch(() => {});
+            } catch { /* silent */ }
+          }}
         />
       )}
       {showResumePicker && (
