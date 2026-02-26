@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL_INTERNAL || "http://backend:8000";
+import { SERVER_BACKEND_URL } from "@/lib/server-backend-url";
+const BACKEND_URL = SERVER_BACKEND_URL;
 
 type P = { params: Promise<{ jobId: string }> };
 

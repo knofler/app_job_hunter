@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 async function proxy(request: NextRequest, init?: RequestInit) {
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL_INTERNAL || 'http://backend:8010';
+import { SERVER_BACKEND_URL } from '@/lib/server-backend-url';
+  const apiBaseUrl = SERVER_BACKEND_URL;
   
   // Build the backend endpoint for the base prompts path
   const endpoint = `${apiBaseUrl}/api/admin/prompts`;
