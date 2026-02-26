@@ -361,6 +361,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
   const [contextDraft, setContextDraft] = useState("");
   const [contextSaving, setContextSaving] = useState(false);
   const [prompts, setPrompts] = useState<Array<{ name: string; content: string; metadata?: { description?: string } }>>([]);
+  const [resumeNames, setResumeNames] = useState<Record<string, string>>({});
   const [selectedRun, setSelectedRun] = useState<ProjectRun | null>(null);
   const [activeTab, setActiveTab] = useState<"runs" | "context" | "resumes">("resumes");
   const [loading, setLoading] = useState(true);
@@ -397,6 +398,18 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
       setContextText(ctx.context ?? "");
       setContextDraft(ctx.context ?? "");
       if (runList.length > 0 && !selectedRun) setSelectedRun(runList[0]);
+
+      // Fetch names for resumes in this project
+      if (proj.resume_ids?.length > 0) {
+        fetch(`/api/recruiter-ranking/resumes?org_id=global&limit=200`)
+          .then(r => r.ok ? r.json() : { items: [] })
+          .then((d: { items?: Array<{ id: string; name: string }> }) => {
+            const map: Record<string, string> = {};
+            (d.items ?? []).forEach(r => { map[r.id] = r.name; });
+            setResumeNames(map);
+          })
+          .catch(() => {});
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load project");
     } finally {
@@ -416,8 +429,8 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
 
   async function handleAddResumes(ids: string[]) {
     try {
-      const updated = await addResumesToProject(projectId, ids);
-      setProject(updated);
+      await addResumesToProject(projectId, ids);
+      fetchAll(); // refresh project + resume names
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to add resumes");
     }
@@ -549,10 +562,12 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                     <p className="text-xs text-muted-foreground mt-1">Add resumes to run AI assessments.</p>
                   </div>
                 ) : (
-                  project.resume_ids.map((rid, i) => (
+                  project.resume_ids.map((rid) => (
                     <div key={rid} className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
                       <div className="min-w-0">
-                        <p className="text-xs font-medium text-foreground truncate">Resume {i + 1}</p>
+                        <p className="text-xs font-medium text-foreground truncate">
+                          {resumeNames[rid] ?? `Resume …${rid.slice(-6)}`}
+                        </p>
                         <p className="text-xs text-muted-foreground font-mono truncate">{rid.slice(-8)}</p>
                       </div>
                       <button onClick={() => handleRemoveResume(rid)}
