@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { SERVER_BACKEND_URL } from '@/lib/server-backend-url';
 
 async function proxy(request: NextRequest, init?: RequestInit) {
-import { SERVER_BACKEND_URL } from '@/lib/server-backend-url';
   const apiBaseUrl = SERVER_BACKEND_URL;
   
   // Build the backend endpoint for the base prompts path
