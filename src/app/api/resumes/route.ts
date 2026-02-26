@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { SERVER_BACKEND_URL } from "@/lib/server-backend-url";
 const BACKEND_URL = SERVER_BACKEND_URL;
 
+// Increase Vercel serverless body size limit from 4.5MB to 50MB for resume uploads
+export const maxDuration = 60; // seconds
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   try {
     const backendUrl = `${BACKEND_URL}/resumes/`;

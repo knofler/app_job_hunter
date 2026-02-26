@@ -461,8 +461,10 @@ export default function ResumePage() {
 
 		try {
 			if (bulkUploadMode && uploadFiles) {
-				// Bulk upload - upload each file
-				const uploadPromises = Array.from(uploadFiles).map(async (file) => {
+				// Bulk upload - upload sequentially to avoid Vercel concurrent function limits
+				const fileArray = Array.from(uploadFiles);
+				let uploaded = 0;
+				for (const file of fileArray) {
 					const formData = new FormData();
 					formData.append("candidate_name", uploadCandidateName.trim() || "Unknown Candidate");
 					formData.append("name", file.name.replace(/\.(pdf|docx|doc)$/i, '').trim() || "Untitled Resume");
@@ -476,15 +478,14 @@ export default function ResumePage() {
 					if (uploadType) {
 						formData.append("resume_type", uploadType);
 					}
-
-					return fetchFromApi<{ resume_id: string }>("/resumes/", {
+					await fetchFromApi<{ resume_id: string }>("/resumes/", {
 						method: "POST",
 						body: formData,
 					});
-				});
-
-				await Promise.all(uploadPromises);
-				setStatusMessage(`${uploadFiles.length} resumes uploaded successfully.`);
+					uploaded++;
+					setStatusMessage(`Uploading... ${uploaded} of ${fileArray.length}`);
+				}
+				setStatusMessage(`${fileArray.length} resumes uploaded successfully.`);
 			} else if (uploadFile) {
 				// Single upload
 				const formData = new FormData();
