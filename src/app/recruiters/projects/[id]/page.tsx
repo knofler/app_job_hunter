@@ -44,6 +44,20 @@ function ScoreBadge({ score }: { score: number }) {
 
 // ── Shared PDF text cleaner ───────────────────────────────────────────────────
 function cleanPdf(text: string): string[] {
+  // Detect word-per-line PDF extraction artifact: each word on its own line
+  // separated by "\n \n" (newline, space, newline). Section boundaries use "\n \n \n".
+  const roughLines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+  const isWordPerLine =
+    roughLines.length > 10 &&
+    roughLines.filter(l => l.length <= 20).length / roughLines.length > 0.75;
+
+  if (isWordPerLine) {
+    // Paragraph/section breaks (double blank "\n \n \n") → single newline
+    text = text.replace(/\n \n \n/g, "\n");
+    // Word boundaries (single blank "\n \n") → space
+    text = text.replace(/\n \n/g, " ");
+  }
+
   return text
     .split("\n")
     .map(l => l.replace(/[ \t]{2,}/g, " ").replace(/[♂♀⚥⚨]/g, "").trimEnd())
@@ -238,6 +252,9 @@ const RESUME_SECTIONS = new Set([
   "core competencies", "publications", "awards", "activities",
   "languages", "interests", "volunteering", "volunteer", "leadership",
   "references", "additional", "achievements", "key skills",
+  "recent experience", "recent relevant experience", "relevant experience",
+  "employment history", "career history", "work history",
+  "personal statement", "profile", "about me", "contact",
 ]);
 
 const DATE_RE = /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s+\d{4}|\d{4}\s*[-–]\s*(?:\d{4}|Present|Current)/i;
@@ -259,7 +276,21 @@ function parseResume(text: string): ResumeBlock[] {
   let i = 0;
   // Skip blanks, grab name
   while (i < lines.length && !lines[i].trim()) i++;
-  const name = stripIcons(lines[i] ?? ""); i++;
+  const rawName = stripIcons(lines[i] ?? ""); i++;
+  // If name line is long (word-per-line PDF joined headline), extract just the name portion
+  const JOB_TITLE_WORDS = new Set([
+    "engineer", "developer", "manager", "analyst", "designer", "consultant",
+    "specialist", "architect", "director", "lead", "senior", "junior", "head",
+    "officer", "coordinator", "executive", "associate", "principal", "staff",
+  ]);
+  const nameParts = rawName.split(/\s+/);
+  let nameEnd = nameParts.length;
+  for (let j = 1; j < nameParts.length; j++) {
+    if (JOB_TITLE_WORDS.has(nameParts[j].toLowerCase()) || /[|&@(]/.test(nameParts[j])) {
+      nameEnd = j; break;
+    }
+  }
+  const name = nameParts.slice(0, nameEnd || Math.min(nameParts.length, 3)).join(" ");
   // Contact line
   let contact = "";
   if (i < lines.length) {
@@ -301,6 +332,18 @@ function parseResume(text: string): ResumeBlock[] {
       continue;
     }
 
+    // All-caps line = likely a section header (handles non-standard names & word-per-line PDFs)
+    const isAllCapsHeader =
+      t.length >= 3 && t.length <= 60 &&
+      /^[A-Z][A-Z0-9 &/()–-]+$/.test(t) &&
+      !/^\d/.test(t);
+    if (isAllCapsHeader) {
+      flushBullets(); flushText(); flushEntry();
+      curSection = lower;
+      blocks.push({ kind: "section", text: t.replace(/:$/, "") });
+      continue;
+    }
+
     if (t.startsWith("•") || t.startsWith("-") || t.startsWith("*")) {
       flushText();
       const item = t.replace(/^[•*-]\s*/, "");
@@ -310,7 +353,11 @@ function parseResume(text: string): ResumeBlock[] {
     }
 
     // Entry line detection (company/institution with date)
-    const inExpOrEdu = ["experience", "education", "work experience", "professional experience"].includes(curSection);
+    const inExpOrEdu = [
+      "experience", "education", "work experience", "professional experience",
+      "recent experience", "recent relevant experience", "relevant experience",
+      "employment history", "career history", "work history",
+    ].includes(curSection);
     const dateMatch = t.match(DATE_RE);
     if (inExpOrEdu && dateMatch) {
       flushBullets(); flushText(); flushEntry();
