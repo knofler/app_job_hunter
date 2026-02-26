@@ -28,7 +28,7 @@ async function proxy(request: NextRequest, init?: RequestInit) {
     Object.assign(headers, init.headers as Record<string, string>);
   }
 
-  const response = await fetch(`${apiBaseUrl}/admin/llm/settings`, {
+  const response = await fetch(`${apiBaseUrl}/api/admin/llm/settings`, {
     ...init,
     headers,
     cache: "no-store",
