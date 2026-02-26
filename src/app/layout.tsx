@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { UserProvider } from '@/context/UserContext';
 import "./globals.css";
@@ -16,6 +16,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  themeColor: "#10b981",
+};
+
 export const metadata: Metadata = {
   title: "AI Job Hunter",
   description: "AI-powered career co-pilot for job seekers",
@@ -25,7 +29,6 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "JobHunter",
   },
-  themeColor: "#10b981",
 };
 
 export default function RootLayout({

@@ -195,6 +195,7 @@ export interface ContextConfig {
   enhancements: string[];
   custom: string;
   dim_overrides?: Record<string, string>;
+  dim_weights?: Record<string, number>;
 }
 
 export async function getProjectContext(projectId: string): Promise<{ project_id: string; context: string; context_config: ContextConfig | null }> {

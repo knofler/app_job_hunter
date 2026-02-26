@@ -850,6 +850,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
   const [contextSaving, setContextSaving] = useState(false);
   const [customDimText, setCustomDimText] = useState<Record<string, string>>({});
   const [expandedCoreDims, setExpandedCoreDims] = useState<string[]>([]);
+  const [dimWeights, setDimWeights] = useState<Record<string, number>>({});
   const [resumeNames, setResumeNames] = useState<Record<string, string>>({});
   const [resumeDetails, setResumeDetails] = useState<Record<string, { name: string; preview: string; summary: string; skills: string[] }>>({});
   const [contextScore, setContextScore] = useState<ContextScore | null>(null);
@@ -899,6 +900,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
         setSelectedContextKeys(ctx.context_config.enhancements ?? []);
         setCustomContext(ctx.context_config.custom ?? "");
         if (ctx.context_config.dim_overrides) setCustomDimText(ctx.context_config.dim_overrides);
+        if (ctx.context_config.dim_weights) setDimWeights(ctx.context_config.dim_weights);
       } else if (ctx.context) {
         setCustomContext(ctx.context);
       }
@@ -968,11 +970,15 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
       const selectedEnhDims = contextScore?.dimensions.filter(d => !d.core && selectedContextKeys.includes(d.key)) ?? [];
       const allActive = [...coreDims, ...selectedEnhDims];
 
+      const WEIGHT_LABELS: Record<number, string> = { 1: "low", 2: "below normal", 3: "normal", 4: "high", 5: "critical" };
+
       let compiled = "";
       if (allActive.length > 0) {
         compiled += "Assessment criteria:\n";
         allActive.forEach(d => {
-          compiled += `- ${d.label}: ${d.description}\n`;
+          const w = dimWeights[d.key] ?? 3;
+          const wLabel = WEIGHT_LABELS[w] ?? "normal";
+          compiled += `- ${d.label} (importance: ${wLabel}): ${d.description}\n`;
           const override = customDimText[d.key]?.trim();
           if (override) compiled += `  (Custom note: ${override})\n`;
         });
@@ -981,10 +987,12 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
         compiled += (compiled ? "\nAdditional context:\n" : "") + customContext.trim();
       }
 
+      const nonDefaultWeights = Object.fromEntries(Object.entries(dimWeights).filter(([, v]) => v !== 3));
       const config: ContextConfig = {
         enhancements: selectedContextKeys,
         custom: customContext,
         dim_overrides: Object.keys(customDimText).length > 0 ? customDimText : undefined,
+        dim_weights: Object.keys(nonDefaultWeights).length > 0 ? nonDefaultWeights : undefined,
       };
       const result = await setProjectContext(projectId, compiled, config);
       setContextText(result.context);
@@ -1286,6 +1294,30 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                                         <span className="text-[10px] text-muted-foreground">{(d.coverage * 100).toFixed(0)}%</span>
                                       </div>
                                     </div>
+                                    {/* Weight slider */}
+                                    <div className="space-y-1">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[10px] text-muted-foreground/60">AI weight</span>
+                                        <span className={`text-[10px] font-medium ${
+                                          (dimWeights[d.key] ?? 3) >= 5 ? "text-rose-400" :
+                                          (dimWeights[d.key] ?? 3) >= 4 ? "text-amber-400" :
+                                          (dimWeights[d.key] ?? 3) <= 1 ? "text-muted-foreground/50" :
+                                          (dimWeights[d.key] ?? 3) <= 2 ? "text-muted-foreground" :
+                                          "text-emerald-400"
+                                        }`}>
+                                          {["","Low","Below normal","Normal","High","Critical"][dimWeights[d.key] ?? 3]}
+                                        </span>
+                                      </div>
+                                      <input
+                                        type="range" min={1} max={5} step={1}
+                                        value={dimWeights[d.key] ?? 3}
+                                        onChange={e => setDimWeights(prev => ({ ...prev, [d.key]: Number(e.target.value) }))}
+                                        className="w-full h-1.5 accent-emerald-500 cursor-pointer"
+                                      />
+                                      <div className="flex justify-between text-[9px] text-muted-foreground/40">
+                                        <span>Low</span><span>Normal</span><span>Critical</span>
+                                      </div>
+                                    </div>
                                     <textarea
                                       value={customDimText[d.key] ?? ""}
                                       onChange={e => setCustomDimText(prev => ({ ...prev, [d.key]: e.target.value }))}
@@ -1350,6 +1382,30 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                                           <div className="h-full rounded-full bg-primary/70 transition-all" style={{ width: `${(d.coverage * 100).toFixed(0)}%` }} />
                                         </div>
                                         <span className="text-[10px] text-muted-foreground">{(d.coverage * 100).toFixed(0)}%</span>
+                                      </div>
+                                    </div>
+                                    {/* Weight slider */}
+                                    <div className="space-y-1">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[10px] text-muted-foreground/60">AI weight</span>
+                                        <span className={`text-[10px] font-medium ${
+                                          (dimWeights[d.key] ?? 3) >= 5 ? "text-rose-400" :
+                                          (dimWeights[d.key] ?? 3) >= 4 ? "text-amber-400" :
+                                          (dimWeights[d.key] ?? 3) <= 1 ? "text-muted-foreground/50" :
+                                          (dimWeights[d.key] ?? 3) <= 2 ? "text-muted-foreground" :
+                                          "text-primary"
+                                        }`}>
+                                          {["","Low","Below normal","Normal","High","Critical"][dimWeights[d.key] ?? 3]}
+                                        </span>
+                                      </div>
+                                      <input
+                                        type="range" min={1} max={5} step={1}
+                                        value={dimWeights[d.key] ?? 3}
+                                        onChange={e => setDimWeights(prev => ({ ...prev, [d.key]: Number(e.target.value) }))}
+                                        className="w-full h-1.5 accent-primary cursor-pointer"
+                                      />
+                                      <div className="flex justify-between text-[9px] text-muted-foreground/40">
+                                        <span>Low</span><span>Normal</span><span>Critical</span>
                                       </div>
                                     </div>
                                     <textarea
@@ -1420,7 +1476,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                   </button>
                   {(selectedContextKeys.length > 0 || customContext || Object.keys(customDimText).length > 0) && (
                     <button
-                      onClick={() => { setSelectedContextKeys([]); setCustomContext(""); setCustomDimText({}); }}
+                      onClick={() => { setSelectedContextKeys([]); setCustomContext(""); setCustomDimText({}); setDimWeights({}); }}
                       className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-rose-400"
                     >
                       Clear
