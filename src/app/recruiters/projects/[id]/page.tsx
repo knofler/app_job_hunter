@@ -360,6 +360,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
   const [context, setContextText] = useState("");
   const [contextDraft, setContextDraft] = useState("");
   const [contextSaving, setContextSaving] = useState(false);
+  const [prompts, setPrompts] = useState<Array<{ name: string; content: string; metadata?: { description?: string } }>>([]);
   const [selectedRun, setSelectedRun] = useState<ProjectRun | null>(null);
   const [activeTab, setActiveTab] = useState<"runs" | "context" | "resumes">("resumes");
   const [loading, setLoading] = useState(true);
@@ -402,6 +403,14 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
       setLoading(false);
     }
   }, [projectId, selectedRun]);
+
+  // Load admin prompts for context presets (once)
+  useEffect(() => {
+    fetch("/api/admin/prompts")
+      .then(r => r.ok ? r.json() : { prompts: [] })
+      .then(d => setPrompts(d.prompts ?? []))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => { fetchAll(); }, [projectId]); // eslint-disable-line
 
@@ -582,9 +591,32 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                 <div>
                   <p className="text-xs font-semibold text-foreground mb-1">Assessment Context</p>
                   <p className="text-xs text-muted-foreground mb-2">
-                    Set the assessment context and criteria for AI runs in this project. This is appended to every AI assessment prompt.
+                    Set the context and criteria for AI runs. This is appended to every AI assessment prompt.
                   </p>
                 </div>
+
+                {/* Preset prompt buttons */}
+                {prompts.length > 0 && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1.5 font-medium">Load from preset:</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {prompts.map(p => (
+                        <button
+                          key={p.name}
+                          onClick={() => setContextDraft(prev =>
+                            prev ? `${prev}\n\n---\n${p.content}` : p.content
+                          )}
+                          title={p.metadata?.description ?? p.name}
+                          className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors capitalize"
+                        >
+                          {p.name.replace(/_/g, " ")}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-zinc-600 mt-1">Click to append preset · edit below to customise</p>
+                  </div>
+                )}
+
                 <textarea
                   value={contextDraft}
                   onChange={e => setContextDraft(e.target.value)}
@@ -601,6 +633,12 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                     <button onClick={() => setContextDraft(context)}
                       className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground">
                       Reset
+                    </button>
+                  )}
+                  {contextDraft && (
+                    <button onClick={() => setContextDraft("")}
+                      className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-rose-400">
+                      Clear
                     </button>
                   )}
                 </div>
