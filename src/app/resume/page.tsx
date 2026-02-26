@@ -461,10 +461,12 @@ export default function ResumePage() {
 
 		try {
 			if (bulkUploadMode && uploadFiles) {
-				// Bulk upload - upload sequentially to avoid Vercel concurrent function limits
+				// Bulk upload - upload sequentially, skip bad files, continue with the rest
 				const fileArray = Array.from(uploadFiles);
 				let uploaded = 0;
+				const failed: { name: string; reason: string }[] = [];
 				for (const file of fileArray) {
+					setStatusMessage(`Uploading ${uploaded + 1} of ${fileArray.length}: ${file.name}`);
 					const formData = new FormData();
 					formData.append("candidate_name", uploadCandidateName.trim() || "Unknown Candidate");
 					formData.append("name", file.name.replace(/\.(pdf|docx|doc)$/i, '').trim() || "Untitled Resume");
@@ -478,14 +480,26 @@ export default function ResumePage() {
 					if (uploadType) {
 						formData.append("resume_type", uploadType);
 					}
-					await fetchFromApi<{ resume_id: string }>("/resumes/", {
-						method: "POST",
-						body: formData,
-					});
-					uploaded++;
-					setStatusMessage(`Uploading... ${uploaded} of ${fileArray.length}`);
+					try {
+						await fetchFromApi<{ resume_id: string }>("/resumes/", {
+							method: "POST",
+							body: formData,
+						});
+						uploaded++;
+					} catch (fileError) {
+						const reason = fileError instanceof Error ? fileError.message : "Unknown error";
+						failed.push({ name: file.name, reason });
+						console.warn(`Skipped "${file.name}": ${reason}`);
+					}
 				}
-				setStatusMessage(`${fileArray.length} resumes uploaded successfully.`);
+				if (failed.length === 0) {
+					setStatusMessage(`${uploaded} resume${uploaded !== 1 ? "s" : ""} uploaded successfully.`);
+				} else {
+					setStatusMessage(`${uploaded} uploaded, ${failed.length} skipped.`);
+					setErrorMessage(
+						`Could not read ${failed.length} file${failed.length !== 1 ? "s" : ""}: ${failed.map(f => f.name).join(", ")}`
+					);
+				}
 			} else if (uploadFile) {
 				// Single upload
 				const formData = new FormData();
