@@ -27,6 +27,7 @@ export interface ProjectRun {
   ranked: RankedCandidate[];
   run_notes: string;
   status: string;
+  duration_seconds?: number;
   created_at: string;
 }
 
@@ -148,7 +149,7 @@ export type StreamEvent =
   | { type: "status"; step: string; message: string }
   | { type: "result"; step: string; data: RankedCandidate[]; run_id: string; run_notes: string }
   | { type: "error"; step: string; message: string }
-  | { type: "complete"; step: string; run_id: string };
+  | { type: "complete"; step: string; run_id: string; duration_seconds?: number };
 
 export async function streamProjectRun(
   projectId: string,

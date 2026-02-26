@@ -544,7 +544,7 @@ function NewRunModal({
                 }>
                   {ev.type === "status" ? `▶ ${ev.message}` :
                    ev.type === "result" ? `✓ Results: ${Array.isArray(ev.data) ? ev.data.length : 0} candidates ranked` :
-                   ev.type === "complete" ? "✓ Run complete" :
+                   ev.type === "complete" ? `✓ Run complete${ev.duration_seconds != null ? ` · ${ev.duration_seconds}s` : ""}` :
                    ev.type === "error" ? `✗ ${ev.message}` : JSON.stringify(ev)}
                 </div>
               ))}
@@ -1093,7 +1093,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                       }`}
                     >
                       <p className="text-xs font-semibold text-foreground">{run.run_label || run.run_type}</p>
-                      <p className="text-xs text-muted-foreground">{run.ranked?.length ?? 0} candidates · {new Date(run.created_at).toLocaleDateString()}</p>
+                      <p className="text-xs text-muted-foreground">{run.ranked?.length ?? 0} candidates · {new Date(run.created_at).toLocaleDateString()}{run.duration_seconds != null ? ` · ${run.duration_seconds}s` : ""}</p>
                     </button>
                   ))
                 )}
@@ -1364,7 +1364,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                 <div>
                   <h2 className="text-base font-bold text-foreground">{selectedRun.run_label || selectedRun.run_type}</h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {new Date(selectedRun.created_at).toLocaleString()} · {selectedRun.ranked?.length ?? 0} candidates
+                    {new Date(selectedRun.created_at).toLocaleString()} · {selectedRun.ranked?.length ?? 0} candidates{selectedRun.duration_seconds != null ? ` · ${selectedRun.duration_seconds}s` : ""}
                   </p>
                 </div>
               </div>
