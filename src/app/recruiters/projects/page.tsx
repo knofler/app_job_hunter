@@ -113,14 +113,19 @@ function NewProjectModal({ onClose, onCreate }: {
     setUploadingJd(true);
     setError("");
     try {
+      const inferredTitle = jdFile.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " ");
       const formData = new FormData();
       formData.append("file", jdFile);
+      formData.append("title", inferredTitle);
       formData.append("org_id", DEFAULT_ORG);
       const res = await fetch("/api/jobs/upload-jd", { method: "POST", body: formData });
-      if (!res.ok) throw new Error(`Upload failed: ${res.statusText}`);
-      const data = await res.json();
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({})) as { detail?: string; error?: string };
+        throw new Error(errData.detail ?? errData.error ?? `Upload failed (${res.status})`);
+      }
+      const data = await res.json() as { id?: string; _id?: string; job_id?: string; title?: string };
       const id = data.id ?? data._id ?? data.job_id ?? "";
-      const title = data.title ?? jdFile.name.replace(/\.[^.]+$/, "");
+      const title = data.title ?? inferredTitle;
       if (!id) throw new Error("No JD ID returned");
       setUploadedJdId(id);
       setUploadedJdTitle(title);
