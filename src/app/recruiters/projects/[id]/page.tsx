@@ -83,7 +83,7 @@ function NewRunModal({
       });
     } finally {
       setIsStreaming(false);
-      onComplete();
+      // Don't close modal here — let user read results, then click Done
     }
   }
 
@@ -170,7 +170,7 @@ function NewRunModal({
               {isStreaming && <div className="text-muted-foreground animate-pulse">Running…</div>}
             </div>
             {!isStreaming && (
-              <button onClick={onClose}
+              <button onClick={() => { onComplete(); onClose(); }}
                 className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90">
                 Done
               </button>
