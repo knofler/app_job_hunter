@@ -644,7 +644,7 @@ function NewRunModal({
                         <span className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce [animation-delay:300ms]" />
                       </span>
                     )}
-                    {isError && <span className="text-xs text-rose-400 truncate max-w-[120px]">{errorEv?.message?.slice(0, 40)}</span>}
+                    {isError && <span className="text-xs text-rose-400 truncate max-w-[120px]">{(errorEv as { type: "error"; step: string; message: string } | undefined)?.message?.slice(0, 40)}</span>}
                   </div>
                 );
               })}
