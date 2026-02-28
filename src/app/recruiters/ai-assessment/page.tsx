@@ -132,8 +132,8 @@ export default function AIAssessmentPage() {
       setJdPasteMode(true);
       setJdText(jdTextParam);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+  }, []); // intentionally empty — only runs on mount
 
   // ── Resume search ──────────────────────────────────────────────────────────
   const searchResumes = useCallback(async (q: string) => {
