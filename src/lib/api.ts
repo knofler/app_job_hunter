@@ -47,6 +47,14 @@ function buildHeaders(init?: RequestInit): Headers {
     }
   }
 
+  // Inject org ID for multi-tenant scoping (falls back to "default" on backend if absent)
+  if (!headers.has("X-Org-Id")) {
+    const orgId = process.env.NEXT_PUBLIC_ORG_ID;
+    if (orgId) {
+      headers.set("X-Org-Id", orgId);
+    }
+  }
+
   return headers;
 }
 
