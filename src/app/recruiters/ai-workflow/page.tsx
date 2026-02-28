@@ -1,52 +1,28 @@
 "use client";
 
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import RecruiterChat from "@/components/RecruiterChat";
+import DeepAssessButton from "@/components/DeepAssessButton";
+import { useWorkflowRun } from "@/contexts/WorkflowRunContext";
 
-import { fallbackRecruiterWorkflow } from "@/lib/fallback-data";
-import { streamRecruiterWorkflow } from "@/lib/stream-utils";
+
 import {
   CandidateAnalysis,
   CandidateReadout,
   CandidateSummary,
   listCandidateResumes,
   listCandidates,
+  listAllResumes,
   RecruiterWorkflowRequest,
   RecruiterWorkflowResponse,
   ResumeSummary,
   JobDescription,
   listJobDescriptions,
   updateJobDescription,
-  saveWorkflowResult,
-  getLastWorkflow,
   searchCandidatesAndResumes,
   CandidateSearchResponse,
-  SearchResult,
 } from "@/lib/recruiter-workflow";
 
-const fallback = fallbackRecruiterWorkflow;
-
-const fallbackCoreSkills = fallback.coreSkills.map(item => ({
-  name: item.name,
-  reason: item.reason,
-}));
-
-const fallbackEngagementPlan = fallback.engagementInsights.map(item => ({
-  label: item.label,
-  value: item.value,
-  helper: item.helper ?? null,
-}));
-
-const fallbackFairnessGuidance = fallback.fairnessInsights.map(item => ({
-  label: item.label,
-  value: item.value,
-  helper: item.helper ?? null,
-}));
-
-const fallbackInterviewPack = fallback.interviewPreparation.map(item => ({
-  question: item.question,
-  rationale: item.rationale,
-}));
 
 const skillStatusClasses: Record<string, string> = {
   Yes: "bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -78,7 +54,22 @@ function isStepBefore(currentStep: string | null, targetStep: string): boolean {
 
 export default function RecruiterAIWorkflowPage() {
 
-  // State variables
+  // Workflow state lives in context — persists when navigating away
+  const {
+    isGenerating,
+    workflowResult,
+    streamingStep,
+    streamingMessage,
+    generationError,
+    lastAnalyzedAt,
+    analysisHistory,
+    viewingHistoryId,
+    setViewingHistoryId,
+    startWorkflow,
+    clearResult,
+  } = useWorkflowRun();
+
+  // Local page state (input controls only)
   const [jobTitle, setJobTitle] = useState("");
   const [jobCode, setJobCode] = useState("");
   const [jobLevel, setJobLevel] = useState("");
@@ -95,21 +86,16 @@ export default function RecruiterAIWorkflowPage() {
   const [candidatesLoading, setCandidatesLoading] = useState(true);
   const [candidateError, setCandidateError] = useState<string | null>(null);
   const [visibleCandidates, setVisibleCandidates] = useState(5);
-  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
-  const hasSetDefaultCandidate = useRef(false);
-  const [resumes, setResumes] = useState<ResumeSummary[]>([]);
-  const [resumeLoading, setResumeLoading] = useState(false);
+  // Multi-candidate selection: selectedCandidateIds = candidates included in the run
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null); // focused candidate for Detailed Readout
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState<Set<string>>(new Set());
+  const [resumesByCandidate, setResumesByCandidate] = useState<Map<string, ResumeSummary[]>>(new Map());
+  const [resumeOwnership, setResumeOwnership] = useState<Map<string, string>>(new Map()); // resumeId → candidateId
+  const [resumeLoadingIds, setResumeLoadingIds] = useState<Set<string>>(new Set()); // candidateIds currently loading
   const [resumeSearch, setResumeSearch] = useState("");
   const [searchResults, setSearchResults] = useState<CandidateSearchResponse | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [resumeCollapsed, setResumeCollapsed] = useState(false);
   const [selectedResumeIds, setSelectedResumeIds] = useState<string[]>([]);
-  const [workflowResult, setWorkflowResult] = useState<RecruiterWorkflowResponse | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generationError, setGenerationError] = useState<string | null>(null);
-  const [streamingStep, setStreamingStep] = useState<string | null>(null);
-  const [streamingMessage, setStreamingMessage] = useState<string | null>(null);
-  const [lastAnalyzedAt, setLastAnalyzedAt] = useState<Date | null>(null);
   const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
 
   // Load job descriptions
@@ -127,18 +113,35 @@ export default function RecruiterAIWorkflowPage() {
     loadJobDescriptions();
   }, []);
 
-  // Load candidates
+  // Load candidates + all uploaded resumes (as pseudo-candidates)
   useEffect(() => {
     const loadCandidates = async () => {
       try {
-        const response = await listCandidates();
-        setCandidates(response.items);
-        // Auto-select the default candidate (same as resume library) if none selected and we haven't set it yet
-        if (response.items.length > 0 && !selectedCandidateId && !hasSetDefaultCandidate.current) {
-          const defaultCandidate = response.items.find(c => c.candidate_id === "candidate_1") || response.items[0];
-          setSelectedCandidateId(defaultCandidate.candidate_id);
-          hasSetDefaultCandidate.current = true;
-        }
+        const [candidateResponse, resumeResponse] = await Promise.all([
+          listCandidates(),
+          listAllResumes(),
+        ]);
+
+        // Build a set of resume IDs already linked to a known candidate
+        // so we don't show duplicates
+        const knownCandidateIds = new Set(candidateResponse.items.map(c => c.candidate_id));
+
+        // Map standalone uploaded resumes → pseudo-CandidateSummary
+        const resumePseudoCandidates: CandidateSummary[] = (resumeResponse.items || [])
+          .filter(r => {
+            // Exclude if already covered by a known candidate
+            const linkedId = (r as Record<string, unknown>).user_id as string | undefined
+              || (r as Record<string, unknown>).candidate_id as string | undefined;
+            return !linkedId || !knownCandidateIds.has(linkedId);
+          })
+          .map(r => ({
+            candidate_id: r.id,
+            name: (r as Record<string, unknown>).candidate_name as string || r.name || r.id,
+            primary_role: r.type || "Uploaded Resume",
+          }));
+
+        const merged = [...candidateResponse.items, ...resumePseudoCandidates];
+        setCandidates(merged);
       } catch (error) {
         console.error("Failed to load candidates:", error);
         setCandidateError("Failed to load candidates");
@@ -149,47 +152,41 @@ export default function RecruiterAIWorkflowPage() {
     loadCandidates();
   }, []); // Empty dependency array - only run once on mount
 
-  // Load last workflow result
-  useEffect(() => {
-    const loadLastWorkflow = async () => {
-      try {
-        const result = await getLastWorkflow();
-        if ('job' in result) {
-          // It's a valid workflow response
-          setWorkflowResult(result);
-          setLastAnalyzedAt(new Date()); // Set to current time since we don't have the exact timestamp
-        }
-      } catch (error) {
-        console.error("Failed to load last workflow:", error);
-        // Don't show error to user, just continue with empty state
-      }
-    };
-    loadLastWorkflow();
-  }, []);
+  // Toggle a candidate in/out of the comparison run.
+  // Loads their resumes on first selection; removes them on deselection.
+  const toggleCandidate = async (candidateId: string) => {
+    setSelectedCandidateId(candidateId); // Always update focused candidate (for Detailed Readout)
 
-  // Load resumes when candidate changes
-  useEffect(() => {
-    if (!selectedCandidateId) {
-      setResumes([]);
-      setSelectedResumeIds([]);
-      return;
-    }
-    const loadResumes = async () => {
-      setResumeLoading(true);
+    if (selectedCandidateIds.has(candidateId)) {
+      // Deselect: remove their resumes from maps and deselect their resume IDs
+      const theirResumeIds = (resumesByCandidate.get(candidateId) || []).map(r => r.id);
+      setSelectedCandidateIds(prev => { const n = new Set(prev); n.delete(candidateId); return n; });
+      setResumesByCandidate(prev => { const n = new Map(prev); n.delete(candidateId); return n; });
+      setResumeOwnership(prev => { const n = new Map(prev); theirResumeIds.forEach(id => n.delete(id)); return n; });
+      setSelectedResumeIds(prev => prev.filter(id => !theirResumeIds.includes(id)));
+    } else {
+      // Select: add candidate, load their resumes
+      setSelectedCandidateIds(prev => new Set([...prev, candidateId]));
+      clearResult();
+      setResumeLoadingIds(prev => new Set([...prev, candidateId]));
       try {
-        const response = await listCandidateResumes(selectedCandidateId);
-        setResumes(response.resumes);
-        // Auto-select all resumes for the workflow
-        setSelectedResumeIds(response.resumes.map(resume => resume.id));
-      } catch (error) {
-        console.error("Failed to load resumes:", error);
-        setSelectedResumeIds([]);
+        const isPseudo = /^[a-f0-9]{24}$/i.test(candidateId);
+        const newResumes: ResumeSummary[] = isPseudo
+          ? [{ id: candidateId, name: candidates.find(c => c.candidate_id === candidateId)?.name || candidateId }]
+          : (await listCandidateResumes(candidateId)).resumes;
+        setResumesByCandidate(prev => new Map([...prev, [candidateId, newResumes]]));
+        setResumeOwnership(prev => {
+          const n = new Map(prev);
+          newResumes.forEach(r => n.set(r.id, candidateId));
+          return n;
+        });
+      } catch (e) {
+        console.error("Failed to load resumes for candidate", candidateId, e);
       } finally {
-        setResumeLoading(false);
+        setResumeLoadingIds(prev => { const n = new Set(prev); n.delete(candidateId); return n; });
       }
-    };
-    loadResumes();
-  }, [selectedCandidateId]);
+    }
+  };
 
   // Search candidates and resumes
   useEffect(() => {
@@ -253,27 +250,32 @@ export default function RecruiterAIWorkflowPage() {
 
   const workflowStepsRef = useRef<HTMLDivElement>(null);
 
+  // Compute active result early so useMemos below can reference it
+  // When generating → live streaming; when viewing history → that record; else → latest run
+  const viewingRecord = viewingHistoryId ? (analysisHistory.find(r => r.id === viewingHistoryId) ?? null) : null;
+  const activeResult = isGenerating ? workflowResult : (viewingRecord?.result ?? workflowResult);
+
   const candidateAnalysisById = useMemo(() => {
     const map = new Map<string, CandidateAnalysis>();
-    if (!workflowResult) {
+    if (!activeResult) {
       return map;
     }
-    for (const item of workflowResult.candidate_analysis) {
+    for (const item of activeResult.candidate_analysis) {
       map.set(item.candidate_id, item);
     }
     return map;
-  }, [workflowResult]);
+  }, [activeResult]);
 
   const readoutById = useMemo(() => {
     const map = new Map<string, CandidateReadout>();
-    if (!workflowResult) {
+    if (!activeResult) {
       return map;
     }
-    for (const item of workflowResult.detailed_readout) {
+    for (const item of activeResult.detailed_readout) {
       map.set(item.candidate_id, item);
     }
     return map;
-  }, [workflowResult]);
+  }, [activeResult]);
 
   const filteredJobDescriptions = useMemo(() => {
     if (!jobDescriptionSearch.trim()) {
@@ -288,45 +290,13 @@ export default function RecruiterAIWorkflowPage() {
   }, [jobDescriptions, jobDescriptionSearch]);
 
   const filteredCandidates = useMemo(() => {
-    if (!resumeSearch.trim()) {
-      return candidates;
-    }
+    if (!resumeSearch.trim()) return candidates;
     const searchLower = resumeSearch.toLowerCase();
-    
-    // Filter candidates by name/role, and if a candidate is selected, also check their resume content
-    return candidates.filter(candidate => {
-      // Always check candidate metadata
-      const candidateMatches = 
-        (candidate.name && typeof candidate.name === 'string' && candidate.name.toLowerCase().includes(searchLower)) ||
-        (candidate.primary_role && typeof candidate.primary_role === 'string' && candidate.primary_role.toLowerCase().includes(searchLower)) ||
-        (candidate.candidate_type && typeof candidate.candidate_type === 'string' && candidate.candidate_type.toLowerCase().includes(searchLower)) ||
-        (candidate.preferred_locations && candidate.preferred_locations.some((location: string) => location && typeof location === 'string' && location.toLowerCase().includes(searchLower)));
-      
-      // If this candidate is selected and we have their resumes loaded, also check resume content
-      if (candidate.candidate_id === selectedCandidateId) {
-        const resumeMatches = resumes.some(resume =>
-          (resume.name && typeof resume.name === 'string' && resume.name.toLowerCase().includes(searchLower)) ||
-          (resume.summary && typeof resume.summary === 'string' && resume.summary.toLowerCase().includes(searchLower)) ||
-          (resume.skills && resume.skills.some((skill: string) => skill && typeof skill === 'string' && skill.toLowerCase().includes(searchLower)))
-        );
-        return candidateMatches || resumeMatches;
-      }
-      
-      return candidateMatches;
-    });
-  }, [candidates, resumeSearch, selectedCandidateId, resumes]);
-
-  const filteredResumes = useMemo(() => {
-    if (!resumeSearch.trim()) {
-      return resumes;
-    }
-    const searchLower = resumeSearch.toLowerCase();
-    return resumes.filter(resume =>
-      (resume.name && typeof resume.name === 'string' && resume.name.toLowerCase().includes(searchLower)) ||
-      (resume.summary && typeof resume.summary === 'string' && resume.summary.toLowerCase().includes(searchLower)) ||
-      (resume.skills && resume.skills.some((skill: string) => skill && typeof skill === 'string' && skill.toLowerCase().includes(searchLower)))
+    return candidates.filter(candidate =>
+      (candidate.name && candidate.name.toLowerCase().includes(searchLower)) ||
+      (candidate.primary_role && candidate.primary_role.toLowerCase().includes(searchLower))
     );
-  }, [resumes, resumeSearch]);
+  }, [candidates, resumeSearch]);
 
   // Get search results for display
   const searchResultsForDisplay = useMemo(() => {
@@ -334,220 +304,49 @@ export default function RecruiterAIWorkflowPage() {
     return searchResults.results.slice(0, visibleCandidates);
   }, [searchResults, visibleCandidates]);
 
-  const topRecommendedResumes = useMemo((): (ResumeSummary & { matchScore: number })[] => {
-    if (!selectedJobId || resumes.length === 0) {
-      return [];
-    }
-    // This would need actual matching logic, for now return empty
-    return [];
-  }, [selectedJobId, resumes]);
-
   // Computed values for display
-  const shortlist = workflowResult?.ranked_shortlist || [];
+  const shortlist = activeResult?.ranked_shortlist || [];
   const selectedCandidate = candidates.find(c => c.candidate_id === selectedCandidateId);
   const selectedAnalysis = selectedCandidateId ? candidateAnalysisById.get(selectedCandidateId) : undefined;
   const selectedReadout = selectedCandidateId ? readoutById.get(selectedCandidateId) : undefined;
 
-  const handleResumeToggle = (event: ChangeEvent<HTMLInputElement>, resumeId: string) => {
-    if (event.target.checked) {
-      setSelectedResumeIds(current => {
-        const merged = Array.from(new Set([...current, resumeId]));
-        return merged.slice(0, 5);
-      });
-    } else {
-      setSelectedResumeIds(current => current.filter(id => id !== resumeId));
-    }
-  };
-
   const handleGenerate = async () => {
-    if (isGenerating) {
-      return;
-    }
-    if (!selectedCandidateId) {
-      setGenerationError("Select a candidate before running the workflow");
-      return;
-    }
-    if (!jobDescription.trim()) {
-      setGenerationError("Job description is required");
-      return;
-    }
-    if (selectedResumeIds.length === 0) {
-      setGenerationError("Select at least one resume");
-      return;
-    }
+    if (isGenerating) return;
+    if (selectedCandidateIds.size === 0) return;
+    if (!jobDescription.trim()) return;
+    if (selectedResumeIds.length === 0) return;
 
+    // Build payload with per-resume correct candidate_id from ownership map
     const payload: RecruiterWorkflowRequest = {
       job_description: jobDescription,
-      job_metadata: {
-        title: jobTitle,
-        code: jobCode,
-        level: jobLevel,
-        salary_band: salaryBand,
-        summary: jobSummary,
-      },
-      resumes: selectedResumeIds.map(resumeId => ({
-        resume_id: resumeId,
-        candidate_id: selectedCandidateId,
-      })),
+      job_metadata: { title: jobTitle, code: jobCode, level: jobLevel, salary_band: salaryBand, summary: jobSummary },
+      resumes: selectedResumeIds.map(resumeId => {
+        const ownerCandidateId = resumeOwnership.get(resumeId);
+        const isPseudo = ownerCandidateId ? /^[a-f0-9]{24}$/i.test(ownerCandidateId) : false;
+        return { resume_id: resumeId, ...(isPseudo || !ownerCandidateId ? {} : { candidate_id: ownerCandidateId }) };
+      }),
     };
 
-    setIsGenerating(true);
-    setGenerationError(null);
-    setStreamingStep(null);
-    setStreamingMessage(null);
-    
-    // Clear previous results to show streaming effect
-    setWorkflowResult(null);
-    
-    // Scroll to workflow steps section
-    setTimeout(() => {
-      workflowStepsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 300);
+    const candidateNames = [...selectedCandidateIds]
+      .map(id => candidates.find(c => c.candidate_id === id)?.name || id)
+      .join(", ");
 
-    try {
-      await streamRecruiterWorkflow(payload, {
-        onStatus: (step, message) => {
-          setStreamingStep(step);
-          setStreamingMessage(message);
-        },
-        onPartial: (step, data) => {
-          // Handle partial streaming updates (e.g., markdown text appearing character by character)
-          setWorkflowResult(prev => {
-            const baseResult = prev || {
-              job: payload.job_metadata || { title: "", code: "", level: "", salary_band: "", summary: "" },
-              core_skills: [],
-              ai_analysis_markdown: "",
-              candidate_analysis: [],
-              ranked_shortlist: [],
-              detailed_readout: [],
-              engagement_plan: [],
-              fairness_guidance: [],
-              interview_preparation: [],
-            };
+    setTimeout(() => { workflowStepsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }, 300);
 
-            // Handle partial ai_analysis (streaming markdown)
-            if (step === "ai_analysis" && data && typeof data === "object" && "markdown" in data) {
-              const partialData = data as { markdown: string };
-              return {
-                ...baseResult,
-                ai_analysis_markdown: partialData.markdown,
-              } as RecruiterWorkflowResponse;
-            }
-
-            // Handle partial arrays for engagement_plan, fairness_guidance, interview_preparation
-            if (step === "engagement_plan" && Array.isArray(data)) {
-              return {
-                ...baseResult,
-                engagement_plan: data,
-              } as RecruiterWorkflowResponse;
-            }
-
-            if (step === "fairness_guidance" && Array.isArray(data)) {
-              return {
-                ...baseResult,
-                fairness_guidance: data,
-              } as RecruiterWorkflowResponse;
-            }
-
-            if (step === "interview_preparation" && Array.isArray(data)) {
-              return {
-                ...baseResult,
-                interview_preparation: data,
-              } as RecruiterWorkflowResponse;
-            }
-
-            return baseResult;
-          });
-        },
-        onResult: (step, data) => {
-          // Update partial results as they come in
-          setWorkflowResult(prev => {
-            const baseResult = prev || {
-              job: payload.job_metadata || { title: "", code: "", level: "", salary_band: "", summary: "" },
-              core_skills: [],
-              ai_analysis_markdown: "",
-              candidate_analysis: [],
-              ranked_shortlist: [],
-              detailed_readout: [],
-              engagement_plan: [],
-              fairness_guidance: [],
-              interview_preparation: [],
-            };
-
-            // Handle ai_analysis special case (has nested structure)
-            if (step === "ai_analysis" && data && typeof data === "object" && "markdown" in data && "candidates" in data) {
-              const analysisData = data as { markdown: string; candidates: CandidateAnalysis[] };
-              return {
-                ...baseResult,
-                ai_analysis_markdown: analysisData.markdown,
-                candidate_analysis: analysisData.candidates,
-              } as RecruiterWorkflowResponse;
-            }
-
-            // For all other steps, map directly
-            return { ...baseResult, [step]: data } as RecruiterWorkflowResponse;
-          });
-        },
-        onComplete: (data) => {
-          const workflowData = data as RecruiterWorkflowResponse;
-          setWorkflowResult(workflowData);
-          setLastAnalyzedAt(new Date());
-          setStreamingStep(null);
-          setStreamingMessage(null);
-          
-          // Save the workflow result to the database (fire and forget)
-          saveWorkflowResult(workflowData).catch(saveError => {
-            console.error("Failed to save workflow result:", saveError);
-          });
-        },
-        onError: (error) => {
-          setGenerationError(error);
-          setStreamingStep(null);
-          setStreamingMessage(null);
-        },
-      });
-    } catch (error) {
-      console.error(error);
-      setGenerationError((error as Error).message || "Failed to generate recruiter workflow");
-      setStreamingStep(null);
-      setStreamingMessage(null);
-    } finally {
-      setIsGenerating(false);
-    }
+    await startWorkflow(payload, {
+      candidateName: candidateNames,
+      candidateId: [...selectedCandidateIds][0] || "",
+      jobTitle: jobTitle || "Untitled Job",
+      resumeIds: [...selectedResumeIds],
+    });
   };
 
-  // When generating, show empty arrays to demonstrate streaming effect
-  // When not generating, show real data or fallback
-  const displayCoreSkills = isGenerating 
-    ? (workflowResult?.core_skills || [])
-    : (workflowResult?.core_skills && workflowResult.core_skills.length > 0)
-      ? workflowResult.core_skills
-      : fallbackCoreSkills;
-  
-  const displayEngagement = isGenerating
-    ? (workflowResult?.engagement_plan || [])
-    : (workflowResult?.engagement_plan && workflowResult.engagement_plan.length > 0)
-      ? workflowResult.engagement_plan
-      : fallbackEngagementPlan;
-  
-  const displayFairness = isGenerating
-    ? (workflowResult?.fairness_guidance || [])
-    : (workflowResult?.fairness_guidance && workflowResult.fairness_guidance.length > 0)
-      ? workflowResult.fairness_guidance
-      : fallbackFairnessGuidance;
-  
-  const displayInterview = isGenerating
-    ? (workflowResult?.interview_preparation || [])
-    : (workflowResult?.interview_preparation && workflowResult.interview_preparation.length > 0)
-      ? workflowResult.interview_preparation
-      : fallbackInterviewPack;
-  
-  const markdownAnalysis = isGenerating
-    ? (workflowResult?.ai_analysis_markdown || "")
-    : workflowResult?.ai_analysis_markdown
-      || fallback.workflowSteps
-        .map(step => `### ${step.title}\n${step.description}`)
-        .join("\n\n");
+  // Display variables derived from activeResult (computed near top of component)
+  const displayCoreSkills = activeResult?.core_skills || [];
+  const displayEngagement = activeResult?.engagement_plan || [];
+  const displayFairness = activeResult?.fairness_guidance || [];
+  const displayInterview = activeResult?.interview_preparation || [];
+  const markdownAnalysis = activeResult?.ai_analysis_markdown || "";
 
 
   const [openSections, setOpenSections] = useState<Set<string>>(
@@ -670,37 +469,73 @@ export default function RecruiterAIWorkflowPage() {
               {searchResults
                 ? searchResults.results.slice(0, visibleCandidates).map(searchResult => {
                     const candidate = searchResult.candidate;
-                    const isActive = candidate.candidate_id === selectedCandidateId;
+                    const isActive = selectedCandidateIds.has(candidate.candidate_id);
                     return (
                       <div key={candidate.candidate_id} className={`rounded-lg border p-3 transition ${isActive ? "border-primary bg-primary/5" : "border-border bg-muted"}`}>
-                        <button type="button" onClick={() => setSelectedCandidateId(candidate.candidate_id)} className="w-full text-left mb-2">
-                          <p className="text-sm font-semibold text-foreground">{candidate.name}</p>
-                          <p className="text-xs text-muted-foreground">{candidate.primary_role || "No role"}</p>
+                        <button type="button" onClick={() => toggleCandidate(candidate.candidate_id)} className="w-full text-left mb-2 flex items-center gap-2">
+                          <span className={`flex-shrink-0 h-4 w-4 rounded border-2 flex items-center justify-center ${isActive ? "border-primary bg-primary" : "border-muted-foreground/50"}`}>
+                            {isActive && <svg className="h-2.5 w-2.5" fill="none" stroke="white" strokeWidth="2.5" viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" /></svg>}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-foreground truncate">{candidate.name}</p>
+                            <p className="text-xs text-muted-foreground">{candidate.primary_role || "No role"}</p>
+                          </div>
+                          {resumeLoadingIds.has(candidate.candidate_id) && <span className="ml-auto h-3 w-3 animate-spin rounded-full border border-primary border-t-transparent" />}
                         </button>
-                        <div className="space-y-1">
-                          {searchResult.matching_resumes.slice(0, 3).map(resume => (
-                            <label key={resume.id} className="flex items-start gap-2 cursor-pointer">
-                              <input type="checkbox" checked={selectedResumeIds.includes(resume.id)}
-                                onChange={(e) => {
-                                  if (e.target.checked) setSelectedResumeIds(c => Array.from(new Set([...c, resume.id])));
-                                  else setSelectedResumeIds(c => c.filter(id => id !== resume.id));
-                                }}
-                                className="mt-0.5 h-3.5 w-3.5" />
-                              <span className={`text-xs ${resume._search_match ? "font-semibold text-primary" : "text-foreground/80"}`}>{resume.name}</span>
-                            </label>
-                          ))}
-                        </div>
+                        {isActive && (
+                          <div className="ml-6 space-y-1 border-l border-primary/20 pl-2">
+                            {searchResult.matching_resumes.slice(0, 3).map(resume => (
+                              <label key={resume.id} className="flex items-start gap-2 cursor-pointer">
+                                <input type="checkbox" checked={selectedResumeIds.includes(resume.id)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) setSelectedResumeIds(c => Array.from(new Set([...c, resume.id])));
+                                    else setSelectedResumeIds(c => c.filter(id => id !== resume.id));
+                                  }}
+                                  className="mt-0.5 h-3.5 w-3.5" />
+                                <span className={`text-xs ${resume._search_match ? "font-semibold text-primary" : "text-foreground/80"}`}>{resume.name}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     );
                   })
                 : filteredCandidates.slice(0, visibleCandidates).map(candidate => {
-                    const isActive = candidate.candidate_id === selectedCandidateId;
+                    const isActive = selectedCandidateIds.has(candidate.candidate_id);
+                    const isLoading = resumeLoadingIds.has(candidate.candidate_id);
+                    const candidateResumes = resumesByCandidate.get(candidate.candidate_id) || [];
                     return (
-                      <button key={candidate.candidate_id} type="button" onClick={() => setSelectedCandidateId(candidate.candidate_id)}
-                        className={`w-full rounded-lg border px-3 py-2.5 text-left transition ${isActive ? "border-primary bg-primary/5" : "border-border bg-muted hover:border-primary/30"}`}>
-                        <p className="text-sm font-semibold text-foreground">{candidate.name}</p>
-                        <p className="text-xs text-muted-foreground">{candidate.primary_role || "No role"}</p>
-                      </button>
+                      <div key={candidate.candidate_id}>
+                        <button type="button" onClick={() => toggleCandidate(candidate.candidate_id)}
+                          className={`w-full flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left transition ${isActive ? "border-primary bg-primary/5" : "border-border bg-muted hover:border-primary/30"}`}>
+                          <span className={`flex-shrink-0 h-4 w-4 rounded border-2 flex items-center justify-center ${isActive ? "border-primary bg-primary" : "border-muted-foreground/50"}`}>
+                            {isActive && <svg className="h-2.5 w-2.5" fill="none" stroke="white" strokeWidth="2.5" viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" /></svg>}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-foreground truncate">{candidate.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{candidate.primary_role || "No role"}</p>
+                          </div>
+                          {isLoading && <span className="h-3 w-3 animate-spin rounded-full border border-primary border-t-transparent" />}
+                        </button>
+                        {isActive && candidateResumes.length > 0 && (
+                          <div className="ml-6 mt-1 mb-1 space-y-1 border-l border-primary/20 pl-2">
+                            {candidateResumes.map(resume => (
+                              <label key={resume.id} className="flex items-start gap-2 cursor-pointer py-0.5">
+                                <input type="checkbox" checked={selectedResumeIds.includes(resume.id)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) setSelectedResumeIds(c => Array.from(new Set([...c, resume.id])));
+                                    else setSelectedResumeIds(c => c.filter(id => id !== resume.id));
+                                  }}
+                                  className="mt-0.5 h-3.5 w-3.5" />
+                                <div className="min-w-0">
+                                  <p className="truncate text-xs font-medium text-foreground">{resume.name}</p>
+                                  {resume.summary && <p className="line-clamp-1 text-xs text-muted-foreground">{resume.summary}</p>}
+                                </div>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     );
                   })
               }
@@ -718,46 +553,6 @@ export default function RecruiterAIWorkflowPage() {
               )}
             </div>
 
-            {/* Resumes for selected candidate */}
-            {selectedCandidateId && !searchResults && resumes.length > 0 && (
-              <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-2">
-                <p className="text-xs font-semibold text-foreground">Resumes ({resumes.length})</p>
-                {resumes.map(resume => (
-                  <label key={resume.id} className="flex items-start gap-2 cursor-pointer">
-                    <input type="checkbox" checked={selectedResumeIds.includes(resume.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) setSelectedResumeIds(c => Array.from(new Set([...c, resume.id])));
-                        else setSelectedResumeIds(c => c.filter(id => id !== resume.id));
-                      }}
-                      className="mt-0.5 h-3.5 w-3.5" />
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-medium text-foreground">{resume.name}</p>
-                      {resume.summary && <p className="line-clamp-1 text-xs text-muted-foreground">{resume.summary}</p>}
-                    </div>
-                  </label>
-                ))}
-              </div>
-            )}
-
-            {/* Top matches */}
-            {selectedJobId && topRecommendedResumes.length > 0 && (
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-emerald-800">Top Matches</p>
-                  <button type="button"
-                    onClick={() => { const ids = topRecommendedResumes.slice(0,3).map(r=>r.id); setSelectedResumeIds(p => Array.from(new Set([...p,...ids])).slice(0,5)); }}
-                    className="rounded border border-emerald-300 px-2 py-0.5 text-xs text-emerald-700 hover:bg-emerald-100">Select Top 3</button>
-                </div>
-                {topRecommendedResumes.slice(0,3).map((resume,i) => (
-                  <label key={resume.id} className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={selectedResumeIds.includes(resume.id)} onChange={(e) => handleResumeToggle(e, resume.id)} className="h-3.5 w-3.5" />
-                    <span className="text-xs text-emerald-700">#{i+1}</span>
-                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{resume.name}</span>
-                    <span className="text-xs text-emerald-600">{Math.round(resume.matchScore)}%</span>
-                  </label>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 
@@ -770,8 +565,17 @@ export default function RecruiterAIWorkflowPage() {
             <span>Last run: {formatDateTime(lastAnalyzedAt)}</span>
             {selectedResumeIds.length > 0 && <span className="text-primary">{selectedResumeIds.length} resume{selectedResumeIds.length > 1 ? "s" : ""}</span>}
           </div>
+          {!isGenerating && !jobDescription.trim() && (
+            <p className="text-xs text-muted-foreground text-center">✓ Select or enter a job description first</p>
+          )}
+          {!isGenerating && jobDescription.trim() && selectedCandidateIds.size === 0 && (
+            <p className="text-xs text-muted-foreground text-center">✓ Check a candidate above to begin</p>
+          )}
+          {!isGenerating && jobDescription.trim() && selectedCandidateIds.size > 0 && selectedResumeIds.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center">✓ Now check a resume under the candidate</p>
+          )}
           <button type="button" onClick={handleGenerate}
-            disabled={isGenerating || !selectedCandidateId || selectedResumeIds.length === 0}
+            disabled={isGenerating || !jobDescription.trim() || selectedCandidateIds.size === 0 || selectedResumeIds.length === 0}
             className="w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center gap-2">
             {isGenerating ? (
               <>
@@ -794,8 +598,48 @@ export default function RecruiterAIWorkflowPage() {
       <main className="flex-1 min-w-0 overflow-y-auto bg-muted/30">
         <div className="p-6 space-y-3">
 
+          {/* Analysis history bar */}
+          {analysisHistory.length > 0 && (
+            <div className="rounded-xl border border-border bg-card px-4 py-3">
+              <div className="flex items-center gap-2 mb-2">
+                <svg className="h-3.5 w-3.5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Run History</span>
+                {viewingHistoryId && (
+                  <button type="button" onClick={() => setViewingHistoryId(null)}
+                    className="ml-auto text-xs text-primary hover:underline">
+                    ← Back to latest
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {analysisHistory.map(record => (
+                  <button key={record.id} type="button"
+                    onClick={() => setViewingHistoryId(viewingHistoryId === record.id ? null : record.id)}
+                    className={`rounded-lg border px-3 py-1.5 text-left text-xs transition-colors ${viewingHistoryId === record.id ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted hover:border-primary/50 text-foreground"}`}>
+                    <p className="font-medium truncate max-w-[160px]">{record.candidateName}</p>
+                    <p className="text-muted-foreground truncate max-w-[160px]">{record.jobTitle}</p>
+                    <p className="text-muted-foreground mt-0.5">{formatDateTime(record.timestamp)}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Viewing history banner */}
+          {viewingRecord && !isGenerating && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 flex items-center gap-2 text-xs text-amber-800">
+              <svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              Viewing historical run for <strong>{viewingRecord.candidateName}</strong> — {viewingRecord.jobTitle} — {formatDateTime(viewingRecord.timestamp)}
+              <button type="button" onClick={() => setViewingHistoryId(null)} className="ml-auto font-semibold hover:underline">Dismiss</button>
+            </div>
+          )}
+
           {/* Empty state */}
-          {!workflowResult && !isGenerating && (
+          {!activeResult && !isGenerating && (
             <div className="flex flex-col items-center justify-center py-24 text-center">
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
                 <svg className="h-8 w-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -851,7 +695,7 @@ export default function RecruiterAIWorkflowPage() {
                   sessionId={sessionId}
                   jobId={selectedJobId || undefined}
                   resumeIds={selectedResumeIds.length > 0 ? selectedResumeIds : undefined}
-                  workflowContext={workflowResult ? { workflowResult } : undefined}
+                  workflowContext={activeResult ? { workflowResult: activeResult } : undefined}
                 />
               </div>
             )}
@@ -958,18 +802,19 @@ export default function RecruiterAIWorkflowPage() {
                       <th className="px-4 py-3 text-left font-semibold">Bias-free</th>
                       <th className="px-4 py-3 text-left font-semibold">Priority</th>
                       <th className="px-4 py-3 text-left font-semibold">Status</th>
+                      <th className="px-4 py-3 text-left font-semibold"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/50">
                     {isGenerating && streamingStep === 'ranked_shortlist' && shortlist.length === 0 && (
-                      <tr><td colSpan={5} className="px-4 py-6 text-center">
+                      <tr><td colSpan={6} className="px-4 py-6 text-center">
                         <div className="flex items-center justify-center gap-2 text-sm text-primary">
                           <span className="h-3 w-3 animate-pulse rounded-full bg-primary" /> Ranking candidates...
                         </div>
                       </td></tr>
                     )}
                     {!isGenerating && shortlist.length === 0 && (
-                      <tr><td colSpan={5} className="px-4 py-4 text-sm text-muted-foreground">Run the workflow to populate the ranked shortlist.</td></tr>
+                      <tr><td colSpan={6} className="px-4 py-4 text-sm text-muted-foreground">Run the workflow to populate the ranked shortlist.</td></tr>
                     )}
                     {shortlist.map((item, index) => {
                       const rowCandidate = candidates.find(c => c.candidate_id === item.candidate_id);
@@ -994,6 +839,12 @@ export default function RecruiterAIWorkflowPage() {
                           <td className="px-4 py-3 text-sm font-semibold text-foreground">{analysis?.bias_free_score ?? "—"}</td>
                           <td className="px-4 py-3 text-xs text-muted-foreground">{item.priority ?? "—"}</td>
                           <td className="px-4 py-3 text-xs text-muted-foreground">{item.status ?? "—"}</td>
+                          <td className="px-4 py-3">
+                            <DeepAssessButton
+                              resumeId={item.candidate_id}
+                              resumeName={analysis?.name || rowCandidate?.name}
+                            />
+                          </td>
                         </tr>
                       );
                     })}

@@ -7,6 +7,35 @@ const BACKEND_URL = SERVER_BACKEND_URL;
 export const maxDuration = 60; // seconds
 export const dynamic = "force-dynamic";
 
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const queryString = searchParams.toString();
+    const backendUrl = `${BACKEND_URL}/resumes/${queryString ? `?${queryString}` : ""}`;
+
+    const response = await fetch(backendUrl, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...(process.env.NEXT_PUBLIC_ADMIN_TOKEN ? { "X-Admin-Token": process.env.NEXT_PUBLIC_ADMIN_TOKEN } : {}),
+      },
+    });
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: `Backend error: ${response.status}` },
+        { status: response.status }
+      );
+    }
+
+    const data = await response.json();
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error("[API Proxy] Error listing resumes:", error);
+    return NextResponse.json({ error: "Failed to list resumes" }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const backendUrl = `${BACKEND_URL}/resumes/`;

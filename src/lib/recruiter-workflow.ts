@@ -155,7 +155,11 @@ export type JobListResponse = {
 };
 
 export async function listCandidates(): Promise<CandidateListResponse> {
-  return fetchFromApi<CandidateListResponse>(`/candidates?page=1&page_size=25`);
+  return fetchFromApi<CandidateListResponse>(`/candidates?page=1&page_size=100`);
+}
+
+export async function listAllResumes(page: number = 1, pageSize: number = 100): Promise<{ items: ResumeSummary[]; total: number }> {
+  return fetchFromApi<{ items: ResumeSummary[]; total: number }>(`/resumes/?page=${page}&page_size=${pageSize}`);
 }
 
 export async function searchCandidatesAndResumes(query: string, page: number = 1, pageSize: number = 20): Promise<CandidateSearchResponse> {

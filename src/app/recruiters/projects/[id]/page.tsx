@@ -25,6 +25,7 @@ import {
   scoreContext,
 } from "@/lib/projects-api";
 import { fetchFromApi } from "@/lib/api";
+import DeepAssessButton from "@/components/DeepAssessButton";
 
 const DEFAULT_ORG = "global";
 
@@ -716,9 +717,11 @@ function ResumePickerModal({
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
         setUploadProgress(`Uploading ${i + 1} of ${files.length}: ${f.name}`);
+        // Derive candidate name from filename (strip extension, replace underscores/hyphens)
+        const candidateName = f.name.replace(/\.[^.]+$/, "").replace(/[_-]/g, " ").trim();
         const formData = new FormData();
         formData.append("file", f);
-        formData.append("user_id", f.name.replace(/\.[^.]+$/, ""));
+        formData.append("candidate_name", candidateName); // Creates/finds candidate by name
         formData.append("resume_type", "applicant");
         formData.append("org_id", DEFAULT_ORG);
         const res = await fetch("/api/resumes", { method: "POST", body: formData });
@@ -1674,6 +1677,11 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                           {c.recommendation && (
                             <span className="text-xs text-muted-foreground">{c.recommendation}</span>
                           )}
+                          <DeepAssessButton
+                            resumeId={c.resume_id}
+                            resumeName={c.name}
+                            jdId={project.job_id ?? undefined}
+                          />
                         </div>
                       </div>
                       {c.summary && <p className="text-xs text-muted-foreground">{c.summary}</p>}
