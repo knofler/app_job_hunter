@@ -6,7 +6,7 @@ import { fetchFromApi } from "@/lib/api";
 import Link from "next/link";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
-import Card, { CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
 interface FullUserDetails {
