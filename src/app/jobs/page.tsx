@@ -10,6 +10,10 @@ const defaultFilters: JobFilters = {
   hideApplied: false,
   search: "",
   sort: "date",
+  locationType: [],
+  jobType: [],
+  experience: "any",
+  skills: [],
 };
 
 // Mock data - replace with real API
