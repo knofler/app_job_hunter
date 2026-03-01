@@ -4,7 +4,7 @@
   "private": true,
   "description": "AI-powered job matching app - test commit for GitHub Actions",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "next build --webpack",
     "vercel-build": "next build --webpack",
     "start": "next start",

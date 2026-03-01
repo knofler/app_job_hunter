@@ -2,36 +2,21 @@ const DEFAULT_LOCAL_API_URL = process.env.NEXT_PUBLIC_API_URL_LOCAL ?? "http://l
 const INTERNAL_API_URL = process.env.NEXT_PUBLIC_API_URL_INTERNAL;
 const FORCE_REMOTE = process.env.NEXT_PUBLIC_API_FORCE_REMOTE === "1" || process.env.NEXT_PUBLIC_API_FORCE_REMOTE === "true";
 
-// Control whether to show dummy data (default: enabled for development)
 export const USE_DUMMY_DATA = process.env.NEXT_PUBLIC_USE_DUMMY_DATA !== "false" && process.env.NEXT_PUBLIC_USE_DUMMY_DATA !== "0";
 
 function resolveBaseUrl(): string {
   const remoteBase = process.env.NEXT_PUBLIC_API_URL;
-
-  if (FORCE_REMOTE) {
-    return remoteBase ?? INTERNAL_API_URL ?? DEFAULT_LOCAL_API_URL;
-  }
-
+  if (FORCE_REMOTE) return remoteBase ?? INTERNAL_API_URL ?? DEFAULT_LOCAL_API_URL;
   if (typeof window !== "undefined") {
     const host = window.location.hostname;
-    const isLocalHost = host === "localhost" || host === "127.0.0.1" || host.endsWith(".local");
-    if (isLocalHost) {
-      return DEFAULT_LOCAL_API_URL;
-    }
-  } else {
-    const runningOnVercel = process.env.VERCEL === "1" || process.env.NEXT_PUBLIC_VERCEL === "1";
-    if (INTERNAL_API_URL) {
-      return INTERNAL_API_URL;
-    }
-    if (!runningOnVercel && process.env.NODE_ENV !== "production") {
-      return DEFAULT_LOCAL_API_URL;
-    }
+    if (host === "localhost" || host === "127.0.0.1" || host.endsWith(".local")) return DEFAULT_LOCAL_API_URL;
+  } else if (INTERNAL_API_URL) {
+    return INTERNAL_API_URL;
   }
-
   return remoteBase ?? INTERNAL_API_URL ?? DEFAULT_LOCAL_API_URL;
 }
 
-function buildHeaders(init?: RequestInit): Headers {
+function buildHeaders(path: string, init?: RequestInit): Headers {
   const headers = new Headers(init?.headers ?? {});
   const isFormData = typeof FormData !== "undefined" && init?.body instanceof FormData;
 
@@ -39,16 +24,19 @@ function buildHeaders(init?: RequestInit): Headers {
     headers.set("Content-Type", "application/json");
   }
 
-  // Automatically add admin token for admin routes
-  if (!headers.has("X-Admin-Token")) {
+  // LOGIC FIX: Do not inject Admin Token for 'me' or user-facing routes
+  // unless explicitly requested via headers.
+  const isUserRoute = path.includes("/api/me") || path.includes("/job-search");
+  
+  if (!headers.has("X-Admin-Token") && !isUserRoute) {
     const adminToken = process.env.NEXT_PUBLIC_ADMIN_TOKEN;
     if (adminToken) {
       headers.set("X-Admin-Token", adminToken);
     }
   }
 
-  // Inject org ID for multi-tenant scoping (falls back to "default" on backend if absent)
-  if (!headers.has("X-Org-Id")) {
+  // Only inject global Org ID if not already set and not a user route
+  if (!headers.has("X-Org-Id") && !isUserRoute) {
     const orgId = process.env.NEXT_PUBLIC_ORG_ID;
     if (orgId) {
       headers.set("X-Org-Id", orgId);
@@ -62,7 +50,7 @@ export async function fetchFromApi<T>(path: string, init?: RequestInit): Promise
   const baseUrl = resolveBaseUrl();
   const response = await fetch(`${baseUrl}${path}`, {
     ...init,
-    headers: buildHeaders(init),
+    headers: buildHeaders(path, init),
   });
 
   if (!response.ok) {
@@ -70,14 +58,9 @@ export async function fetchFromApi<T>(path: string, init?: RequestInit): Promise
     throw new Error(message || `Request to ${path} failed with status ${response.status}`);
   }
 
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
+  if (response.status === 204) return undefined as T;
   const text = await response.text();
-  if (!text) {
-    return undefined as T;
-  }
+  if (!text) return undefined as T;
 
   try {
     return JSON.parse(text) as T;

@@ -1193,7 +1193,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                   activeTab === tab ? "text-primary border-b-2 border-primary bg-primary/5" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {tab === "resumes" ? `Resumes (${project.resume_ids.length})` :
+                {tab === "resumes" ? `Resumes (${(project.resume_ids || []).length})` :
                  tab === "runs" ? `Runs (${runs.length})` : "Context"}
               </button>
             ))}
@@ -1211,7 +1211,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                   </svg>
                   Add Resumes
                 </button>
-                {project.resume_ids.length === 0 ? (
+                {(project.resume_ids || []).length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-xs text-muted-foreground">No resumes attached.</p>
                     <p className="text-xs text-muted-foreground mt-1">Add resumes to run AI assessments.</p>
@@ -1538,7 +1538,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
           <div className="p-3 border-t border-border">
             <button
               onClick={() => setShowRunModal(true)}
-              disabled={project.resume_ids.length === 0}
+              disabled={(project.resume_ids || []).length === 0}
               className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40 transition-opacity flex items-center justify-center gap-2"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1546,7 +1546,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
               </svg>
               Run AI Assessment
             </button>
-            {project.resume_ids.length === 0 && (
+            {(project.resume_ids || []).length === 0 && (
               <p className="text-center text-xs text-muted-foreground mt-1.5">Add resumes to enable runs</p>
             )}
           </div>
@@ -1649,13 +1649,13 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
               </div>
               <h2 className="text-lg font-semibold text-foreground">Ready to assess</h2>
               <p className="mt-1.5 text-sm text-muted-foreground max-w-xs">
-                {project.resume_ids.length === 0
+                {(project.resume_ids || []).length === 0
                   ? "Add resumes on the left, then run an AI assessment."
                   : "Click a resume to preview it, or run an AI assessment."}
               </p>
               <div className="mt-4 flex gap-3 text-sm text-muted-foreground">
-                <span className={`flex items-center gap-1.5 ${project.resume_ids.length > 0 ? "text-emerald-400" : ""}`}>
-                  {project.resume_ids.length > 0 ? "✓" : "○"} {project.resume_ids.length} resume{project.resume_ids.length !== 1 ? "s" : ""}
+                <span className={`flex items-center gap-1.5 ${(project.resume_ids || []).length > 0 ? "text-emerald-400" : ""}`}>
+                  {(project.resume_ids || []).length > 0 ? "✓" : "○"} {(project.resume_ids || []).length} resume{(project.resume_ids || []).length !== 1 ? "s" : ""}
                 </span>
                 <span className={`flex items-center gap-1.5 ${context ? "text-emerald-400" : ""}`}>
                   {context ? "✓" : "○"} {context ? `Context (${selectedContextKeys.length + 2} dims)` : "No context"}
