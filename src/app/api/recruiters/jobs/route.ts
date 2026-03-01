@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {
+    const orgId = request.headers.get("x-org-id");
     // For debugging - always use admin token
     const adminToken = process.env.NEXT_PUBLIC_ADMIN_TOKEN;
     if (!adminToken) {
@@ -18,6 +19,7 @@ export async function GET(request: NextRequest) {
     const response = await fetch(`${backendUrl}/recruiters/jobs?page=${page}&page_size=${pageSize}`, {
       headers: {
         'X-Admin-Token': adminToken,
+        ...(orgId ? { 'X-Org-Id': orgId } : {}),
       },
     });
 

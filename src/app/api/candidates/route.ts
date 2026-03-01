@@ -6,6 +6,7 @@ const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 
 export async function GET(request: NextRequest) {
   try {
+    const orgId = request.headers.get("x-org-id");
     const { searchParams } = new URL(request.url);
     const queryString = searchParams.toString();
     const backendUrl = `${BACKEND_URL}/candidates${queryString ? `?${queryString}` : ""}`;
@@ -17,6 +18,7 @@ export async function GET(request: NextRequest) {
       headers: {
         "Content-Type": "application/json",
         ...(ADMIN_API_KEY ? { "X-Admin-Token": ADMIN_API_KEY } : {}),
+        ...(orgId ? { "X-Org-Id": orgId } : {}),
       },
     });
 

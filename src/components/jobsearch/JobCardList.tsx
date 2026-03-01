@@ -15,11 +15,17 @@ type Job = {
   company: string;
   location: string;
   match_score?: number;
+  match_details?: {
+    score: number;
+    matched_skills: string[];
+    missing_skills: string[];
+  };
   salary_range?: string;
   employment_type?: string;
   posted_at?: string;
   description?: string;
   code?: string;
+  applied?: boolean;
 };
 
 interface JobCardListProps {
@@ -141,6 +147,30 @@ export default function JobCardList({ filters, pageSize = 10, mode = "personaliz
     };
   }, [candidateId, hasMore, usingFallback, jobs.length]);
 
+  const handleApply = async (jobId: string) => {
+    if (!candidateId) return;
+    
+    try {
+      await fetchFromApi("/applications", {
+        method: "POST",
+        body: JSON.stringify({
+          candidate_id: candidateId,
+          job_id: jobId,
+        }),
+      });
+      
+      // Update local state to show applied status
+      setJobs(prev => prev.map(job => 
+        job.id === jobId ? { ...job, applied: true } : job
+      ));
+      
+      alert("Application submitted successfully!");
+    } catch (err) {
+      console.error("Failed to apply", err);
+      alert("Failed to submit application. Please try again.");
+    }
+  };
+
   const sortedJobs = useMemo(() => {
     const jobCopy = [...jobs];
 
@@ -229,7 +259,12 @@ export default function JobCardList({ filters, pageSize = 10, mode = "personaliz
           mode === "listings" ? (
             <JobListingCard key={job.id} job={job} />
           ) : (
-            <JobCard key={job.id} job={job} />
+            <JobCard 
+              key={job.id} 
+              job={job} 
+              onApply={() => handleApply(job.id)}
+              onViewDetails={(id) => window.location.href = `/job-search/${id}`}
+            />
           )
         ))}
         {!usingFallback && hasMore && (

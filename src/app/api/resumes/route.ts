@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
+    const orgId = request.headers.get("x-org-id");
     const { searchParams } = new URL(request.url);
     const queryString = searchParams.toString();
     const backendUrl = `${BACKEND_URL}/resumes/${queryString ? `?${queryString}` : ""}`;
@@ -18,6 +19,7 @@ export async function GET(request: NextRequest) {
       headers: {
         "Content-Type": "application/json",
         ...(process.env.NEXT_PUBLIC_ADMIN_TOKEN ? { "X-Admin-Token": process.env.NEXT_PUBLIC_ADMIN_TOKEN } : {}),
+        ...(orgId ? { "X-Org-Id": orgId } : {}),
       },
     });
 
@@ -38,6 +40,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const orgId = request.headers.get("x-org-id");
     const backendUrl = `${BACKEND_URL}/resumes/`;
 
     console.log(`[API Proxy] POST /api/resumes/ -> ${backendUrl}`);
@@ -49,6 +52,7 @@ export async function POST(request: NextRequest) {
       method: "POST",
       headers: {
         ...(process.env.NEXT_PUBLIC_ADMIN_TOKEN ? { "X-Admin-Token": process.env.NEXT_PUBLIC_ADMIN_TOKEN } : {}),
+        ...(orgId ? { "X-Org-Id": orgId } : {}),
       },
       body: formData,
     });

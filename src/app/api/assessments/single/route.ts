@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { SERVER_BACKEND_URL } from "@/lib/server-backend-url";
 
 export async function POST(req: NextRequest) {
+  const orgId = req.headers.get("x-org-id");
   const body = await req.json();
 
   const adminToken =
@@ -16,6 +17,7 @@ export async function POST(req: NextRequest) {
     headers: {
       "Content-Type": "application/json",
       ...(adminToken ? { "X-Admin-Token": adminToken } : {}),
+      ...(orgId ? { "X-Org-Id": orgId } : {}),
     },
     body: JSON.stringify(body),
   });

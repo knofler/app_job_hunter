@@ -8,6 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ [key: string]: string | string[] }> }
 ) {
   try {
+    const orgId = request.headers.get("x-org-id");
     const { candidate_id } = await params;
     const backendUrl = `${BACKEND_URL}/candidates/${candidate_id}/dashboard`;
 
@@ -18,6 +19,7 @@ export async function GET(
       headers: {
         "Content-Type": "application/json",
         ...(process.env.NEXT_PUBLIC_ADMIN_TOKEN ? { "X-Admin-Token": process.env.NEXT_PUBLIC_ADMIN_TOKEN } : {}),
+        ...(orgId ? { "X-Org-Id": orgId } : {}),
       },
     });
 

@@ -5,6 +5,7 @@ const BACKEND_URL = SERVER_BACKEND_URL;
 
 export async function GET(request: NextRequest) {
   try {
+    const orgId = request.headers.get("x-org-id");
     const { searchParams } = new URL(request.url);
     const queryString = searchParams.toString();
     const backendUrl = `${BACKEND_URL}/jobs${queryString ? `?${queryString}` : ""}`;
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        ...Object.fromEntries(request.headers.entries()),
+        ...(orgId ? { "X-Org-Id": orgId } : {}),
       },
     });
 

@@ -911,17 +911,35 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
       if (runList.length > 0 && !selectedRun) setSelectedRun(runList[0]);
 
       if (proj.resume_ids?.length > 0) {
-        fetch(`/api/recruiter-ranking/resumes?org_id=global&limit=200`)
+        fetch(`/api/recruiter-ranking/resumes?org_id=global&limit=500`)
           .then(r => r.ok ? r.json() : { items: [] })
-          .then((d: { items?: Array<{ id: string; name: string; preview?: string; summary?: string; skills?: string[] }> }) => {
+          .then(async (d: { items?: Array<{ id: string; name: string; preview?: string; summary?: string; skills?: string[] }> }) => {
             const names: Record<string, string> = {};
             const details: Record<string, { name: string; preview: string; summary: string; skills: string[] }> = {};
             (d.items ?? []).forEach(r => {
               names[r.id] = r.name;
               details[r.id] = { name: r.name, preview: r.preview ?? "", summary: r.summary ?? "", skills: r.skills ?? [] };
             });
-            setResumeNames(names);
-            setResumeDetails(details);
+            // Fetch any project resumes missing from the bulk list individually
+            const missingIds = (proj.resume_ids ?? []).filter(rid => !names[rid]);
+            await Promise.allSettled(
+              missingIds.map(rid =>
+                fetch(`/api/resumes/${rid}`)
+                  .then(r => r.ok ? r.json() : null)
+                  .then(data => {
+                    if (!data) return;
+                    const r = data.resume ?? data;
+                    const resolvedName = r.candidate_name || r.name || "";
+                    if (resolvedName) {
+                      names[rid] = resolvedName;
+                      details[rid] = { name: resolvedName, preview: r.preview ?? r.extracted_text ?? r.content ?? "", summary: r.summary ?? "", skills: Array.isArray(r.skills) ? r.skills : [] };
+                    }
+                  })
+                  .catch(() => {})
+              )
+            );
+            setResumeNames({ ...names });
+            setResumeDetails({ ...details });
           })
           .catch(() => {});
       }
@@ -1207,7 +1225,10 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                     >
                       <div className="min-w-0">
                         <p className="text-xs font-medium text-foreground truncate">
-                          {resumeNames[rid] ?? `Resume …${rid.slice(-6)}`}
+                          {(() => {
+                            const n = resumeDetails[rid]?.name || resumeNames[rid];
+                            return n && n !== "Resume" ? n : `Resume …${rid.slice(-6)}`;
+                          })()}
                         </p>
                         <p className="text-xs text-muted-foreground font-mono truncate">{rid.slice(-8)}</p>
                       </div>

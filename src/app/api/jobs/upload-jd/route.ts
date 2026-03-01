@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
+    const orgId = request.headers.get("x-org-id");
     const adminToken = process.env.ADMIN_API_KEY || process.env.NEXT_PUBLIC_ADMIN_TOKEN;
     const backendUrl = (process.env.NEXT_PUBLIC_API_URL_INTERNAL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8010/api');
 
@@ -9,6 +10,7 @@ export async function POST(request: NextRequest) {
 
     const headers: Record<string, string> = {};
     if (adminToken) headers['X-Admin-Token'] = adminToken;
+    if (orgId) headers['X-Org-Id'] = orgId;
 
     const response = await fetch(`${backendUrl}/jobs/upload-jd`, {
       method: 'POST',

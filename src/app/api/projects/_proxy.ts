@@ -12,6 +12,8 @@ export async function proxyProjects(
   const adminToken = process.env.ADMIN_API_KEY || process.env.NEXT_PUBLIC_ADMIN_TOKEN;
   if (adminToken) headers["X-Admin-Token"] = adminToken;
   if (body) headers["Content-Type"] = "application/json";
+  const orgId = request.headers.get("x-org-id");
+  if (orgId) headers["X-Org-Id"] = orgId;
 
   const url = `${apiBaseUrl}/api/projects${path}`;
   const fetchMethod = method || request.method;
