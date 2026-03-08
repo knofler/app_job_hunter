@@ -4,8 +4,14 @@ import { NextResponse } from 'next/server';
 export const GET = withApiAuthRequired(async function GET() {
   try {
     const { accessToken } = await getAccessToken();
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL_INTERNAL || 
-                       process.env.NEXT_PUBLIC_API_URL_LOCAL || 
+
+    if (!accessToken) {
+      console.error('Proxy /api/me: getAccessToken() returned no token');
+      return NextResponse.json({ error: 'No access token available' }, { status: 401 });
+    }
+
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL_INTERNAL ||
+                       process.env.NEXT_PUBLIC_API_URL_LOCAL ||
                        'http://localhost:8010';
 
     const response = await fetch(`${backendUrl}/api/me`, {
@@ -16,6 +22,7 @@ export const GET = withApiAuthRequired(async function GET() {
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error(`Proxy /api/me: backend returned ${response.status}: ${errorText}`);
       return NextResponse.json({ error: errorText }, { status: response.status });
     }
 

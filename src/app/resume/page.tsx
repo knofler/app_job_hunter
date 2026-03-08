@@ -25,6 +25,7 @@ type Resume = {
 	preview: string;
 	skills: string[];
 	lastUpdated: string;
+	isPrimary?: boolean;
 };
 
 type ResumeApiResponse = {
@@ -37,6 +38,8 @@ type ResumeApiResponse = {
 	skills?: string[];
 	last_updated?: string;
 	lastUpdated?: string;
+	is_primary?: boolean;
+	isPrimary?: boolean;
 };
 
 const SECTION_ORDER: string[] = ["Technical", "Business", "Creative"];
@@ -125,6 +128,7 @@ function mapResume(apiResume: ResumeApiResponse): Resume {
 		preview: apiResume.preview ?? "",
 		skills: apiResume.skills ?? [],
 		lastUpdated: apiResume.last_updated ?? apiResume.lastUpdated ?? new Date().toISOString().slice(0, 10),
+		isPrimary: apiResume.is_primary ?? apiResume.isPrimary ?? false,
 	};
 }
 
@@ -172,6 +176,7 @@ export default function ResumePage() {
 	const [extractingCandidateName, setExtractingCandidateName] = useState(false);
 	const [previewResume, setPreviewResume] = useState<Resume | null>(null);
 	const [previewExpanded, setPreviewExpanded] = useState(false);
+	const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
 
 	const handlePreview = (resume: Resume) => {
 		setPreviewResume(resume);
@@ -354,6 +359,9 @@ export default function ResumePage() {
 		}
 	}
 
+	const MAX_FILE_SIZE_MB = 10;
+	const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
 	function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
 		const files = event.target.files;
 		if (!files || files.length === 0) {
@@ -366,14 +374,14 @@ export default function ResumePage() {
 			// Bulk upload mode - validate all files
 			const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'];
 			const allowedExtensions = ['.pdf', '.docx', '.doc'];
-			
+
 			for (let i = 0; i < files.length; i++) {
 				const file = files[i];
 				const fileName = file.name.toLowerCase();
-				
+
 				const isValidType = allowedTypes.includes(file.type);
 				const isValidExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
-				
+
 				if (!isValidType && !isValidExtension) {
 					setErrorMessage(`File "${file.name}" is not allowed. Only PDF and Word documents (.pdf, .docx, .doc) are allowed.`);
 					setUploadFile(null);
@@ -381,8 +389,16 @@ export default function ResumePage() {
 					event.target.value = '';
 					return;
 				}
+
+				if (file.size > MAX_FILE_SIZE_BYTES) {
+					setErrorMessage(`File "${file.name}" exceeds the ${MAX_FILE_SIZE_MB}MB size limit.`);
+					setUploadFile(null);
+					setUploadFiles(null);
+					event.target.value = '';
+					return;
+				}
 			}
-			
+
 			setErrorMessage(null);
 			setUploadFiles(files);
 			setUploadFile(null);
@@ -392,10 +408,10 @@ export default function ResumePage() {
 			const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'];
 			const allowedExtensions = ['.pdf', '.docx', '.doc'];
 			const fileName = file.name.toLowerCase();
-			
+
 			const isValidType = allowedTypes.includes(file.type);
 			const isValidExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
-			
+
 			if (!isValidType && !isValidExtension) {
 				setErrorMessage("Only PDF and Word documents (.pdf, .docx, .doc) are allowed.");
 				setUploadFile(null);
@@ -403,7 +419,15 @@ export default function ResumePage() {
 				event.target.value = '';
 				return;
 			}
-			
+
+			if (file.size > MAX_FILE_SIZE_BYTES) {
+				setErrorMessage(`File exceeds the ${MAX_FILE_SIZE_MB}MB size limit. Please choose a smaller file.`);
+				setUploadFile(null);
+				setUploadFiles(null);
+				event.target.value = '';
+				return;
+			}
+
 			setErrorMessage(null);
 			setUploadFile(file);
 			setUploadFiles(null);
@@ -525,6 +549,13 @@ export default function ResumePage() {
 
 			await loadResumes();
 			resetUploadForm();
+
+			// Show success toast that auto-dismisses
+			const successMsg = bulkUploadMode
+				? statusMessage ?? "Resumes uploaded successfully!"
+				: "Resume uploaded successfully!";
+			setUploadSuccess(successMsg);
+			setTimeout(() => setUploadSuccess(null), 4000);
 		} catch (error) {
 			console.error("Failed to upload resume", error);
 			setStatusMessage(null);
@@ -573,6 +604,31 @@ export default function ResumePage() {
 			void loadResumes();
 		} finally {
 			setDeletingId(null);
+		}
+	}
+
+	async function handleSetPrimary(resumeId: string) {
+		if (!resumeId || usingFallback) return;
+
+		// Optimistically update local state
+		setResumes(prev =>
+			prev.map(resume => ({
+				...resume,
+				isPrimary: resume.id === resumeId,
+			}))
+		);
+
+		try {
+			await fetchFromApi(`/resumes/${resumeId}/primary`, {
+				method: "PATCH",
+			});
+			setStatusMessage("Primary resume updated.");
+			setTimeout(() => setStatusMessage(null), 3000);
+		} catch (error) {
+			console.error("Failed to set primary resume", error);
+			setErrorMessage("Could not set primary resume. Please try again.");
+			// Revert on failure
+			void loadResumes();
 		}
 	}
 
@@ -658,8 +714,28 @@ export default function ResumePage() {
 												</>
 											) : (
 												<>
-													<span className="font-semibold flex-1 text-foreground">{resume.name}</span>
-													<div className="flex items-center gap-3">
+													<div className="flex items-center gap-1.5 flex-1 min-w-0">
+														<span className="font-semibold text-foreground truncate">{resume.name}</span>
+														{resume.isPrimary && <Badge variant="primary" size="sm">Primary</Badge>}
+													</div>
+													<div className="flex items-center gap-3 shrink-0">
+														<button
+															className="text-muted-foreground hover:text-yellow-500 transition-colors"
+															type="button"
+															title={resume.isPrimary ? "Primary resume" : "Set as primary"}
+															aria-label={resume.isPrimary ? "Primary resume" : "Set as primary"}
+															onClick={event => { event.stopPropagation(); void handleSetPrimary(resume.id); }}
+														>
+															{resume.isPrimary ? (
+																<svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
+																	<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+																</svg>
+															) : (
+																<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																	<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+																</svg>
+															)}
+														</button>
 														<button className="text-xs text-primary hover:text-primary-dark font-medium" type="button" onClick={event => { event.stopPropagation(); handlePreview(resume); }}>Preview</button>
 														<EditIcon onClick={event => { event.stopPropagation(); startEdit(resume.id, resume.name); }} />
 														<button className="text-xs text-error hover:text-red-700 font-medium" type="button" onClick={event => { void handleDelete(event, resume.id); }} disabled={deletingId === resume.id}>
@@ -676,6 +752,15 @@ export default function ResumePage() {
 							</ul>
 						</div>
 					))}
+
+				{uploadSuccess && (
+					<div className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700 animate-in fade-in slide-in-from-top-2">
+						<svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+						</svg>
+						{uploadSuccess}
+					</div>
+				)}
 
 				<Card>
 					<CardHeader>
@@ -722,7 +807,13 @@ export default function ResumePage() {
 							{uploadFile && <span className="text-xs text-muted-foreground">{uploadFile.name}</span>}
 							{uploadFiles && uploadFiles.length > 0 && <span className="text-xs text-muted-foreground">{uploadFiles.length} file{uploadFiles.length > 1 ? 's' : ''} selected</span>}
 						</label>
-						<Button variant="primary" className="w-full" type="submit" isLoading={uploading}>
+						{uploading && (
+							<div className="flex items-center gap-2 text-sm text-primary">
+								<LoadingSpinner size="sm" />
+								<span>{statusMessage ?? "Uploading your resume..."}</span>
+							</div>
+						)}
+						<Button variant="primary" className="w-full" type="submit" isLoading={uploading} disabled={uploading}>
 							{uploading ? "Uploading..." : bulkUploadMode ? "Upload Resumes" : "Upload Resume"}
 						</Button>
 					</form>

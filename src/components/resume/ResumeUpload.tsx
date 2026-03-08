@@ -3,6 +3,30 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 
+const MAX_FILE_SIZE_MB = 10;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+function getFileTypeIcon(fileName: string) {
+  const ext = fileName.toLowerCase().split('.').pop();
+  if (ext === 'pdf') {
+    return (
+      <svg className="w-5 h-5 text-red-500 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h5v7h7v9H6z" />
+        <text x="7" y="18" fontSize="6" fontWeight="bold" fill="currentColor">PDF</text>
+      </svg>
+    );
+  }
+  if (ext === 'doc' || ext === 'docx') {
+    return (
+      <svg className="w-5 h-5 text-blue-600 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 2l5 5h-5V4zM6 20V4h5v7h7v9H6z" />
+        <text x="6" y="18" fontSize="5" fontWeight="bold" fill="currentColor">DOC</text>
+      </svg>
+    );
+  }
+  return null;
+}
+
 export interface ResumeUploadProps {
   onUpload: (file: File) => void;
   isUploading?: boolean;
@@ -10,13 +34,26 @@ export interface ResumeUploadProps {
 
 const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUpload, isUploading = false }) => {
   const [isDragging, setIsDragging] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const validateAndUpload = useCallback((file: File) => {
+    setFileError(null);
+    setSelectedFile(null);
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setFileError(`File size exceeds ${MAX_FILE_SIZE_MB}MB limit. Please choose a smaller file.`);
+      return;
+    }
+    setSelectedFile(file);
+    onUpload(file);
+  }, [onUpload]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file) onUpload(file);
-  }, [onUpload]);
+    if (file) validateAndUpload(file);
+  }, [validateAndUpload]);
 
   return (
     <Card>
@@ -48,11 +85,20 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onUpload, isUploading = fal
               </svg>
               <p className="text-lg font-medium text-foreground mb-2">Drag & drop your resume</p>
               <p className="text-sm text-muted-foreground mb-6">or click to browse</p>
-              <input type="file" id="resume-upload" className="hidden" accept=".pdf,.doc,.docx" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} />
+              <input type="file" id="resume-upload" className="hidden" accept=".pdf,.doc,.docx" onChange={(e) => e.target.files?.[0] && validateAndUpload(e.target.files[0])} />
               <label htmlFor="resume-upload" className="inline-flex items-center px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium cursor-pointer hover:opacity-90 transition-opacity">
                 Choose File
               </label>
-              <p className="text-xs text-muted-foreground mt-4">PDF, DOC, DOCX (Max 5MB)</p>
+              {fileError && (
+                <p className="text-xs text-red-500 mt-3">{fileError}</p>
+              )}
+              {selectedFile && !fileError && (
+                <div className="flex items-center gap-2 mt-3 text-sm text-foreground">
+                  {getFileTypeIcon(selectedFile.name)}
+                  <span>{selectedFile.name}</span>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-4">PDF, DOC, DOCX (Max 10MB)</p>
             </>
           )}
         </div>
