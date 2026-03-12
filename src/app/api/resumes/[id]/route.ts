@@ -10,7 +10,7 @@ export async function GET(
   try {
     const orgId = request.headers.get("x-org-id");
     const { id } = await params;
-    const backendUrl = `${BACKEND_URL}/resumes/resume/${id}`;
+    const backendUrl = `${BACKEND_URL}/resumes/${id}`;
 
     console.log(`[API Proxy] GET /api/resumes/${id} -> ${backendUrl}`);
 
