@@ -12,6 +12,8 @@ import {
   type RankedResumeScore,
   type ResumeOption,
 } from "@/lib/recruiter-ranking";
+import Badge from "@/components/ui/Badge";
+import { scoreVariant } from "@/lib/status-variants";
 
 export default function RecruiterRankingPage() {
   const [jobDescriptions, setJobDescriptions] = useState<JobDescription[]>([]);
@@ -322,7 +324,7 @@ export default function RecruiterRankingPage() {
               <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">2</span>
               <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground">Resumes</h2>
               {selectedResumeIds.length > 0 && (
-                <span className="ml-auto rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">{selectedResumeIds.length} selected</span>
+                <Badge variant="success" size="sm" className="ml-auto">{selectedResumeIds.length} selected</Badge>
               )}
             </div>
 
@@ -453,7 +455,7 @@ export default function RecruiterRankingPage() {
                 <h2 className="text-lg font-semibold text-foreground">Ranking Results</h2>
                 {selectedJob && <p className="text-xs text-muted-foreground">Against: {selectedJob.title}</p>}
               </div>
-              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">{rankedResults.length} candidate{rankedResults.length > 1 ? "s" : ""} ranked</span>
+              <Badge variant="success" size="lg">{rankedResults.length} candidate{rankedResults.length > 1 ? "s" : ""} ranked</Badge>
             </div>
           )}
 
@@ -469,20 +471,15 @@ export default function RecruiterRankingPage() {
             const matchedKeywords = result.matched_keywords ?? result.skills_analysis?.found ?? [];
             const improvements = result.improvement_suggestions ?? [];
 
-            const scoreColor = scorePercent >= 80 ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-              : scorePercent >= 60 ? "bg-blue-100 text-blue-700 border-blue-200"
-              : scorePercent >= 40 ? "bg-amber-100 text-amber-700 border-amber-200"
-              : "bg-rose-100 text-rose-700 border-rose-200";
-
             return (
               <article key={`${result.candidate_id}-${result.resume_id}`}
                 className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                 {/* Card header */}
                 <div className="flex items-start justify-between gap-4 p-5 border-b border-border/50">
                   <div className="flex items-start gap-3">
-                    <div className={`flex-shrink-0 flex h-12 w-12 items-center justify-center rounded-full border-2 text-lg font-bold ${scoreColor}`}>
+                    <Badge variant={scoreVariant(scorePercent)} size="sm" className="flex-shrink-0 flex h-12 w-12 items-center justify-center rounded-full border-2 text-lg font-bold">
                       {scorePercent}
-                    </div>
+                    </Badge>
                     <div>
                       <p className="text-sm font-semibold text-foreground">
                         {resume?.candidate_name ? `${resume.candidate_name} — ` : ""}{resume?.name ?? result.resume_id}

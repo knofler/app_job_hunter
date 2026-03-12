@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchFromApi } from "@/lib/api";
+import { Card } from "@/components/ui/Card";
 
 interface ProjectSummary {
   id: string;
@@ -23,7 +24,7 @@ interface SeedStatus {
 
 function MetricCard({ label, value, icon, accent }: { label: string; value: string | number; icon: string; accent?: string }) {
   return (
-    <div className="bg-card border border-border rounded-xl p-5 flex items-start gap-4">
+    <Card className="p-4 flex items-start gap-4">
       <div className={`h-10 w-10 rounded-lg flex items-center justify-center text-lg shrink-0 ${accent ?? "bg-primary/10"}`}>
         {icon}
       </div>
@@ -31,7 +32,7 @@ function MetricCard({ label, value, icon, accent }: { label: string; value: stri
         <p className="text-2xl font-bold text-foreground">{value}</p>
         <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
       </div>
-    </div>
+    </Card>
   );
 }
 

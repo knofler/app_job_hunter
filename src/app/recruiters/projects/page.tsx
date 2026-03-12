@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { createProject, deleteProject, listProjects, type Project } from "@/lib/projects-api";
 import { fetchFromApi } from "@/lib/api";
+import Badge from "@/components/ui/Badge";
+import { Card } from "@/components/ui/Card";
 
 const DEFAULT_ORG = "global";
 
@@ -11,9 +13,9 @@ interface JDOption { id: string; title: string; company?: string; }
 
 function ScoreBadge({ count }: { count: number }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+    <Badge variant="primary" size="sm">
       {count} run{count !== 1 ? "s" : ""}
-    </span>
+    </Badge>
   );
 }
 
@@ -25,7 +27,7 @@ function ProjectCard({ project, onDelete }: { project: Project; onDelete: (id: s
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   return (
-    <div className="group relative rounded-xl border border-border bg-card p-5 shadow-sm hover:border-primary/40 hover:shadow-md transition-all">
+    <Card hoverable className="group relative p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 mb-1">
@@ -65,7 +67,7 @@ function ProjectCard({ project, onDelete }: { project: Project; onDelete: (id: s
       </div>
 
       <Link href={`/recruiters/projects/${project.id}`} className="absolute inset-0 rounded-xl" aria-label={`Open ${project.name}`} />
-    </div>
+    </Card>
   );
 }
 

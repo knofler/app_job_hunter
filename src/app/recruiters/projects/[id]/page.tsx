@@ -26,22 +26,10 @@ import {
 } from "@/lib/projects-api";
 import { fetchFromApi } from "@/lib/api";
 import DeepAssessButton from "@/components/DeepAssessButton";
+import Badge from "@/components/ui/Badge";
+import { scoreVariant } from "@/lib/status-variants";
 
 const DEFAULT_ORG = "global";
-
-// ── Score badge ──────────────────────────────────────────────────────────────
-function ScoreBadge({ score }: { score: number }) {
-  const cls =
-    score >= 90 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
-    score >= 75 ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
-    score >= 60 ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
-                  "bg-rose-500/10 text-rose-400 border-rose-500/20";
-  return (
-    <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold ${cls}`}>
-      {score}
-    </span>
-  );
-}
 
 // ── Shared PDF text cleaner ───────────────────────────────────────────────────
 function cleanPdf(text: string): string[] {
@@ -1694,7 +1682,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <ScoreBadge score={c.score} />
+                          <Badge variant={scoreVariant(c.score)} size="sm">{c.score}</Badge>
                           {c.recommendation && (
                             <span className="text-xs text-muted-foreground">{c.recommendation}</span>
                           )}

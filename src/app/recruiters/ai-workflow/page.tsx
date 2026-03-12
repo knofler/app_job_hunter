@@ -22,13 +22,8 @@ import {
   searchCandidatesAndResumes,
   CandidateSearchResponse,
 } from "@/lib/recruiter-workflow";
-
-
-const skillStatusClasses: Record<string, string> = {
-  Yes: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  Partial: "bg-amber-100 text-amber-700 border-amber-200",
-  No: "bg-rose-100 text-rose-700 border-rose-200",
-};
+import Badge from "@/components/ui/Badge";
+import { skillStatusVariant } from "@/lib/status-variants";
 
 function formatDateTime(value: Date | null): string {
   if (!value) {
@@ -443,7 +438,7 @@ export default function RecruiterAIWorkflowPage() {
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground">Candidates & Resumes</h2>
               </div>
               {selectedResumeIds.length > 0 && (
-                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">{selectedResumeIds.length} selected</span>
+                <Badge variant="success" size="sm">{selectedResumeIds.length} selected</Badge>
               )}
             </div>
 
@@ -899,9 +894,12 @@ export default function RecruiterAIWorkflowPage() {
                     <div className="grid gap-2 sm:grid-cols-2">
                       {selectedAnalysis?.skill_alignment.map(alignment => (
                         <div key={`${alignment.skill}-${alignment.status}`}
-                          className={`rounded-lg border px-3 py-2.5 text-sm ${skillStatusClasses[alignment.status] || "border-border bg-muted text-foreground/80"}`}>
-                          <p className="font-semibold">{alignment.skill}</p>
-                          <p className="text-xs">{alignment.evidence}</p>
+                          className="rounded-lg border border-border bg-muted/50 px-3 py-2.5 text-sm">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="font-semibold">{alignment.skill}</p>
+                            <Badge variant={skillStatusVariant(alignment.status)} size="sm">{alignment.status}</Badge>
+                          </div>
+                          <p className="text-xs text-foreground/80 mt-1">{alignment.evidence}</p>
                         </div>
                       ))}
                       {(!selectedAnalysis || selectedAnalysis.skill_alignment.length === 0) && (

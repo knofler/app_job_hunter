@@ -2,6 +2,9 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import Badge from "@/components/ui/Badge";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { verdictVariant, skillStatusVariant } from "@/lib/status-variants";
 
 const DEFAULT_ORG = "global";
 
@@ -43,18 +46,6 @@ interface AssessmentResult {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const VERDICT_STYLES: Record<string, string> = {
-  hire: "bg-emerald-100 text-emerald-800 border border-emerald-200",
-  maybe: "bg-amber-100 text-amber-800 border border-amber-200",
-  no: "bg-red-100 text-red-800 border border-red-200",
-};
-
-const SKILL_STATUS_STYLES: Record<string, string> = {
-  present: "bg-emerald-100 text-emerald-700",
-  partial: "bg-amber-100 text-amber-700",
-  missing: "bg-red-100 text-red-700",
-};
-
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function SectionCard({
@@ -69,12 +60,12 @@ function SectionCard({
   loading?: boolean;
 }) {
   return (
-    <div className="bg-card border border-border rounded-xl overflow-hidden">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/40">
+    <Card className="rounded-xl p-0 overflow-hidden">
+      <CardHeader className="flex-row items-center gap-2 px-4 py-3 border-b border-border bg-muted/40 space-y-0">
         <span className="text-primary">{icon}</span>
-        <h3 className="text-sm font-semibold">{title}</h3>
-      </div>
-      <div className="p-4">
+        <CardTitle className="text-base font-semibold">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="p-4">
         {loading ? (
           <div className="space-y-2">
             <div className="h-3 bg-muted rounded animate-pulse w-3/4" />
@@ -83,8 +74,8 @@ function SectionCard({
         ) : (
           children
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -391,11 +382,7 @@ export default function AIAssessmentPage() {
         <div className="space-y-4">
           {/* Hiring recommendation banner */}
           {result.hiring_recommendation && (
-            <div
-              className={`flex items-center gap-3 rounded-xl px-5 py-4 ${
-                VERDICT_STYLES[result.hiring_recommendation.verdict] || "bg-muted"
-              }`}
-            >
+            <div className="flex items-center gap-3 rounded-xl px-5 py-4 bg-muted/40 border border-border">
               <span className="text-xl">
                 {result.hiring_recommendation.verdict === "hire"
                   ? "✅"
@@ -403,10 +390,10 @@ export default function AIAssessmentPage() {
                   ? "🤔"
                   : "❌"}
               </span>
-              <div>
-                <p className="font-semibold capitalize">
+              <div className="flex items-center gap-3">
+                <Badge variant={verdictVariant(result.hiring_recommendation.verdict)} size="lg" className="capitalize">
                   {result.hiring_recommendation.verdict}
-                </p>
+                </Badge>
                 <p className="text-sm">{result.hiring_recommendation.rationale}</p>
               </div>
             </div>
@@ -507,13 +494,9 @@ export default function AIAssessmentPage() {
                       <tr key={i}>
                         <td className="py-2 pr-4 font-medium">{s.skill}</td>
                         <td className="py-2 pr-4">
-                          <span
-                            className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
-                              SKILL_STATUS_STYLES[s.status] || "bg-muted"
-                            }`}
-                          >
+                          <Badge variant={skillStatusVariant(s.status)} size="sm" className="capitalize">
                             {s.status}
-                          </span>
+                          </Badge>
                         </td>
                         <td className="py-2 text-muted-foreground">{s.evidence}</td>
                       </tr>
