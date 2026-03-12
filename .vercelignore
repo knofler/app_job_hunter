@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Testing
+__tests__/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+jest.config.*
+coverage/
+
+# Docker
+Dockerfile
+Dockerfile.test
+docker-compose*.yml
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
+
+# Docs
+README.md
+CHANGELOG.md
+docs/
+
+# AI Framework
+AI/
