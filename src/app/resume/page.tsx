@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 type Resume = {
 	id: string;
@@ -159,6 +160,7 @@ export default function ResumePage() {
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [editName, setEditName] = useState("");
+	const [editError, setEditError] = useState<string | null>(null);
 	const [loading, setLoading] = useState<boolean>(true);
 	const [usingFallback, setUsingFallback] = useState<boolean>(true);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -177,6 +179,7 @@ export default function ResumePage() {
 	const [previewResume, setPreviewResume] = useState<Resume | null>(null);
 	const [previewExpanded, setPreviewExpanded] = useState(false);
 	const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+	const [deleteResumeTarget, setDeleteResumeTarget] = useState<{ id: string; event: MouseEvent<HTMLButtonElement> } | null>(null);
 
 	const handlePreview = (resume: Resume) => {
 		setPreviewResume(resume);
@@ -260,6 +263,7 @@ export default function ResumePage() {
 	function startEdit(id: string, name: string) {
 		setEditingId(id);
 		setEditName(name);
+		setEditError(null);
 	}
 
 	async function saveEdit(id: string) {
@@ -267,9 +271,19 @@ export default function ResumePage() {
 		if (!trimmedName) {
 			setEditingId(null);
 			setEditName("");
+			setEditError(null);
 			return;
 		}
 
+		const duplicateExists = resumes.some(
+			resume => resume.id !== id && resume.name.trim().toLowerCase() === trimmedName.toLowerCase()
+		);
+		if (duplicateExists) {
+			setEditError("A resume with this name already exists");
+			return;
+		}
+
+		setEditError(null);
 		setResumes(prev => prev.map(resume => (resume.id === id ? { ...resume, name: trimmedName } : resume)));
 		setEditingId(null);
 		setEditName("");
@@ -293,6 +307,7 @@ export default function ResumePage() {
 	function cancelEdit() {
 		setEditingId(null);
 		setEditName("");
+		setEditError(null);
 	}
 
 	function resetUploadForm() {
@@ -565,13 +580,14 @@ export default function ResumePage() {
 		}
 	}
 
-	async function handleDelete(event: MouseEvent<HTMLButtonElement>, resumeId: string) {
+	function requestDeleteResume(event: MouseEvent<HTMLButtonElement>, resumeId: string) {
 		event.stopPropagation();
 		if (!resumeId) return;
-		if (typeof window !== "undefined" && !window.confirm("Delete this resume?")) {
-			return;
-		}
+		setDeleteResumeTarget({ id: resumeId, event });
+	}
 
+	async function handleDelete(resumeId: string) {
+		setDeleteResumeTarget(null);
 		setDeletingId(resumeId);
 		setStatusMessage(null);
 		setErrorMessage(null);
@@ -700,18 +716,21 @@ export default function ResumePage() {
 									>
 										<div className="flex items-center gap-2 w-full">
 											{editingId === resume.id ? (
-												<>
-													<input
-														className="input text-sm flex-1"
-														value={editName}
-														onChange={event => setEditName(event.target.value)}
-														onClick={event => event.stopPropagation()}
-													/>
-													<div className="flex gap-2 text-xs">
-														<button className="text-primary font-medium" type="button" onClick={event => { event.stopPropagation(); void saveEdit(resume.id); }}>Save</button>
-														<button className="text-muted-foreground" type="button" onClick={event => { event.stopPropagation(); cancelEdit(); }}>Cancel</button>
+												<div className="flex flex-col gap-1 w-full">
+													<div className="flex items-center gap-2 w-full">
+														<input
+															className={`input text-sm flex-1${editError ? ' border-error' : ''}`}
+															value={editName}
+															onChange={event => { setEditName(event.target.value); setEditError(null); }}
+															onClick={event => event.stopPropagation()}
+														/>
+														<div className="flex gap-2 text-xs">
+															<button className="text-primary font-medium" type="button" onClick={event => { event.stopPropagation(); void saveEdit(resume.id); }}>Save</button>
+															<button className="text-muted-foreground" type="button" onClick={event => { event.stopPropagation(); cancelEdit(); }}>Cancel</button>
+														</div>
 													</div>
-												</>
+													{editError && <p className="text-xs text-error">{editError}</p>}
+												</div>
 											) : (
 												<>
 													<div className="flex items-center gap-1.5 flex-1 min-w-0">
@@ -738,7 +757,7 @@ export default function ResumePage() {
 														</button>
 														<button className="text-xs text-primary hover:text-primary-dark font-medium" type="button" onClick={event => { event.stopPropagation(); handlePreview(resume); }}>Preview</button>
 														<EditIcon onClick={event => { event.stopPropagation(); startEdit(resume.id, resume.name); }} />
-														<button className="text-xs text-error hover:text-red-700 font-medium" type="button" onClick={event => { void handleDelete(event, resume.id); }} disabled={deletingId === resume.id}>
+														<button className="text-xs text-error hover:text-red-700 font-medium" type="button" onClick={event => { requestDeleteResume(event, resume.id); }} disabled={deletingId === resume.id}>
 															{deletingId === resume.id ? "Deleting..." : "Delete"}
 														</button>
 													</div>
@@ -872,6 +891,16 @@ export default function ResumePage() {
 </div>
 		</div>
 		<ResumePreviewModal resume={previewResume} onClose={() => setPreviewResume(null)} />
+		<ConfirmModal
+			open={deleteResumeTarget !== null}
+			title="Delete Resume"
+			message="Are you sure you want to delete this resume? This action cannot be undone."
+			confirmLabel="Delete"
+			cancelLabel="Cancel"
+			variant="danger"
+			onConfirm={() => { if (deleteResumeTarget) void handleDelete(deleteResumeTarget.id); }}
+			onCancel={() => setDeleteResumeTarget(null)}
+		/>
 	</div>
 	);
 }

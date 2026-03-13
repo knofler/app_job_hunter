@@ -4,6 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 
 import { fetchFromApi } from "@/lib/api";
 import { fallbackRecruiters } from "@/lib/fallback-data";
+import { Card } from "@/components/ui/Card";
+import Badge from "@/components/ui/Badge";
+import Button from "@/components/ui/Button";
 
 const PAGE_SIZE = 5;
 
@@ -98,78 +101,104 @@ export default function RecruitersPage() {
     <div className="max-w-6xl mx-auto py-10 px-4">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Recruiter Network</h1>
-          <p className="text-sm text-gray-500">Connect with {total} specialist recruiters supporting the platform.</p>
+          <h1 className="text-2xl font-bold text-foreground">Recruiter Network</h1>
+          <p className="text-sm text-muted-foreground">Connect with {total} specialist recruiters supporting the platform.</p>
         </div>
-        <div className="text-sm text-gray-500">{loading ? "Loading..." : usingFallback ? "Demo data" : "Live data"}</div>
+        <div>
+          {loading ? (
+            <Badge variant="neutral" size="sm">Loading...</Badge>
+          ) : usingFallback ? (
+            <Badge variant="warning" size="sm">Demo data</Badge>
+          ) : (
+            <Badge variant="success" size="sm">Live data</Badge>
+          )}
+        </div>
       </div>
 
-      {error && <div className="mb-4 text-sm text-red-500">{error}</div>}
+      {error && (
+        <Card className="mb-4 p-3 border-rose-200 bg-rose-50">
+          <p className="text-sm text-rose-700">{error}</p>
+        </Card>
+      )}
 
-      <div className="overflow-x-auto bg-white border border-blue-100 rounded-lg shadow-sm">
-        <table className="min-w-full divide-y divide-blue-100">
-          <thead className="bg-blue-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-blue-900 uppercase tracking-wider">Recruiter</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-blue-900 uppercase tracking-wider">Specialties</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-blue-900 uppercase tracking-wider">Regions</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-blue-900 uppercase tracking-wider">Contact</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-blue-900 uppercase tracking-wider">Updated</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-blue-50">
-            {recruiters.map(recruiter => (
-              <tr key={recruiter.recruiter_id} className="hover:bg-blue-50">
-                <td className="px-4 py-3">
-                  <div className="font-semibold text-gray-900">{recruiter.name}</div>
-                  <div className="text-xs text-gray-500">{recruiter.company ?? "Independent"}</div>
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-700">
-                  {recruiter.specialties && recruiter.specialties.length > 0
-                    ? recruiter.specialties.join(", ")
-                    : "Not specified"}
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-700">
-                  {recruiter.regions && recruiter.regions.length > 0
-                    ? recruiter.regions.join(", ")
-                    : "Not specified"}
-                </td>
-                <td className="px-4 py-3 text-sm text-blue-700">
-                  {recruiter.email ? (
-                    <a href={`mailto:${recruiter.email}`} className="hover:underline">
-                      {recruiter.email}
-                    </a>
-                  ) : (
-                    "N/A"
-                  )}
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-700">{formatDate(recruiter.updated_at)}</td>
+      <Card className="overflow-hidden p-0">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-border">
+            <thead className="bg-muted/30">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">Recruiter</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">Specialties</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">Regions</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">Contact</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-foreground uppercase tracking-wider">Updated</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {recruiters.map(recruiter => (
+                <tr key={recruiter.recruiter_id} className="hover:bg-muted/30 transition-colors">
+                  <td className="px-4 py-3">
+                    <div className="font-semibold text-foreground">{recruiter.name}</div>
+                    <div className="text-xs text-muted-foreground">{recruiter.company ?? "Independent"}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    {recruiter.specialties && recruiter.specialties.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {recruiter.specialties.map(s => (
+                          <Badge key={s} variant="info" size="sm">{s}</Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">Not specified</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {recruiter.regions && recruiter.regions.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {recruiter.regions.map(r => (
+                          <Badge key={r} variant="neutral" size="sm">{r}</Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">Not specified</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-sm">
+                    {recruiter.email ? (
+                      <a href={`mailto:${recruiter.email}`} className="text-primary hover:underline">
+                        {recruiter.email}
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">N/A</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">{formatDate(recruiter.updated_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
 
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mt-6">
-        <div className="text-sm text-gray-500">Showing {start} - {end} of {total}</div>
+        <div className="text-sm text-muted-foreground">Showing {start} - {end} of {total}</div>
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            className="px-3 py-1 rounded border border-blue-200 text-sm text-blue-700 disabled:opacity-50"
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setPage(prev => Math.max(1, prev - 1))}
             disabled={page <= 1 || loading}
           >
             Previous
-          </button>
-          <span className="text-sm text-gray-700">Page {page} of {totalPages}</span>
-          <button
-            type="button"
-            className="px-3 py-1 rounded border border-blue-200 text-sm text-blue-700 disabled:opacity-50"
+          </Button>
+          <span className="text-sm text-muted-foreground">Page {page} of {totalPages}</span>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
             disabled={page >= totalPages || loading}
           >
             Next
-          </button>
+          </Button>
         </div>
       </div>
     </div>

@@ -6,6 +6,7 @@ import { createProject, deleteProject, listProjects, type Project } from "@/lib/
 import { fetchFromApi } from "@/lib/api";
 import Badge from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 const DEFAULT_ORG = "global";
 
@@ -307,6 +308,7 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState("");
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const fetchProjects = useCallback(async () => {
     setLoading(true);
@@ -323,14 +325,20 @@ export default function ProjectsPage() {
 
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
 
-  async function handleDelete(id: string) {
-    if (!confirm("Delete this project and all its runs? This cannot be undone.")) return;
+  function requestDelete(id: string) {
+    setDeleteTargetId(id);
+  }
+
+  async function confirmDeleteProject() {
+    if (!deleteTargetId) return;
     try {
-      await deleteProject(id);
-      setProjects((p) => p.filter((x) => x.id !== id));
+      await deleteProject(deleteTargetId);
+      setProjects((p) => p.filter((x) => x.id !== deleteTargetId));
       setTotal((t) => t - 1);
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Delete failed");
+    } finally {
+      setDeleteTargetId(null);
     }
   }
 
@@ -396,11 +404,22 @@ export default function ProjectsPage() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {projects.map((p) => (
-              <ProjectCard key={p.id} project={p} onDelete={handleDelete} />
+              <ProjectCard key={p.id} project={p} onDelete={requestDelete} />
             ))}
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        open={deleteTargetId !== null}
+        title="Delete Project"
+        message="Delete this project and all its runs? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={() => void confirmDeleteProject()}
+        onCancel={() => setDeleteTargetId(null)}
+      />
     </div>
   );
 }

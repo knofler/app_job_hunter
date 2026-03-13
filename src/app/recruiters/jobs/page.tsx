@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 import { fetchFromApi } from "@/lib/api";
 
 interface JobDescription {
@@ -104,6 +105,7 @@ export default function RecruiterJobsPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedJob, setSelectedJob] = useState<JobDescription | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<JobDescription | null>(null);
 
   const loadJobs = useCallback(async () => {
     try {
@@ -128,13 +130,14 @@ export default function RecruiterJobsPage() {
   );
 
   const handleDelete = async (job: JobDescription) => {
-    if (!confirm(`Delete "${job.title}"?`)) return;
     try {
       await fetchFromApi(`/jobs/${job.id}`, { method: "DELETE" });
       setJobs(jobs.filter(j => j.id !== job.id));
     } catch (err) {
       console.error("Failed to delete job", err);
       alert("Failed to delete job description");
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -203,7 +206,7 @@ export default function RecruiterJobsPage() {
                       <td className="px-6 py-4">
                         <div className="flex gap-2">
                           <Button size="sm" variant="ghost" onClick={() => setSelectedJob(job)}>Preview</Button>
-                          <Button size="sm" variant="danger" onClick={() => handleDelete(job)}>Delete</Button>
+                          <Button size="sm" variant="danger" onClick={() => setDeleteTarget(job)}>Delete</Button>
                         </div>
                       </td>
                     </tr>
@@ -229,6 +232,16 @@ export default function RecruiterJobsPage() {
         )}
       </div>
       <JobPreviewModal job={selectedJob} onClose={() => setSelectedJob(null)} />
+      <ConfirmModal
+        open={deleteTarget !== null}
+        title="Delete Job Description"
+        message={`Are you sure you want to delete "${deleteTarget?.title ?? ""}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={() => { if (deleteTarget) void handleDelete(deleteTarget); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }
