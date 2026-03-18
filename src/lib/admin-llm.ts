@@ -38,16 +38,11 @@ export type LLMSettingsPayload = {
   }>;
 };
 
-import { getApiBaseUrl } from "@/lib/api";
-
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const baseUrl = getApiBaseUrl();
-  const fullUrl = url.startsWith('/') ? `${baseUrl}${url}` : url;
-  const response = await fetch(fullUrl, {
+  const response = await fetch(url, {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      "X-Admin-Token": process.env.NEXT_PUBLIC_ADMIN_TOKEN || "changeme-admin-token",
       ...(init?.headers ?? {}),
     },
     cache: "no-store",

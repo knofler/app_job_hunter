@@ -16,7 +16,7 @@ async function proxy(request: NextRequest, init?: RequestInit) {
       headers["Authorization"] = `Bearer ${session.accessToken}`;
     }
     
-    const adminToken = process.env.ADMIN_API_KEY || process.env.NEXT_PUBLIC_ADMIN_TOKEN;
+    const adminToken = process.env.ADMIN_API_KEY;
     if (adminToken) {
       headers["X-Admin-Token"] = adminToken;
     }

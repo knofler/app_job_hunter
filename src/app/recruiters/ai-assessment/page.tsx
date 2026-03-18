@@ -138,7 +138,10 @@ export default function AIAssessmentPage() {
         candidate_name: r.candidate_name as string | undefined,
       }));
       const filtered = q
-        ? items.filter((r) => r.name.toLowerCase().includes(q.toLowerCase()))
+        ? items.filter((r) =>
+            r.name.toLowerCase().includes(q.toLowerCase()) ||
+            (r.candidate_name || "").toLowerCase().includes(q.toLowerCase())
+          )
         : items;
       setResumeOptions(filtered.slice(0, 20));
     } catch {
@@ -275,13 +278,17 @@ export default function AIAssessmentPage() {
                     className="px-3 py-2 hover:bg-muted cursor-pointer"
                     onClick={() => {
                       setSelectedResume(r);
-                      setResumeSearch(r.name);
+                      setResumeSearch(r.candidate_name ? `${r.candidate_name} — ${r.name}` : r.name);
                       setResumeOptions([]);
                     }}
                   >
-                    <span className="font-medium">{r.name}</span>
-                    {r.candidate_name && (
-                      <span className="text-muted-foreground ml-2 text-xs">{r.candidate_name}</span>
+                    {r.candidate_name ? (
+                      <>
+                        <span className="font-medium">{r.candidate_name}</span>
+                        <span className="text-muted-foreground ml-2 text-xs">{r.name}</span>
+                      </>
+                    ) : (
+                      <span className="font-medium">{r.name}</span>
                     )}
                   </li>
                 ))}
@@ -289,7 +296,9 @@ export default function AIAssessmentPage() {
             )}
             {selectedResume && (
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-emerald-600 font-medium">✓ {selectedResume.name}</span>
+                <span className="text-emerald-600 font-medium">
+                  ✓ {selectedResume.candidate_name ? `${selectedResume.candidate_name} — ${selectedResume.name}` : selectedResume.name}
+                </span>
                 <button
                   className="text-xs text-muted-foreground underline"
                   onClick={() => {

@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
 
   const adminToken =
-    process.env.ADMIN_API_KEY || process.env.NEXT_PUBLIC_ADMIN_TOKEN;
+    process.env.ADMIN_API_KEY;
 
   // Strip the /api suffix if present — backend path is /api/assessments/single/stream
   const base = SERVER_BACKEND_URL.replace(/\/api$/, "");

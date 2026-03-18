@@ -8,9 +8,11 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const queryString = searchParams.toString();
   const url = `${BACKEND_URL}/jobs/descriptions${queryString ? `?${queryString}` : ""}`;
+  const adminToken = process.env.ADMIN_API_KEY;
   const response = await fetch(url, {
     headers: {
       "Content-Type": "application/json",
+      ...(adminToken ? { "X-Admin-Token": adminToken } : {}),
       ...(orgId ? { "X-Org-Id": orgId } : {}),
     },
   });

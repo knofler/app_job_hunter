@@ -40,11 +40,7 @@ export default function AdminOrgsPage() {
 
   const fetchOrgs = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/orgs`, {
-        headers: {
-          'X-Admin-Token': process.env.NEXT_PUBLIC_ADMIN_TOKEN || '',
-        },
-      });
+      const response = await fetch(`/api/admin/orgs`);
       const data = await response.json();
       setOrgs(data.items || []);
     } catch (error) {

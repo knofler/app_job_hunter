@@ -18,7 +18,7 @@ export async function PATCH(
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        ...(process.env.NEXT_PUBLIC_ADMIN_TOKEN ? { "X-Admin-Token": process.env.NEXT_PUBLIC_ADMIN_TOKEN } : {}),
+        ...(process.env.ADMIN_API_KEY ? { "X-Admin-Token": process.env.ADMIN_API_KEY } : {}),
         ...(orgId ? { "X-Org-Id": orgId } : {}),
       },
     });

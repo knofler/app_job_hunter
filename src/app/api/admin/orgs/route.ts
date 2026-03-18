@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-
 import { getApiBaseUrl } from "@/lib/api";
 
 export async function GET(request: NextRequest) {
@@ -17,20 +16,15 @@ export async function GET(request: NextRequest) {
       headers["X-Admin-Token"] = adminToken;
     }
 
-    const response = await fetch(`${apiBaseUrl}/api/admin/llm/providers`, {
+    const response = await fetch(`${apiBaseUrl}/admin/orgs`, {
       headers,
       cache: "no-store",
     });
 
-    const body = await response.text();
-    let data: unknown = null;
-    if (body) {
-      try { data = JSON.parse(body); } catch { data = { detail: body }; }
-    }
+    const data = await response.json();
     return NextResponse.json(data, { status: response.status });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Proxy error";
     return NextResponse.json({ detail: message }, { status: 502 });
   }
 }
-

@@ -1,5 +1,3 @@
-import { getApiBaseUrl } from "./api";
-
 type StreamEvent = {
   type: "status" | "result" | "partial" | "complete" | "error" | "done";
   step?: string;
@@ -19,14 +17,12 @@ export async function streamRecruiterWorkflow(
   payload: unknown,
   callbacks: StreamCallbacks
 ): Promise<void> {
-  const baseUrl = getApiBaseUrl();
-  const url = `${baseUrl}/recruiter-workflow/generate-stream`;
+  const url = `/api/admin/recruiter-workflow/stream`;
 
   const response = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Admin-Token": process.env.NEXT_PUBLIC_ADMIN_TOKEN || "changeme-admin-token",
     },
     body: JSON.stringify(payload),
   });

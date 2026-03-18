@@ -9,7 +9,7 @@ export async function proxyProjects(
 ) {
   const apiBaseUrl = getApiBaseUrl();
   const headers: Record<string, string> = {};
-  const adminToken = process.env.ADMIN_API_KEY || process.env.NEXT_PUBLIC_ADMIN_TOKEN;
+  const adminToken = process.env.ADMIN_API_KEY;
   if (adminToken) headers["X-Admin-Token"] = adminToken;
   if (body) headers["Content-Type"] = "application/json";
   const orgId = request.headers.get("x-org-id");

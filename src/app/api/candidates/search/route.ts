@@ -2,29 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { SERVER_BACKEND_URL } from "@/lib/server-backend-url";
 const BACKEND_URL = SERVER_BACKEND_URL;
+const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ [key: string]: string | string[] }> }
-) {
+export async function GET(request: NextRequest) {
   try {
     const orgId = request.headers.get("x-org-id");
-    const { candidate_id } = await params;
-    const backendUrl = `${BACKEND_URL}/candidates/${candidate_id}/dashboard`;
-
-    console.log(`[API Proxy] GET /api/candidates/${candidate_id}/dashboard -> ${backendUrl}`);
+    const { searchParams } = new URL(request.url);
+    const queryString = searchParams.toString();
+    const backendUrl = `${BACKEND_URL}/candidates/search${queryString ? `?${queryString}` : ""}`;
 
     const response = await fetch(backendUrl, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        ...(process.env.ADMIN_API_KEY ? { "X-Admin-Token": process.env.ADMIN_API_KEY } : {}),
+        ...(ADMIN_API_KEY ? { "X-Admin-Token": ADMIN_API_KEY } : {}),
         ...(orgId ? { "X-Org-Id": orgId } : {}),
       },
     });
 
     if (!response.ok) {
-      console.error(`[API Proxy] Backend error: ${response.status} ${response.statusText}`);
       return NextResponse.json(
         { error: `Backend error: ${response.status} ${response.statusText}` },
         { status: response.status }
@@ -32,13 +28,11 @@ export async function GET(
     }
 
     const data = await response.json();
-    console.log(`[API Proxy] Success: Dashboard returned`);
-
     return NextResponse.json(data);
   } catch (error) {
-    console.error("[API Proxy] Error proxying to backend:", error);
+    console.error("[API Proxy] Error searching candidates:", error);
     return NextResponse.json(
-      { error: "Failed to fetch dashboard from backend" },
+      { error: "Failed to search candidates" },
       { status: 500 }
     );
   }

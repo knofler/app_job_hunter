@@ -22,7 +22,7 @@ async function proxy(request: NextRequest, init?: RequestInit, promptId?: string
   };
 
   // Always include X-Admin-Token as fallback
-  const adminToken = process.env.NEXT_PUBLIC_ADMIN_TOKEN || 'fallback-token-change-in-prod';
+  const adminToken = process.env.ADMIN_API_KEY;
   if (adminToken) {
     headers["X-Admin-Token"] = adminToken;
   }

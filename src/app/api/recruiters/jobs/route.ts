@@ -4,9 +4,9 @@ export async function GET(request: NextRequest) {
   try {
     const orgId = request.headers.get("x-org-id");
     // For debugging - always use admin token
-    const adminToken = process.env.NEXT_PUBLIC_ADMIN_TOKEN;
+    const adminToken = process.env.ADMIN_API_KEY;
     if (!adminToken) {
-      return NextResponse.json({ error: 'Admin token not configured' }, { status: 500 });
+      return NextResponse.json({ error: 'Admin API key not configured' }, { status: 500 });
     }
 
     const { searchParams } = new URL(request.url);

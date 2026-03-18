@@ -12,10 +12,12 @@ export async function GET(request: NextRequest) {
 
     console.log(`[API Proxy] GET /api/jobs -> ${backendUrl}`);
 
+    const adminToken = process.env.ADMIN_API_KEY;
     const response = await fetch(backendUrl, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
+        ...(adminToken ? { "X-Admin-Token": adminToken } : {}),
         ...(orgId ? { "X-Org-Id": orgId } : {}),
       },
     });
