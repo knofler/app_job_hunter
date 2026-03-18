@@ -24,8 +24,15 @@ function buildHeaders(path: string, init?: RequestInit): Headers {
     headers.set("Content-Type", "application/json");
   }
 
-  // Admin tokens are now handled server-side via API routes — never injected client-side
+  // Inject admin token for non-user routes (fallback for direct backend calls)
   const isUserRoute = path.includes("/api/me") || path.includes("/job-search");
+
+  if (!headers.has("X-Admin-Token") && !isUserRoute) {
+    const adminToken = process.env.NEXT_PUBLIC_ADMIN_TOKEN;
+    if (adminToken) {
+      headers.set("X-Admin-Token", adminToken);
+    }
+  }
 
   // Only inject global Org ID if not already set and not a user route
   if (!headers.has("X-Org-Id") && !isUserRoute) {
