@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
-  const baseUrl = process.env.AUTH0_BASE_URL || 'http://localhost:3010';
+  let baseUrl = process.env.AUTH0_BASE_URL || 'http://localhost:3010';
+
+  // On Vercel preview, use the actual deployment host instead of AUTH0_BASE_URL
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  if (forwardedHost && forwardedHost.includes('vercel.app') && forwardedHost !== 'app-job-hunter.vercel.app') {
+    baseUrl = `https://${forwardedHost}`;
+  }
   const auth0Domain = process.env.AUTH0_ISSUER_BASE_URL;
   const clientId = process.env.AUTH0_CLIENT_ID;
 

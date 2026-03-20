@@ -16,7 +16,12 @@ export async function GET(request: NextRequest) {
 
   // Ensure base URL has protocol
   let baseUrl = process.env.AUTH0_BASE_URL || 'http://localhost:3000';
-  if (!baseUrl.startsWith('http')) {
+
+  // On Vercel preview, use the actual deployment host instead of AUTH0_BASE_URL
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  if (forwardedHost && forwardedHost.includes('vercel.app') && forwardedHost !== 'app-job-hunter.vercel.app') {
+    baseUrl = `https://${forwardedHost}`;
+  } else if (!baseUrl.startsWith('http')) {
     baseUrl = `https://${baseUrl}`;
   }
 
