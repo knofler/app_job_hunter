@@ -15,8 +15,11 @@ export async function GET(request: NextRequest) {
   });
 
   // Ensure base URL has protocol
+  // Use VERCEL_URL for preview deployments, AUTH0_BASE_URL for production/local
   let baseUrl = process.env.AUTH0_BASE_URL || 'http://localhost:3000';
-  if (!baseUrl.startsWith('http')) {
+  if (process.env.VERCEL_ENV === 'preview' && process.env.VERCEL_URL) {
+    baseUrl = `https://${process.env.VERCEL_URL}`;
+  } else if (!baseUrl.startsWith('http')) {
     baseUrl = `https://${baseUrl}`;
   }
 
