@@ -117,7 +117,7 @@ export default function HelpPage() {
 
       if (res.ok) {
         const data = await res.json();
-        setArticles(data.data || data.articles || []);
+        setArticles(data.items || data.data || data.articles || []);
       }
     } catch {
       // Silently fail

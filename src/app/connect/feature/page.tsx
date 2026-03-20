@@ -126,7 +126,7 @@ export default function FeatureRequestsPage() {
       const res = await fetch("/api/connect/features", { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
-        const items = (data.data || data.features || []).map((f: Record<string, unknown>) => ({
+        const items = (data.items || data.data || data.features || []).map((f: Record<string, unknown>) => ({
           ...f,
           votes: f.upvotes ?? f.votes ?? 0,
         }));
