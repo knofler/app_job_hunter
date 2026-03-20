@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
-  // Derive base URL from the incoming request — works for prod, preview, and local
-  const baseUrl = new URL(request.url).origin;
+  const baseUrl = process.env.AUTH0_BASE_URL || 'http://localhost:3010';
   const auth0Domain = process.env.AUTH0_ISSUER_BASE_URL;
   const clientId = process.env.AUTH0_CLIENT_ID;
 

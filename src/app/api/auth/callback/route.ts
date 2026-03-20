@@ -15,8 +15,10 @@ export async function GET(request: NextRequest) {
   });
 
   // Ensure base URL has protocol
-  // Derive base URL from the incoming request — works for prod, preview, and local
-  const baseUrl = new URL(request.url).origin;
+  let baseUrl = process.env.AUTH0_BASE_URL || 'http://localhost:3000';
+  if (!baseUrl.startsWith('http')) {
+    baseUrl = `https://${baseUrl}`;
+  }
 
   if (error) {
     console.error('Auth0 callback error:', error);
