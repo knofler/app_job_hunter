@@ -9,6 +9,15 @@ function getAuthHeaders(request: NextRequest): Record<string, string> {
   const authToken = request.cookies.get("auth-token")?.value;
   if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
   if (ADMIN_API_KEY) headers["X-Admin-Token"] = ADMIN_API_KEY;
+  // Pass user identity from cookie for Connect Hub user tracking
+  const userInfoCookie = request.cookies.get("user-info")?.value;
+  if (userInfoCookie) {
+    try {
+      const u = JSON.parse(decodeURIComponent(userInfoCookie));
+      if (u.sub) headers["X-Connect-User-Sub"] = u.sub;
+      if (u.name) headers["X-Connect-User-Name"] = u.name;
+    } catch { /* ignore */ }
+  }
   return headers;
 }
 

@@ -129,7 +129,9 @@ export default function FeatureRequestsPage() {
         const items = (data.items || data.data || data.features || []).map((f: Record<string, unknown>) => ({
           ...f,
           _id: f._id || f.id,
-          votes: f.upvotes ?? f.votes ?? 0,
+          votes: (f.upvotes as number) ?? (f.votes as number) ?? 0,
+          createdAt: (f.createdAt || f.created_at) as string,
+          updatedAt: (f.updatedAt || f.updated_at) as string,
         }));
         setFeatures(items);
       }
