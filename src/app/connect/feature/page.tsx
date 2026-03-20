@@ -128,6 +128,7 @@ export default function FeatureRequestsPage() {
         const data = await res.json();
         const items = (data.items || data.data || data.features || []).map((f: Record<string, unknown>) => ({
           ...f,
+          _id: f._id || f.id,
           votes: f.upvotes ?? f.votes ?? 0,
         }));
         setFeatures(items);
@@ -209,7 +210,7 @@ export default function FeatureRequestsPage() {
         setFeatures((prev) =>
           prev.map((f) =>
             f._id === featureId
-              ? { ...f, votes: data.data?.upvotes ?? f.votes + (f.hasVoted ? -1 : 1), hasVoted: data.data?.voted ?? !f.hasVoted }
+              ? { ...f, votes: data.upvotes ?? data.data?.upvotes ?? f.votes + (f.hasVoted ? -1 : 1), hasVoted: !f.hasVoted }
               : f
           )
         );
