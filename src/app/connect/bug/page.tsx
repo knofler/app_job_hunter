@@ -124,7 +124,7 @@ export default function BugReportsPage() {
       const res = await fetch("/api/connect/bugs", { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
-        setBugs(data.data || data.bugs || []);
+        setBugs(data.items || data.data || data.bugs || []);
       }
     } catch {
       // Silently fail
