@@ -23,6 +23,7 @@ export async function POST(_request: NextRequest, context: RouteContext) {
         "Content-Type": "application/json",
         ...(ADMIN_API_KEY ? { "X-Admin-Token": ADMIN_API_KEY } : {}),
       },
+      body: JSON.stringify({ direction: "up" }),
     });
 
     if (!response.ok) {
