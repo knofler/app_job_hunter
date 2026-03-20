@@ -4,13 +4,21 @@ import { SERVER_BACKEND_URL } from "@/lib/server-backend-url";
 const BACKEND_URL = SERVER_BACKEND_URL;
 const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 
+function getAuthHeaders(request: NextRequest): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const authToken = request.cookies.get("auth-token")?.value;
+  if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
+  if (ADMIN_API_KEY) headers["X-Admin-Token"] = ADMIN_API_KEY;
+  return headers;
+}
+
 type RouteContext = { params: Promise<{ id: string }> };
 
 // ---------------------------------------------------------------------------
 // GET /api/connect/features/[id] — get a single feature request
 // ---------------------------------------------------------------------------
 
-export async function GET(_request: NextRequest, context: RouteContext) {
+export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
     const backendUrl = `${BACKEND_URL}/api/connect/features/${id}`;
@@ -19,10 +27,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
     const response = await fetch(backendUrl, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...(ADMIN_API_KEY ? { "X-Admin-Token": ADMIN_API_KEY } : {}),
-      },
+      headers: getAuthHeaders(request),
     });
 
     if (!response.ok) {
@@ -59,10 +64,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     const response = await fetch(backendUrl, {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...(ADMIN_API_KEY ? { "X-Admin-Token": ADMIN_API_KEY } : {}),
-      },
+      headers: getAuthHeaders(request),
       body: JSON.stringify(body),
     });
 
