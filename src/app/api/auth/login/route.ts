@@ -5,13 +5,8 @@ export async function GET(request: NextRequest) {
   const auth0Domain = process.env.AUTH0_ISSUER_BASE_URL?.replace('https://', '') || 'your-domain.auth0.com';
   const clientId = process.env.AUTH0_CLIENT_ID || '';
   const audience = process.env.AUTH0_AUDIENCE || 'https://ai-job-hunter-api';
-  // Use VERCEL_URL for preview deployments, AUTH0_BASE_URL for production/local
-  let baseUrl = process.env.AUTH0_BASE_URL || 'http://localhost:3000';
-  if (process.env.VERCEL_ENV === 'preview' && process.env.VERCEL_URL) {
-    baseUrl = `https://${process.env.VERCEL_URL}`;
-  } else if (!baseUrl.startsWith('http')) {
-    baseUrl = `https://${baseUrl}`;
-  }
+  // Derive base URL from the incoming request — works for prod, preview, and local
+  const baseUrl = new URL(request.url).origin;
 
   const loginUrl = `https://${auth0Domain}/authorize?` +
     new URLSearchParams({
