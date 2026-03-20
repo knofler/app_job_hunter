@@ -57,7 +57,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const backendUrl = `${BACKEND_URL}/api/connect/features`;
 
-    console.log(`[API Proxy] POST /api/connect/features -> ${backendUrl}`);
+    // Inject user name from cookie so backend can store it
+    const userInfoCookie = request.cookies.get("user-info")?.value;
+    if (userInfoCookie) {
+      try {
+        const userInfo = JSON.parse(decodeURIComponent(userInfoCookie));
+        if (userInfo.name) body.reporter_name = userInfo.name;
+      } catch { /* ignore parse errors */ }
+    }
 
     const response = await fetch(backendUrl, {
       method: "POST",

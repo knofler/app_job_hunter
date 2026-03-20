@@ -57,7 +57,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const backendUrl = `${BACKEND_URL}/api/connect/bugs`;
 
-    console.log(`[API Proxy] POST /api/connect/bugs -> ${backendUrl}`);
+    // Inject user name from cookie
+    const userInfoCookie = request.cookies.get("user-info")?.value;
+    if (userInfoCookie) {
+      try {
+        const userInfo = JSON.parse(decodeURIComponent(userInfoCookie));
+        if (userInfo.name) body.reporter_name = userInfo.name;
+      } catch { /* ignore */ }
+    }
 
     const response = await fetch(backendUrl, {
       method: "POST",
