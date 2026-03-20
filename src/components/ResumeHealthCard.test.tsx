@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ResumeHealthCard from './ResumeHealthCard';
 import { useCandidateScope } from '@/context/PersonaContext';
+import { fetchFromApi } from '@/lib/api';
 
 // Mock the persona context
 jest.mock('@/context/PersonaContext', () => ({
@@ -27,14 +28,12 @@ jest.mock('@/lib/fallback-data', () => ({
 }));
 
 describe('ResumeHealthCard', () => {
-  const mockFetchFromApi = jest.fn();
+  const mockFetchFromApi = fetchFromApi as jest.MockedFunction<typeof fetchFromApi>;
   const mockUseCandidateScope = useCandidateScope as jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseCandidateScope.mockReturnValue({ candidateId: null });
-    // @ts-expect-error: Mocking global fetchFromApi for testing
-    global.fetchFromApi = mockFetchFromApi;
   });
 
   const renderResumeHealthCard = () => {

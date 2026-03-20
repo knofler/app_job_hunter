@@ -2,6 +2,19 @@ import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import JobCard from './JobCard';
 
+// Mock the Badge and Button components
+jest.mock('@/components/ui/Badge', () => {
+  return function MockBadge({ children }: { children: React.ReactNode }) {
+    return <span>{children}</span>;
+  };
+});
+
+jest.mock('@/components/ui/Button', () => {
+  return function MockButton({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) {
+    return <button {...props}>{children}</button>;
+  };
+});
+
 describe('JobCard', () => {
   const mockJob = {
     id: 'job-123',
@@ -19,14 +32,21 @@ describe('JobCard', () => {
     expect(screen.getByText('Senior Software Engineer')).toBeInTheDocument();
   });
 
-  it('renders company and location', () => {
+  it('renders company name', () => {
     render(<JobCard job={mockJob} />);
-    expect(screen.getByText('Tech Corp • San Francisco, CA')).toBeInTheDocument();
+    expect(screen.getByText('Tech Corp')).toBeInTheDocument();
+  });
+
+  it('renders location', () => {
+    render(<JobCard job={mockJob} />);
+    expect(screen.getByText('San Francisco, CA')).toBeInTheDocument();
   });
 
   it('renders match score', () => {
     render(<JobCard job={mockJob} />);
-    expect(screen.getByText('95% Match')).toBeInTheDocument();
+    // Match score is rendered as a number in a ring with "match" label
+    expect(screen.getByText('95')).toBeInTheDocument();
+    expect(screen.getByText('match')).toBeInTheDocument();
   });
 
   it('renders employment type when provided', () => {
@@ -54,8 +74,11 @@ describe('JobCard', () => {
 
     render(<JobCard job={minimalJob} />);
     expect(screen.getByText('Developer')).toBeInTheDocument();
-    expect(screen.getByText('Simple Corp • Austin, TX')).toBeInTheDocument();
-    expect(screen.getByText('0% Match')).toBeInTheDocument();
+    expect(screen.getByText('Simple Corp')).toBeInTheDocument();
+    expect(screen.getByText('Austin, TX')).toBeInTheDocument();
+
+    // Match score ring should not be shown when score is 0
+    expect(screen.queryByText('match')).not.toBeInTheDocument();
 
     // Should not contain employment type, salary, or posted date
     expect(screen.queryByText('Full-time')).not.toBeInTheDocument();
@@ -70,16 +93,17 @@ describe('JobCard', () => {
     };
 
     render(<JobCard job={jobWithDecimalScore} />);
-    expect(screen.getByText('88% Match')).toBeInTheDocument();
+    expect(screen.getByText('88')).toBeInTheDocument();
   });
 
-  it('handles zero match score', () => {
+  it('does not show match ring when match score is zero', () => {
     const jobWithZeroScore = {
       ...mockJob,
       match_score: 0,
     };
 
     render(<JobCard job={jobWithZeroScore} />);
-    expect(screen.getByText('0% Match')).toBeInTheDocument();
+    // The ring is not rendered when matchScore is 0 (due to matchScore > 0 check)
+    expect(screen.queryByText('match')).not.toBeInTheDocument();
   });
 });

@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ApplicationPipeline from './ApplicationPipeline';
 import { useCandidateScope } from '@/context/PersonaContext';
+import { fetchFromApi } from '@/lib/api';
 
 // Mock the persona context
 jest.mock('@/context/PersonaContext', () => ({
@@ -30,13 +31,11 @@ jest.mock('@/lib/fallback-data', () => ({
 
 describe('ApplicationPipeline', () => {
   const mockUseCandidateScope = useCandidateScope as jest.Mock;
-  const mockFetchFromApi = jest.fn();
+  const mockFetchFromApi = fetchFromApi as jest.MockedFunction<typeof fetchFromApi>;
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseCandidateScope.mockReturnValue({ candidateId: null });
-    // @ts-expect-error: Mocking global fetchFromApi for testing
-    global.fetchFromApi = mockFetchFromApi;
   });
 
   const renderApplicationPipeline = () => {
