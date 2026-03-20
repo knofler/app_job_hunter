@@ -128,7 +128,10 @@ export default function FeatureRequestsPage() {
         const data = await res.json();
         const items = (data.items || data.data || data.features || []).map((f: Record<string, unknown>) => ({
           ...f,
-          votes: f.upvotes ?? f.votes ?? 0,
+          _id: f._id || f.id,
+          votes: (f.upvotes as number) ?? (f.votes as number) ?? 0,
+          createdAt: (f.createdAt || f.created_at) as string,
+          updatedAt: (f.updatedAt || f.updated_at) as string,
         }));
         setFeatures(items);
       }
@@ -209,7 +212,7 @@ export default function FeatureRequestsPage() {
         setFeatures((prev) =>
           prev.map((f) =>
             f._id === featureId
-              ? { ...f, votes: data.data?.upvotes ?? f.votes + (f.hasVoted ? -1 : 1), hasVoted: data.data?.voted ?? !f.hasVoted }
+              ? { ...f, votes: data.upvotes ?? data.data?.upvotes ?? f.votes + (f.hasVoted ? -1 : 1), hasVoted: !f.hasVoted }
               : f
           )
         );
