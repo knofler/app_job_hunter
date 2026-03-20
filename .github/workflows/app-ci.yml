@@ -2,8 +2,9 @@ name: App CI/CD
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "test"]
   pull_request:
+    branches: ["main"]
 
 concurrency:
   group: app-${{ github.ref }}
@@ -64,8 +65,41 @@ jobs:
           file: ./Dockerfile
           push: false
 
-  deploy:
-    name: Deploy to Vercel
+  deploy-preview:
+    name: Deploy Preview to Vercel
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/test'
+    environment:
+      name: preview
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Pull Vercel environment information
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build project artifacts
+        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy preview
+        run: |
+          url=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          echo "Preview URL: $url"
+          echo "PREVIEW_URL=$url" >> $GITHUB_ENV
+
+  deploy-production:
+    name: Deploy Production to Vercel
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/main'
