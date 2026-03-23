@@ -11,7 +11,7 @@ beforeEach(() => {
 describe('SERVER_BACKEND_URL', () => {
   it('defaults to localhost when no env vars set', () => {
     const { SERVER_BACKEND_URL } = require('./server-backend-url');
-    expect(SERVER_BACKEND_URL).toBe('http://localhost:8010/api');
+    expect(SERVER_BACKEND_URL).toBe('http://localhost:8010');
   });
 
   it('prefers INTERNAL url when set', () => {
