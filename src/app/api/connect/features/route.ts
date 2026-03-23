@@ -30,15 +30,12 @@ export async function GET(request: NextRequest) {
     const queryString = searchParams.toString();
     const backendUrl = `${BACKEND_URL}/api/connect/features${queryString ? `?${queryString}` : ""}`;
 
-    console.log(`[API Proxy] GET /api/connect/features -> ${backendUrl}`);
-
     const response = await fetch(backendUrl, {
       method: "GET",
       headers: getAuthHeaders(request),
     });
 
     if (!response.ok) {
-      console.error(`[API Proxy] Backend error: ${response.status} ${response.statusText}`);
       return NextResponse.json(
         { error: `Backend error: ${response.status} ${response.statusText}` },
         { status: response.status }
@@ -48,7 +45,6 @@ export async function GET(request: NextRequest) {
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
-    console.error("[API Proxy] Error proxying GET /api/connect/features:", error);
     return NextResponse.json(
       { error: "Failed to fetch feature requests from backend" },
       { status: 500 }
@@ -81,7 +77,6 @@ export async function POST(request: NextRequest) {
     });
 
     if (!response.ok) {
-      console.error(`[API Proxy] Backend error: ${response.status} ${response.statusText}`);
       const errorData = await response.json().catch(() => ({}));
       return NextResponse.json(
         { error: errorData.error || `Backend error: ${response.status} ${response.statusText}` },
@@ -92,7 +87,6 @@ export async function POST(request: NextRequest) {
     const data = await response.json();
     return NextResponse.json(data, { status: 201 });
   } catch (error) {
-    console.error("[API Proxy] Error proxying POST /api/connect/features:", error);
     return NextResponse.json(
       { error: "Failed to create feature request" },
       { status: 500 }

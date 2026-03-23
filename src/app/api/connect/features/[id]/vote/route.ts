@@ -39,7 +39,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
 
     if (!response.ok) {
-      console.error(`[API Proxy] Backend error: ${response.status} ${response.statusText}`);
       const errorData = await response.json().catch(() => ({}));
       return NextResponse.json(
         { error: errorData.error || `Backend error: ${response.status} ${response.statusText}` },
@@ -50,7 +49,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
-    console.error("[API Proxy] Error proxying POST /api/connect/features/[id]/vote:", error);
     return NextResponse.json(
       { error: "Failed to vote on feature request" },
       { status: 500 }

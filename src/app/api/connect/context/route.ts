@@ -82,7 +82,6 @@ export async function GET(_request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("[api/connect/context] GET error:", error);
     return NextResponse.json(
       { error: "An unexpected error occurred" },
       { status: 500 }
