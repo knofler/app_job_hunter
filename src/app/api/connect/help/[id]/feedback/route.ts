@@ -32,8 +32,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const body = await request.json();
     const backendUrl = `${BACKEND_URL}/api/connect/help/${id}/feedback`;
 
-    console.log(`[API Proxy] POST /api/connect/help/${id}/feedback -> ${backendUrl}`);
-
     const response = await fetch(backendUrl, {
       method: "POST",
       headers: getAuthHeaders(request),
@@ -41,7 +39,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
 
     if (!response.ok) {
-      console.error(`[API Proxy] Backend error: ${response.status} ${response.statusText}`);
       const errorData = await response.json().catch(() => ({}));
       return NextResponse.json(
         { error: errorData.error || `Backend error: ${response.status} ${response.statusText}` },
@@ -52,7 +49,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
-    console.error("[API Proxy] Error proxying POST /api/connect/help/[id]/feedback:", error);
     return NextResponse.json(
       { error: "Failed to submit feedback" },
       { status: 500 }
