@@ -9,4 +9,4 @@
 export const SERVER_BACKEND_URL =
   process.env.NEXT_PUBLIC_API_URL_INTERNAL ||
   process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:8010/api";
+  "http://localhost:8010";
