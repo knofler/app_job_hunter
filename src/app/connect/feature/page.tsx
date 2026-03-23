@@ -7,7 +7,7 @@ import Link from "next/link";
 // Types
 // ---------------------------------------------------------------------------
 
-type Priority = "must-have" | "should-have" | "nice-to-have";
+type Priority = "critical" | "high" | "medium" | "low" | "nice_to_have";
 type FeatureStatus = "reported" | "triaged" | "working" | "solved" | "deployed" | "rejected";
 type SortMode = "newest" | "votes";
 
@@ -35,9 +35,11 @@ interface FeatureRequest {
 // ---------------------------------------------------------------------------
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; bg: string; text: string; border: string }> = {
-  "must-have": { label: "Must Have", bg: "bg-red-500/10", text: "text-red-400", border: "border-red-500/30" },
-  "should-have": { label: "Should Have", bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/30" },
-  "nice-to-have": { label: "Nice to Have", bg: "bg-blue-500/10", text: "text-blue-400", border: "border-blue-500/30" },
+  critical: { label: "Critical", bg: "bg-red-500/10", text: "text-red-400", border: "border-red-500/30" },
+  high: { label: "High", bg: "bg-orange-500/10", text: "text-orange-400", border: "border-orange-500/30" },
+  medium: { label: "Medium", bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/30" },
+  low: { label: "Low", bg: "bg-blue-500/10", text: "text-blue-400", border: "border-blue-500/30" },
+  nice_to_have: { label: "Nice to Have", bg: "bg-zinc-500/10", text: "text-zinc-400", border: "border-zinc-500/30" },
 };
 
 const STATUS_CONFIG: Record<FeatureStatus, { label: string; bg: string; text: string; border: string }> = {
@@ -103,7 +105,7 @@ export default function FeatureRequestsPage() {
   const [description, setDescription] = useState("");
   const [userStory, setUserStory] = useState("");
   const [proposedSolution, setProposedSolution] = useState("");
-  const [priority, setPriority] = useState<Priority>("should-have");
+  const [priority, setPriority] = useState<Priority>("medium");
   const [submitting, setSubmitting] = useState(false);
 
   // List state
@@ -179,7 +181,7 @@ export default function FeatureRequestsPage() {
       setDescription("");
       setUserStory("");
       setProposedSolution("");
-      setPriority("should-have");
+      setPriority("medium");
       setFormOpen(false);
       setLoading(true);
       fetchFeatures();
@@ -508,7 +510,7 @@ export default function FeatureRequestsPage() {
       {!loading && filteredFeatures.length > 0 && (
         <div className="space-y-3">
           {filteredFeatures.map((feature) => {
-            const priCfg = PRIORITY_CONFIG[feature.priority] || PRIORITY_CONFIG["should-have"];
+            const priCfg = PRIORITY_CONFIG[feature.priority] || PRIORITY_CONFIG["medium"];
             const statusCfg = STATUS_CONFIG[feature.status] || STATUS_CONFIG.reported;
             const isExpanded = expandedId === feature._id;
 
