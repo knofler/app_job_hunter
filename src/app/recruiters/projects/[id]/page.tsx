@@ -23,6 +23,7 @@ import {
   type ContextDimension,
   type ContextConfig,
   scoreContext,
+  getRunPdfUrl,
 } from "@/lib/projects-api";
 import { fetchFromApi } from "@/lib/api";
 import DeepAssessButton from "@/components/DeepAssessButton";
@@ -861,6 +862,9 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
+  const [rerunSkill, setRerunSkill] = useState("");
+  const [rerunCustom, setRerunCustom] = useState("");
+  const [rerunLoading, setRerunLoading] = useState(false);
   const router = useRouter();
 
   async function handleDeleteProject() {
@@ -1052,6 +1056,45 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
     } catch { /* silent */ }
     finally { setJdLoading(false); }
   }
+
+  async function handleRerun(runType: "specific_skill" | "custom_prompt", value: string) {
+    if (!value.trim() || rerunLoading) return;
+    setRerunLoading(true);
+    const params: Record<string, unknown> = { top_n: 5 };
+    if (runType === "specific_skill") params.specific_skill = value.trim();
+    if (runType === "custom_prompt") params.custom_prompt = value.trim();
+    try {
+      await streamProjectRun(projectId, runType, params, DEFAULT_ORG, () => {});
+      // Refresh runs and auto-select newest
+      const [proj, runList] = await Promise.all([getProject(projectId), listRuns(projectId)]);
+      setProject(proj);
+      setRuns(runList);
+      if (runList.length > 0) setSelectedRun(runList[0]);
+      setRerunSkill("");
+      setRerunCustom("");
+      listReports(projectId).then(setReports).catch(() => {});
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Re-run failed");
+    } finally {
+      setRerunLoading(false);
+    }
+  }
+
+  // Compute top gap skills from selected run for suggested re-runs
+  const suggestedGapSkills: string[] = (() => {
+    if (!selectedRun?.ranked?.length) return [];
+    const freq: Record<string, number> = {};
+    for (const c of selectedRun.ranked) {
+      for (const g of c.gaps ?? []) {
+        const key = g.trim().toLowerCase();
+        if (key) freq[key] = (freq[key] ?? 0) + 1;
+      }
+    }
+    return Object.entries(freq)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([k]) => k.charAt(0).toUpperCase() + k.slice(1));
+  })();
 
   if (loading) return (
     <div className="flex items-center justify-center h-96">
@@ -1662,6 +1705,16 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                     {new Date(selectedRun.created_at).toLocaleString()} · {selectedRun.ranked?.length ?? 0} candidates{selectedRun.duration_seconds != null ? ` · ${selectedRun.duration_seconds}s` : ""}
                   </p>
                 </div>
+                <button
+                  onClick={() => window.open(getRunPdfUrl(projectId, selectedRun.id), "_blank")}
+                  className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors shrink-0"
+                  title="Download PDF report"
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  PDF
+                </button>
               </div>
 
               {/* Ranked candidates */}
@@ -1732,6 +1785,90 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                   <p className="px-3 pb-3 pt-1 text-xs text-muted-foreground leading-relaxed">{selectedRun.run_notes}</p>
                 </details>
               )}
+
+              {/* ── Refine Analysis ── */}
+              <div className="border-t border-border pt-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="h-px flex-1 bg-border/50" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Refine Analysis</span>
+                  <span className="h-px flex-1 bg-border/50" />
+                </div>
+
+                {rerunLoading && (
+                  <div className="flex items-center justify-center gap-2 py-3">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                    <span className="text-xs text-primary font-medium">Running focused analysis...</span>
+                  </div>
+                )}
+
+                {!rerunLoading && (
+                  <div className="space-y-3">
+                    {/* Skill focus */}
+                    <div className="rounded-lg border border-border bg-card/50 p-3 space-y-2">
+                      <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        <span className="text-sm">🎯</span> Focus on specific skill
+                      </p>
+                      <div className="flex gap-2">
+                        <input
+                          value={rerunSkill}
+                          onChange={e => setRerunSkill(e.target.value)}
+                          onKeyDown={e => { if (e.key === "Enter") handleRerun("specific_skill", rerunSkill); }}
+                          placeholder="e.g. Python, SQL, leadership"
+                          className="input h-8 text-xs flex-1"
+                        />
+                        <button
+                          onClick={() => handleRerun("specific_skill", rerunSkill)}
+                          disabled={!rerunSkill.trim()}
+                          className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40 transition-opacity shrink-0"
+                        >
+                          Run
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Custom criteria */}
+                    <div className="rounded-lg border border-border bg-card/50 p-3 space-y-2">
+                      <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        <span className="text-sm">✏️</span> Custom criteria
+                      </p>
+                      <textarea
+                        value={rerunCustom}
+                        onChange={e => setRerunCustom(e.target.value)}
+                        rows={2}
+                        placeholder="Describe your custom assessment criteria..."
+                        className="input h-auto resize-none text-xs w-full"
+                      />
+                      <button
+                        onClick={() => handleRerun("custom_prompt", rerunCustom)}
+                        disabled={!rerunCustom.trim()}
+                        className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40 transition-opacity"
+                      >
+                        Run
+                      </button>
+                    </div>
+
+                    {/* Suggested re-runs */}
+                    {suggestedGapSkills.length > 0 && (
+                      <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 space-y-2">
+                        <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                          <span className="text-sm">💡</span> Suggested re-runs based on gaps
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {suggestedGapSkills.map(skill => (
+                            <button
+                              key={skill}
+                              onClick={() => handleRerun("specific_skill", skill)}
+                              className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-400 hover:bg-amber-500/20 hover:border-amber-500/50 transition-colors"
+                            >
+                              {skill} →
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
           </div>{/* end flex-1 overflow-y-auto */}

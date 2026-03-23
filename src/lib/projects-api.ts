@@ -189,6 +189,10 @@ export async function streamProjectRun(
   }
 }
 
+export function getRunPdfUrl(projectId: string, runId: string): string {
+  return `/api/projects/${projectId}/runs/${runId}/pdf`;
+}
+
 // ─── Context ──────────────────────────────────────────────────────────────────
 
 export interface ContextConfig {
