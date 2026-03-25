@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
     // Set session cookies
     response.cookies.set('auth-token', tokens.access_token, {
       httpOnly: true,
-      secure: false, // Allow on localhost
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: tokens.expires_in || 86400, // 24 hours default
       path: '/',
@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
 
     response.cookies.set('user-info', JSON.stringify(user), {
       httpOnly: false, // Client needs to read this
-      secure: false, // Allow on localhost
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7, // 7 days
       path: '/',

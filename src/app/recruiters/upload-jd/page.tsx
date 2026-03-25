@@ -98,6 +98,7 @@ export default function RecruiterJobUploadPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [selectedJob, setSelectedJob] = useState<JobDescription | null>(null);
   const [formData, setFormData] = useState({ title: '', company: '', budget: '', job_brief: '' });
+  const [dragOver, setDragOver] = useState(false);
 
   const loadJobDescriptions = async () => {
     try {
@@ -223,9 +224,22 @@ export default function RecruiterJobUploadPage() {
                   <span>Job Description File * <span className="text-muted-foreground font-normal">(PDF, DOCX, TXT)</span></span>
                   <div
                     className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
-                      selectedFile ? 'border-primary bg-primary-light' : 'border-border hover:border-primary/50 bg-muted/30'
+                      dragOver ? 'border-primary bg-primary-light' : selectedFile ? 'border-primary bg-primary-light' : 'border-border hover:border-primary/50 bg-muted/30'
                     }`}
                     onClick={() => document.getElementById('jd-file-input')?.click()}
+                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true); }}
+                    onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(false); }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDragOver(false);
+                      const file = e.dataTransfer.files?.[0];
+                      if (file && /\.(pdf|docx|txt)$/i.test(file.name)) {
+                        setSelectedFile(file);
+                      } else if (file) {
+                        setError("Please upload a PDF, DOCX, or TXT file");
+                      }
+                    }}
                   >
                     <svg className={`w-8 h-8 mx-auto mb-2 ${selectedFile ? 'text-primary' : 'text-muted-foreground'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

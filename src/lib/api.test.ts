@@ -12,7 +12,7 @@ beforeEach(() => {
   delete process.env.NEXT_PUBLIC_API_URL_LOCAL;
   delete process.env.NEXT_PUBLIC_API_URL_INTERNAL;
   delete process.env.NEXT_PUBLIC_API_FORCE_REMOTE;
-  delete process.env.NEXT_PUBLIC_ADMIN_TOKEN;
+  delete process.env.ADMIN_TOKEN;
   delete process.env.NEXT_PUBLIC_ORG_ID;
   delete process.env.NEXT_PUBLIC_USE_DUMMY_DATA;
 });
@@ -209,9 +209,13 @@ describe('fetchFromApi', () => {
     expect(headers.get('Content-Type')).toBe('application/json');
   });
 
-  it('injects admin token header when env is set', async () => {
-    process.env.NEXT_PUBLIC_ADMIN_TOKEN = 'secret-token';
-    // Reload module with new env
+  it('injects admin token header server-side when env is set', async () => {
+    process.env.ADMIN_TOKEN = 'secret-token';
+    // Simulate server-side (no window)
+    const windowSpy = jest.spyOn(global, 'window', 'get');
+    // @ts-expect-error: simulating server-side (no window)
+    windowSpy.mockReturnValue(undefined);
+
     const mod = loadModule();
 
     (global.fetch as jest.Mock).mockResolvedValue({
@@ -225,10 +229,33 @@ describe('fetchFromApi', () => {
     const callArgs = (global.fetch as jest.Mock).mock.calls[0];
     const headers = callArgs[1].headers as Headers;
     expect(headers.get('X-Admin-Token')).toBe('secret-token');
+    windowSpy.mockRestore();
+  });
+
+  it('does not inject admin token on client-side even when env is set', async () => {
+    process.env.ADMIN_TOKEN = 'secret-token';
+    // jsdom has window defined — simulates client-side
+    const mod = loadModule();
+
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve('{}'),
+    });
+
+    await mod.fetchFromApi('/admin/something');
+
+    const callArgs = (global.fetch as jest.Mock).mock.calls[0];
+    const headers = callArgs[1].headers as Headers;
+    expect(headers.get('X-Admin-Token')).toBeNull();
   });
 
   it('does not inject admin token for user routes', async () => {
-    process.env.NEXT_PUBLIC_ADMIN_TOKEN = 'secret-token';
+    process.env.ADMIN_TOKEN = 'secret-token';
+    const windowSpy = jest.spyOn(global, 'window', 'get');
+    // @ts-expect-error: simulating server-side (no window)
+    windowSpy.mockReturnValue(undefined);
+
     const mod = loadModule();
 
     (global.fetch as jest.Mock).mockResolvedValue({
@@ -242,6 +269,7 @@ describe('fetchFromApi', () => {
     const callArgs = (global.fetch as jest.Mock).mock.calls[0];
     const headers = callArgs[1].headers as Headers;
     expect(headers.get('X-Admin-Token')).toBeNull();
+    windowSpy.mockRestore();
   });
 
   it('injects X-Org-Id header when env is set', async () => {

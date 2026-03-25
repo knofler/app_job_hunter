@@ -17,6 +17,7 @@ interface BugReport {
   severity: Severity;
   status: BugStatus;
   stepsToReproduce?: string;
+  steps_to_reproduce?: string;
   expectedBehavior?: string;
   actualBehavior?: string;
   reporter: "user" | "ai";
@@ -24,8 +25,10 @@ interface BugReport {
   aiAnalysis?: string;
   resolution?: string;
   prLink?: string;
-  createdAt: string;
-  updatedAt: string;
+  created_at?: string;
+  updated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -112,6 +115,14 @@ export default function BugReportsPage() {
   const [statusFilter, setStatusFilter] = useState<BugStatus | "all">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  // Edit state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editSeverity, setEditSeverity] = useState<Severity>("medium");
+  const [editSteps, setEditSteps] = useState("");
+  const [saving, setSaving] = useState(false);
+
   // Toast
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
@@ -183,6 +194,65 @@ export default function BugReportsPage() {
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Edit + Withdraw
+  // ---------------------------------------------------------------------------
+
+  const startEditing = (bug: BugReport) => {
+    setEditingId(bug._id);
+    setEditTitle(bug.title);
+    setEditDescription(bug.description);
+    setEditSeverity(bug.severity);
+    setEditSteps(bug.stepsToReproduce || bug.steps_to_reproduce || "");
+  };
+
+  const handleSaveEdit = async (bugId: string) => {
+    if (!editTitle.trim() || !editDescription.trim()) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/connect/bugs/${bugId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          title: editTitle.trim(),
+          description: editDescription.trim(),
+          severity: editSeverity,
+          steps_to_reproduce: editSteps.trim() || null,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update bug report");
+      setToast({ message: "Bug report updated", type: "success" });
+      setEditingId(null);
+      setLoading(true);
+      fetchBugs();
+    } catch (err) {
+      setToast({ message: err instanceof Error ? err.message : "Failed to update", type: "error" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleWithdraw = async (bugId: string) => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/connect/bugs/${bugId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status: "rejected", rejection_reason: "Withdrawn by reporter" }),
+      });
+      if (!res.ok) throw new Error("Failed to withdraw bug report");
+      setToast({ message: "Bug report withdrawn", type: "success" });
+      setLoading(true);
+      fetchBugs();
+    } catch (err) {
+      setToast({ message: err instanceof Error ? err.message : "Failed to withdraw", type: "error" });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -480,7 +550,7 @@ export default function BugReportsPage() {
                     </div>
                   </div>
                   <div className="mt-2 flex items-center gap-3 text-xs text-zinc-500">
-                    <span>{new Date(bug.createdAt).toLocaleDateString()}</span>
+                    <span>{(() => { const d = new Date(bug.created_at || bug.createdAt || ""); return isNaN(d.getTime()) ? "" : d.toLocaleDateString(); })()}</span>
                     <span className="inline-flex items-center gap-1">
                       {bug.reporter === "ai" ? (
                         <>
@@ -501,16 +571,112 @@ export default function BugReportsPage() {
                 {/* Expanded Details */}
                 {isExpanded && (
                   <div className="border-t border-zinc-800 px-5 py-4 space-y-4">
+                    {/* Edit / Withdraw buttons (only for reported bugs) */}
+                    {bug.status === "reported" && editingId !== bug._id && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); startEditing(bug); }}
+                          className="flex items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-700 transition-colors"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                          </svg>
+                          Edit
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleWithdraw(bug._id); }}
+                          disabled={saving}
+                          className="flex items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                          Withdraw
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Edit form */}
+                    {editingId === bug._id && (
+                      <div className="space-y-3 rounded-lg border border-violet-500/20 bg-violet-500/5 p-4">
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-zinc-400">Title</label>
+                          <input
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-violet-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-zinc-400">Description</label>
+                          <textarea
+                            rows={3}
+                            value={editDescription}
+                            onChange={(e) => setEditDescription(e.target.value)}
+                            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-violet-500 focus:outline-none resize-y"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-zinc-400">Severity</label>
+                          <div className="flex gap-2">
+                            {(Object.keys(SEVERITY_CONFIG) as Severity[]).map((sev) => {
+                              const cfg = SEVERITY_CONFIG[sev];
+                              return (
+                                <button
+                                  key={sev}
+                                  type="button"
+                                  onClick={() => setEditSeverity(sev)}
+                                  className={`rounded-lg border px-2 py-1 text-xs font-medium transition-colors ${
+                                    editSeverity === sev
+                                      ? `${cfg.bg} ${cfg.text} ${cfg.border}`
+                                      : "border-zinc-700 bg-zinc-800 text-zinc-400"
+                                  }`}
+                                >
+                                  {cfg.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-zinc-400">Steps to Reproduce</label>
+                          <textarea
+                            rows={2}
+                            value={editSteps}
+                            onChange={(e) => setEditSteps(e.target.value)}
+                            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-violet-500 focus:outline-none resize-y"
+                          />
+                        </div>
+                        <div className="flex gap-2 justify-end">
+                          <button
+                            onClick={() => setEditingId(null)}
+                            className="rounded-lg px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => handleSaveEdit(bug._id)}
+                            disabled={saving || !editTitle.trim() || !editDescription.trim()}
+                            className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-500 disabled:opacity-50"
+                          >
+                            {saving ? "Saving..." : "Save Changes"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Full description */}
+                    {editingId !== bug._id && (
                     <div>
                       <h4 className="text-xs font-medium uppercase tracking-wider text-zinc-500">Description</h4>
                       <p className="mt-1 text-sm text-zinc-300 whitespace-pre-wrap">{bug.description}</p>
                     </div>
+                    )}
 
-                    {bug.stepsToReproduce && (
+                    {(bug.stepsToReproduce || bug.steps_to_reproduce) && editingId !== bug._id && (
                       <div>
                         <h4 className="text-xs font-medium uppercase tracking-wider text-zinc-500">Steps to Reproduce</h4>
-                        <p className="mt-1 text-sm text-zinc-300 whitespace-pre-wrap">{bug.stepsToReproduce}</p>
+                        <p className="mt-1 text-sm text-zinc-300 whitespace-pre-wrap">{bug.stepsToReproduce || bug.steps_to_reproduce}</p>
                       </div>
                     )}
 
