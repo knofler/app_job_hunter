@@ -24,11 +24,11 @@ function buildHeaders(path: string, init?: RequestInit): Headers {
     headers.set("Content-Type", "application/json");
   }
 
-  // Inject admin token for non-user routes (fallback for direct backend calls)
+  // Inject admin token server-side only for non-user routes
   const isUserRoute = path.includes("/api/me") || path.includes("/job-search");
 
-  if (!headers.has("X-Admin-Token") && !isUserRoute) {
-    const adminToken = process.env.NEXT_PUBLIC_ADMIN_TOKEN;
+  if (!headers.has("X-Admin-Token") && !isUserRoute && typeof window === "undefined") {
+    const adminToken = process.env.ADMIN_TOKEN;
     if (adminToken) {
       headers.set("X-Admin-Token", adminToken);
     }
