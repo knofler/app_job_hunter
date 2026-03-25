@@ -63,8 +63,8 @@ export default function ConnectHubPage() {
     async function fetchCounts() {
       try {
         const [bugsRes, featuresRes] = await Promise.allSettled([
-          fetch("/api/connect/bugs?limit=1", { credentials: "include" }),
-          fetch("/api/connect/features?limit=1", { credentials: "include" }),
+          fetch("/api/connect/bugs?limit=1", { credentials: "include", cache: "no-store" }),
+          fetch("/api/connect/features?limit=1", { credentials: "include", cache: "no-store" }),
         ]);
 
         if (!cancelled) {

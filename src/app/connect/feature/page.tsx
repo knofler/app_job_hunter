@@ -26,8 +26,10 @@ interface FeatureRequest {
   aiAnalysis?: string;
   implementationPlan?: string;
   prLink?: string;
-  createdAt: string;
-  updatedAt: string;
+  created_at?: string;
+  updated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -239,7 +241,7 @@ export default function FeatureRequestsPage() {
     : features.filter((f) => f.status === statusFilter)
   ).sort((a, b) => {
     if (sortMode === "votes") return (b.votes || 0) - (a.votes || 0);
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    return new Date(b.created_at || b.createdAt || "").getTime() - new Date(a.created_at || a.createdAt || "").getTime();
   });
 
   // ---------------------------------------------------------------------------
@@ -557,7 +559,7 @@ export default function FeatureRequestsPage() {
                       {feature.description}
                     </p>
                     <div className="mt-2 flex items-center gap-3 text-xs text-zinc-500">
-                      <span>{new Date(feature.createdAt).toLocaleDateString()}</span>
+                      <span>{(() => { const d = new Date(feature.created_at || feature.createdAt || ""); return isNaN(d.getTime()) ? "" : d.toLocaleDateString(); })()}</span>
                       <span className="inline-flex items-center gap-1">
                         {feature.reporter === "ai" ? (
                           <>
