@@ -24,6 +24,8 @@ interface BugReport {
   userId?: { name?: string; email?: string } | string;
   aiAnalysis?: string;
   resolution?: string;
+  rejection_reason?: string;
+  screenshots?: string[];
   prLink?: string;
   created_at?: string;
   updated_at?: string;
@@ -107,6 +109,7 @@ export default function BugReportsPage() {
   const [stepsToReproduce, setStepsToReproduce] = useState("");
   const [expectedBehavior, setExpectedBehavior] = useState("");
   const [actualBehavior, setActualBehavior] = useState("");
+  const [screenshots, setScreenshots] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   // List state
@@ -166,9 +169,10 @@ export default function BugReportsPage() {
           title: title.trim(),
           description: description.trim(),
           severity,
-          stepsToReproduce: stepsToReproduce.trim() || undefined,
+          steps_to_reproduce: stepsToReproduce.trim() || undefined,
           expectedBehavior: expectedBehavior.trim() || undefined,
           actualBehavior: actualBehavior.trim() || undefined,
+          screenshots: screenshots.length > 0 ? screenshots : undefined,
         }),
       });
 
@@ -184,6 +188,7 @@ export default function BugReportsPage() {
       setStepsToReproduce("");
       setExpectedBehavior("");
       setActualBehavior("");
+      setScreenshots([]);
       setFormOpen(false);
       setLoading(true);
       fetchBugs();
@@ -424,6 +429,74 @@ export default function BugReportsPage() {
               </div>
             </div>
 
+            {/* Screenshots Drop Zone */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-zinc-300">
+                Screenshots <span className="text-zinc-500">(optional — drag & drop or click)</span>
+              </label>
+              <div
+                className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
+                  screenshots.length > 0 ? "border-violet-500/30 bg-violet-500/5" : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-600"
+                }`}
+                onClick={() => document.getElementById("bug-screenshot-input")?.click()}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
+                  files.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      if (typeof reader.result === "string") {
+                        setScreenshots(prev => [...prev, reader.result as string]);
+                      }
+                    };
+                    reader.readAsDataURL(file);
+                  });
+                }}
+              >
+                {screenshots.length === 0 ? (
+                  <p className="text-xs text-zinc-500">Drop images here or <span className="text-violet-400">browse</span></p>
+                ) : (
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    {screenshots.map((src, i) => (
+                      <div key={i} className="relative group">
+                        <img src={src} alt={`Screenshot ${i + 1}`} className="h-16 w-auto rounded border border-zinc-700" />
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setScreenshots(prev => prev.filter((_, j) => j !== i)); }}
+                          className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-red-500 text-white text-[10px] leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          x
+                        </button>
+                      </div>
+                    ))}
+                    <div className="flex items-center text-xs text-zinc-500">+ more</div>
+                  </div>
+                )}
+              </div>
+              <input
+                id="bug-screenshot-input"
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  files.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      if (typeof reader.result === "string") {
+                        setScreenshots(prev => [...prev, reader.result as string]);
+                      }
+                    };
+                    reader.readAsDataURL(file);
+                  });
+                  e.target.value = "";
+                }}
+              />
+            </div>
+
             {/* Submit */}
             <div className="flex justify-end border-t border-zinc-800 pt-4">
               <button
@@ -537,6 +610,16 @@ export default function BugReportsPage() {
                       <p className="mt-1 text-xs text-zinc-500 truncate">
                         {bug.description}
                       </p>
+                      {bug.status === "rejected" && bug.rejection_reason && (
+                        <p className="mt-1 text-xs italic text-red-400/70 truncate">
+                          Reason: {bug.rejection_reason}
+                        </p>
+                      )}
+                      {bug.status === "deployed" && bug.resolution && (
+                        <p className="mt-1 text-xs italic text-emerald-400/70 truncate">
+                          {bug.resolution}
+                        </p>
+                      )}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       {/* Severity badge */}
@@ -701,6 +784,19 @@ export default function BugReportsPage() {
                       <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 p-3">
                         <h4 className="text-xs font-medium uppercase tracking-wider text-violet-400">AI Analysis</h4>
                         <p className="mt-1 text-sm text-zinc-300 whitespace-pre-wrap">{bug.aiAnalysis}</p>
+                      </div>
+                    )}
+
+                    {bug.screenshots && bug.screenshots.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-medium uppercase tracking-wider text-zinc-500">Screenshots</h4>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {bug.screenshots.map((src, i) => (
+                            <a key={i} href={src} target="_blank" rel="noopener noreferrer">
+                              <img src={src} alt={`Screenshot ${i + 1}`} className="h-32 w-auto rounded border border-zinc-700 hover:border-violet-500 transition-colors cursor-zoom-in" />
+                            </a>
+                          ))}
+                        </div>
                       </div>
                     )}
 
