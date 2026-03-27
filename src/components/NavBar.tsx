@@ -22,7 +22,7 @@ const NAV_ITEMS: Record<Persona, NavItem[]> = {
     { label: "Connect", href: "/connect" },
   ],
   recruiter: [
-    { label: "Projects", href: "/recruiters/projects" },
+    { label: "Job Roles", href: "/recruiters/projects" },
     { label: "Connect", href: "/connect" },
   ],
   admin: [

@@ -737,7 +737,7 @@ function ResumePickerModal({
       <div className="w-full max-w-md bg-card border border-border rounded-xl shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-muted/30">
-          <h2 className="text-sm font-bold text-foreground">Add Resumes to Project</h2>
+          <h2 className="text-sm font-bold text-foreground">Add Resumes to Job Role</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl leading-none">×</button>
         </div>
 
@@ -1104,8 +1104,8 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
 
   if (error || !project) return (
     <div className="flex flex-col items-center justify-center py-32 text-center">
-      <p className="text-rose-400">{error || "Project not found"}</p>
-      <Link href="/recruiters/projects" className="mt-4 text-sm text-primary hover:underline">← Back to Projects</Link>
+      <p className="text-rose-400">{error || "Job role not found"}</p>
+      <Link href="/recruiters/projects" className="mt-4 text-sm text-primary hover:underline">← Back to Job Roles</Link>
     </div>
   );
 
@@ -1150,7 +1150,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
           />
         )}
 
-        {/* ── LEFT: Project Info ── */}
+        {/* ── LEFT: Job Role Info ── */}
         <aside className={`
           z-40 flex flex-col overflow-hidden border-r border-border bg-card
           md:w-[28rem] md:shrink-0 md:static md:flex
@@ -1165,7 +1165,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
               <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
-              Projects
+              Job Roles
             </Link>
             <h1 className="text-sm font-bold text-foreground leading-tight mt-1">{project.name}</h1>
             {project.description && <p className="text-xs text-muted-foreground mt-1">{project.description}</p>}
@@ -1595,7 +1595,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
               <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
               </svg>
-              <span className="font-medium">{project?.name ?? "Project"}</span>
+              <span className="font-medium">{project?.name ?? "Job Role"}</span>
             </button>
             <div className="flex-1 flex items-center gap-1 overflow-x-auto">
               <button
