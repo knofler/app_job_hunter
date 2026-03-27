@@ -165,8 +165,8 @@ function NewProjectModal({ onClose, onCreate }: {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-muted/30">
           <div>
-            <h2 className="text-sm font-bold text-foreground">New Project</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Step {step} of 2 — {step === 1 ? "Project details" : "Attach a Job Description"}</p>
+            <h2 className="text-sm font-bold text-foreground">New Job Role</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Step {step} of 2 — {step === 1 ? "Job role details" : "Attach a Job Description"}</p>
           </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl leading-none">×</button>
         </div>
@@ -181,7 +181,7 @@ function NewProjectModal({ onClose, onCreate }: {
         {step === 1 ? (
           <div className="px-5 pb-5 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Project Name *</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Job Role Name *</label>
               <input type="text" value={name} onChange={e => setName(e.target.value)} autoFocus
                 placeholder="e.g. Data Engineer – Q3 2025"
                 className="input w-full text-sm"
@@ -190,7 +190,7 @@ function NewProjectModal({ onClose, onCreate }: {
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">Description <span className="text-muted-foreground font-normal">(optional)</span></label>
               <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
-                placeholder="Notes about this hiring project…"
+                placeholder="Notes about this job role…"
                 className="input w-full text-sm resize-none"
               />
             </div>
@@ -291,7 +291,7 @@ function NewProjectModal({ onClose, onCreate }: {
                 </button>
                 <button type="submit" disabled={saving || !selectedJdId}
                   className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40 transition-opacity">
-                  {saving ? "Creating…" : "Create Project"}
+                  {saving ? "Creating…" : "Create Job Role"}
                 </button>
               </div>
             </div>
@@ -355,9 +355,9 @@ export default function ProjectsPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Projects</h1>
+            <h1 className="text-2xl font-bold text-foreground">Job Roles</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {total > 0 ? `${total} project${total !== 1 ? "s" : ""}` : "No projects yet"} — each project groups a JD with all applicants, AI runs, and reports.
+              {total > 0 ? `${total} job role${total !== 1 ? "s" : ""}` : "No job roles yet"} — each job role groups a JD with all applicants, AI runs, and reports.
             </p>
           </div>
           <button
@@ -367,7 +367,7 @@ export default function ProjectsPage() {
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            New Project
+            New Job Role
           </button>
         </div>
 
@@ -390,15 +390,15 @@ export default function ProjectsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
               </svg>
             </div>
-            <h2 className="text-lg font-semibold text-foreground">No projects yet</h2>
+            <h2 className="text-lg font-semibold text-foreground">No job roles yet</h2>
             <p className="mt-1 text-sm text-muted-foreground max-w-sm">
-              Create your first project to start organizing job descriptions, resumes, and AI assessment runs.
+              Create your first job role to start organizing job descriptions, resumes, and AI assessment runs.
             </p>
             <button
               onClick={() => setShowModal(true)}
               className="mt-6 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark transition-colors"
             >
-              Create First Project
+              Create First Job Role
             </button>
           </div>
         ) : (
@@ -412,8 +412,8 @@ export default function ProjectsPage() {
 
       <ConfirmModal
         open={deleteTargetId !== null}
-        title="Delete Project"
-        message="Delete this project and all its runs? This action cannot be undone."
+        title="Delete Job Role"
+        message="Delete this job role and all its runs? This action cannot be undone."
         confirmLabel="Delete"
         cancelLabel="Cancel"
         variant="danger"

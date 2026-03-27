@@ -8,7 +8,7 @@ import Link from "next/link";
 // ---------------------------------------------------------------------------
 
 type Severity = "critical" | "high" | "medium" | "low";
-type BugStatus = "reported" | "triaged" | "working" | "solved" | "deployed" | "rejected";
+type BugStatus = "reported" | "triaged" | "working" | "solved" | "deployed" | "closed" | "rejected";
 
 interface BugReport {
   _id: string;
@@ -50,6 +50,7 @@ const STATUS_CONFIG: Record<BugStatus, { label: string; bg: string; text: string
   working: { label: "Working", bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/30" },
   solved: { label: "Solved", bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/30" },
   deployed: { label: "Deployed", bg: "bg-violet-500/10", text: "text-violet-400", border: "border-violet-500/30" },
+  closed: { label: "Closed", bg: "bg-green-500/10", text: "text-green-400", border: "border-green-500/30" },
   rejected: { label: "Rejected", bg: "bg-red-500/10", text: "text-red-400", border: "border-red-500/30" },
 };
 
@@ -59,6 +60,7 @@ const STATUS_TABS: Array<{ value: BugStatus | "all"; label: string }> = [
   { value: "working", label: "Working" },
   { value: "solved", label: "Solved" },
   { value: "deployed", label: "Deployed" },
+  { value: "closed", label: "Closed" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -256,6 +258,26 @@ export default function BugReportsPage() {
       fetchBugs();
     } catch (err) {
       setToast({ message: err instanceof Error ? err.message : "Failed to withdraw", type: "error" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleClose = async (bugId: string) => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/connect/bugs/${bugId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status: "closed" }),
+      });
+      if (!res.ok) throw new Error("Failed to close bug report");
+      setToast({ message: "Bug report closed — confirmed fixed", type: "success" });
+      setLoading(true);
+      fetchBugs();
+    } catch (err) {
+      setToast({ message: err instanceof Error ? err.message : "Failed to close", type: "error" });
     } finally {
       setSaving(false);
     }
@@ -654,6 +676,22 @@ export default function BugReportsPage() {
                 {/* Expanded Details */}
                 {isExpanded && (
                   <div className="border-t border-zinc-800 px-5 py-4 space-y-4">
+                    {/* Confirm Fixed button (for deployed bugs) */}
+                    {bug.status === "deployed" && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleClose(bug._id); }}
+                          disabled={saving}
+                          className="flex items-center gap-1 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-1.5 text-xs font-medium text-green-400 hover:bg-green-500/20 transition-colors disabled:opacity-50"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                          </svg>
+                          Confirm Fixed — Close Case
+                        </button>
+                      </div>
+                    )}
+
                     {/* Edit / Withdraw buttons (only for reported bugs) */}
                     {bug.status === "reported" && editingId !== bug._id && (
                       <div className="flex gap-2">
