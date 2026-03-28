@@ -12,6 +12,9 @@
     "typecheck": "tsc --pretty --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report",
     "verify": "npm run lint && npm run typecheck && npm run build && npm run test"
   },
   "dependencies": {
@@ -43,7 +46,8 @@
     "tailwindcss": "^3.4.17",
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
-    "typescript": "^5"
+    "typescript": "^5",
+    "@playwright/test": "1.58.2"
   },
   "overrides": {
     "next": "16.0.10"
