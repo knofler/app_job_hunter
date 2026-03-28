@@ -1,4 +1,4 @@
-# ai-matching-job-app — AGENTS.md
+# job-hunter-app — AGENTS.md
 
 > Cross-tool standard (Linux Foundation / AAIF). Read by tools that support AGENTS.md.
 
