@@ -1,4 +1,4 @@
-# ai-matching-job-app — AI Agent Instructions
+# job-hunter-app — AI Agent Instructions
 
 > This file is read automatically by GitHub Copilot. Follow these instructions for every session.
 
