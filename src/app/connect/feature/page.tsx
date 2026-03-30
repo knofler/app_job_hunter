@@ -8,7 +8,7 @@ import Link from "next/link";
 // ---------------------------------------------------------------------------
 
 type Priority = "critical" | "high" | "medium" | "low" | "nice_to_have";
-type FeatureStatus = "reported" | "triaged" | "working" | "solved" | "deployed" | "rejected";
+type FeatureStatus = "reported" | "triaged" | "working" | "solved" | "deployed" | "accepted" | "rejected";
 type SortMode = "newest" | "votes";
 
 interface FeatureRequest {
@@ -25,7 +25,9 @@ interface FeatureRequest {
   userId?: { name?: string; email?: string } | string;
   aiAnalysis?: string;
   implementationPlan?: string;
+  implementation_plan?: string;
   prLink?: string;
+  screenshots?: string[];
   created_at?: string;
   updated_at?: string;
   createdAt?: string;
@@ -50,6 +52,7 @@ const STATUS_CONFIG: Record<FeatureStatus, { label: string; bg: string; text: st
   working: { label: "Working", bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/30" },
   solved: { label: "Solved", bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/30" },
   deployed: { label: "Deployed", bg: "bg-violet-500/10", text: "text-violet-400", border: "border-violet-500/30" },
+  accepted: { label: "Accepted", bg: "bg-green-500/10", text: "text-green-400", border: "border-green-500/30" },
   rejected: { label: "Rejected", bg: "bg-red-500/10", text: "text-red-400", border: "border-red-500/30" },
 };
 
@@ -59,6 +62,7 @@ const STATUS_TABS: Array<{ value: FeatureStatus | "all"; label: string }> = [
   { value: "working", label: "Working" },
   { value: "solved", label: "Solved" },
   { value: "deployed", label: "Deployed" },
+  { value: "accepted", label: "Accepted" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -108,7 +112,9 @@ export default function FeatureRequestsPage() {
   const [userStory, setUserStory] = useState("");
   const [proposedSolution, setProposedSolution] = useState("");
   const [priority, setPriority] = useState<Priority>("medium");
+  const [screenshots, setScreenshots] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // List state
   const [features, setFeatures] = useState<FeatureRequest[]>([]);
@@ -170,6 +176,7 @@ export default function FeatureRequestsPage() {
           userProblem: userStory.trim() || undefined,
           proposedSolution: proposedSolution.trim() || undefined,
           priority,
+          screenshots: screenshots.length > 0 ? screenshots : undefined,
         }),
       });
 
@@ -184,6 +191,7 @@ export default function FeatureRequestsPage() {
       setUserStory("");
       setProposedSolution("");
       setPriority("medium");
+      setScreenshots([]);
       setFormOpen(false);
       setLoading(true);
       fetchFeatures();
@@ -229,6 +237,50 @@ export default function FeatureRequestsPage() {
         next.delete(featureId);
         return next;
       });
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Accept / Reopen Handlers
+  // ---------------------------------------------------------------------------
+
+  const handleAccept = async (featureId: string) => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/connect/features/${featureId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status: "accepted" }),
+      });
+      if (!res.ok) throw new Error("Failed to accept feature");
+      setToast({ message: "Feature accepted — confirmed working", type: "success" });
+      setLoading(true);
+      fetchFeatures();
+    } catch (err) {
+      setToast({ message: err instanceof Error ? err.message : "Failed to accept", type: "error" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleReopen = async (featureId: string) => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/connect/features/${featureId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status: "reported" }),
+      });
+      if (!res.ok) throw new Error("Failed to reopen feature");
+      setToast({ message: "Feature reopened — status reset to reported", type: "success" });
+      setLoading(true);
+      fetchFeatures();
+    } catch (err) {
+      setToast({ message: err instanceof Error ? err.message : "Failed to reopen", type: "error" });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -387,6 +439,74 @@ export default function FeatureRequestsPage() {
                   );
                 })}
               </div>
+            </div>
+
+            {/* Screenshots Drop Zone */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-zinc-300">
+                Screenshots <span className="text-zinc-500">(optional — drag & drop or click)</span>
+              </label>
+              <div
+                className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
+                  screenshots.length > 0 ? "border-violet-500/30 bg-violet-500/5" : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-600"
+                }`}
+                onClick={() => document.getElementById("feat-screenshot-input")?.click()}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
+                  files.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      if (typeof reader.result === "string") {
+                        setScreenshots(prev => [...prev, reader.result as string]);
+                      }
+                    };
+                    reader.readAsDataURL(file);
+                  });
+                }}
+              >
+                {screenshots.length === 0 ? (
+                  <p className="text-xs text-zinc-500">Drop images here or <span className="text-violet-400">browse</span></p>
+                ) : (
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    {screenshots.map((src, i) => (
+                      <div key={i} className="relative group">
+                        <img src={src} alt={`Screenshot ${i + 1}`} className="h-16 w-auto rounded border border-zinc-700" />
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setScreenshots(prev => prev.filter((_, j) => j !== i)); }}
+                          className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-red-500 text-white text-[10px] leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          x
+                        </button>
+                      </div>
+                    ))}
+                    <div className="flex items-center text-xs text-zinc-500">+ more</div>
+                  </div>
+                )}
+              </div>
+              <input
+                id="feat-screenshot-input"
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  files.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      if (typeof reader.result === "string") {
+                        setScreenshots(prev => [...prev, reader.result as string]);
+                      }
+                    };
+                    reader.readAsDataURL(file);
+                  });
+                  e.target.value = "";
+                }}
+              />
             </div>
 
             {/* Submit */}
@@ -580,6 +700,38 @@ export default function FeatureRequestsPage() {
                 {/* Expanded Details */}
                 {isExpanded && (
                   <div className="border-t border-zinc-800 px-5 py-4 space-y-4">
+                    {/* Accept button (for deployed features) */}
+                    {feature.status === "deployed" && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleAccept(feature._id); }}
+                          disabled={saving}
+                          className="flex items-center gap-1 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-1.5 text-xs font-medium text-green-400 hover:bg-green-500/20 transition-colors disabled:opacity-50"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                          </svg>
+                          Confirm Working — Accept
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Reopen button (for accepted features that broke) */}
+                    {feature.status === "accepted" && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleReopen(feature._id); }}
+                          disabled={saving}
+                          className="flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
+                          </svg>
+                          Reopen — Feature Broken
+                        </button>
+                      </div>
+                    )}
+
                     <div>
                       <h4 className="text-xs font-medium uppercase tracking-wider text-zinc-500">Description</h4>
                       <p className="mt-1 text-sm text-zinc-300 whitespace-pre-wrap">{feature.description}</p>
@@ -606,10 +758,23 @@ export default function FeatureRequestsPage() {
                       </div>
                     )}
 
-                    {feature.implementationPlan && (
+                    {(feature.implementationPlan || feature.implementation_plan) && (
                       <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
                         <h4 className="text-xs font-medium uppercase tracking-wider text-emerald-400">Implementation Plan</h4>
-                        <p className="mt-1 text-sm text-zinc-300 whitespace-pre-wrap">{feature.implementationPlan}</p>
+                        <p className="mt-1 text-sm text-zinc-300 whitespace-pre-wrap">{feature.implementationPlan || feature.implementation_plan}</p>
+                      </div>
+                    )}
+
+                    {feature.screenshots && feature.screenshots.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-medium uppercase tracking-wider text-zinc-500">Screenshots</h4>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {feature.screenshots.map((src, i) => (
+                            <a key={i} href={src} target="_blank" rel="noopener noreferrer">
+                              <img src={src} alt={`Screenshot ${i + 1}`} className="h-32 w-auto rounded border border-zinc-700 hover:border-violet-500 transition-colors cursor-zoom-in" />
+                            </a>
+                          ))}
+                        </div>
                       </div>
                     )}
 
