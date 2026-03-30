@@ -118,6 +118,7 @@ export default function BugReportsPage() {
   const [bugs, setBugs] = useState<BugReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<BugStatus | "all">("all");
+  const [sortMode, setSortMode] = useState<"newest" | "severity">("newest");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Edit state
@@ -284,12 +285,43 @@ export default function BugReportsPage() {
   };
 
   // ---------------------------------------------------------------------------
-  // Filtered bugs
+  // Convert to Feature
   // ---------------------------------------------------------------------------
 
-  const filteredBugs = statusFilter === "all"
+  const handleConvertToFeature = async (bugId: string) => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/connect/bugs/${bugId}/convert-to-feature`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to convert bug to feature");
+      }
+      setToast({ message: "Bug converted to feature request", type: "success" });
+      setLoading(true);
+      fetchBugs();
+    } catch (err) {
+      setToast({ message: err instanceof Error ? err.message : "Failed to convert", type: "error" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Filtered + Sorted bugs
+  // ---------------------------------------------------------------------------
+
+  const SEVERITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+
+  const filteredBugs = (statusFilter === "all"
     ? bugs
-    : bugs.filter((b) => b.status === statusFilter);
+    : bugs.filter((b) => b.status === statusFilter)
+  ).sort((a, b) => {
+    if (sortMode === "severity") return (SEVERITY_RANK[a.severity] ?? 2) - (SEVERITY_RANK[b.severity] ?? 2);
+    return new Date(b.created_at || b.createdAt || "").getTime() - new Date(a.created_at || a.createdAt || "").getTime();
+  });
 
   // ---------------------------------------------------------------------------
   // Render
@@ -554,21 +586,48 @@ export default function BugReportsPage() {
       {/* Bug List                                                          */}
       {/* ================================================================= */}
 
-      {/* Status Filter Tabs */}
-      <div className="flex items-center gap-1 overflow-x-auto border-b border-zinc-800 pb-px">
-        {STATUS_TABS.map((tab) => (
+      {/* Filter + Sort Row */}
+      <div className="flex items-center justify-between gap-4">
+        {/* Status tabs */}
+        <div className="flex items-center gap-1 overflow-x-auto border-b border-zinc-800 pb-px">
+          {STATUS_TABS.map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => setStatusFilter(tab.value)}
+              className={`whitespace-nowrap rounded-t-lg px-3 py-2 text-sm font-medium transition-colors ${
+                statusFilter === tab.value
+                  ? "border-b-2 border-violet-500 text-violet-400"
+                  : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Sort toggle */}
+        <div className="flex shrink-0 items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-900 p-0.5">
           <button
-            key={tab.value}
-            onClick={() => setStatusFilter(tab.value)}
-            className={`whitespace-nowrap rounded-t-lg px-3 py-2 text-sm font-medium transition-colors ${
-              statusFilter === tab.value
-                ? "border-b-2 border-violet-500 text-violet-400"
+            onClick={() => setSortMode("newest")}
+            className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+              sortMode === "newest"
+                ? "bg-zinc-800 text-zinc-100"
                 : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
-            {tab.label}
+            Newest
           </button>
-        ))}
+          <button
+            onClick={() => setSortMode("severity")}
+            className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+              sortMode === "severity"
+                ? "bg-zinc-800 text-zinc-100"
+                : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            Severity
+          </button>
+        </div>
       </div>
 
       {/* Loading */}
@@ -688,6 +747,22 @@ export default function BugReportsPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                           </svg>
                           Confirm Fixed — Close Case
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Convert to Feature (for rejected bugs) */}
+                    {bug.status === "rejected" && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleConvertToFeature(bug._id); }}
+                          disabled={saving}
+                          className="flex items-center gap-1 rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 text-xs font-medium text-violet-400 hover:bg-violet-500/20 transition-colors disabled:opacity-50"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                          </svg>
+                          Convert to Feature Request
                         </button>
                       </div>
                     )}
