@@ -8,7 +8,7 @@
     "build": "next build --webpack",
     "vercel-build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint . --ext .ts,.tsx",
+    "lint": "eslint src/",
     "typecheck": "tsc --pretty --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
