@@ -118,7 +118,7 @@ export default function BugReportsPage() {
   const [bugs, setBugs] = useState<BugReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<BugStatus | "all">("all");
-  const [sortMode, setSortMode] = useState<"newest" | "severity">("newest");
+  const [sortMode, setSortMode] = useState<"newest" | "oldest" | "severity">("newest");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Edit state
@@ -320,7 +320,9 @@ export default function BugReportsPage() {
     : bugs.filter((b) => b.status === statusFilter)
   ).sort((a, b) => {
     if (sortMode === "severity") return (SEVERITY_RANK[a.severity] ?? 2) - (SEVERITY_RANK[b.severity] ?? 2);
-    return new Date(b.created_at || b.createdAt || "").getTime() - new Date(a.created_at || a.createdAt || "").getTime();
+    const aTime = new Date(a.created_at || a.createdAt || "").getTime();
+    const bTime = new Date(b.created_at || b.createdAt || "").getTime();
+    return sortMode === "oldest" ? aTime - bTime : bTime - aTime;
   });
 
   // ---------------------------------------------------------------------------
@@ -618,6 +620,16 @@ export default function BugReportsPage() {
             Newest
           </button>
           <button
+            onClick={() => setSortMode("oldest")}
+            className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+              sortMode === "oldest"
+                ? "bg-zinc-800 text-zinc-100"
+                : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            Oldest
+          </button>
+          <button
             onClick={() => setSortMode("severity")}
             className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
               sortMode === "severity"
@@ -715,6 +727,7 @@ export default function BugReportsPage() {
                   </div>
                   <div className="mt-2 flex items-center gap-3 text-xs text-zinc-500">
                     <span>{(() => { const d = new Date(bug.created_at || bug.createdAt || ""); return isNaN(d.getTime()) ? "" : d.toLocaleDateString(); })()}</span>
+                    <span>{(() => { const d = new Date(bug.created_at || bug.createdAt || ""); if (isNaN(d.getTime())) return ""; const days = Math.floor((Date.now() - d.getTime()) / 86400000); return days === 0 ? "Today" : days === 1 ? "1 day open" : `${days} days open`; })()}</span>
                     <span className="inline-flex items-center gap-1">
                       {bug.reporter === "ai" ? (
                         <>

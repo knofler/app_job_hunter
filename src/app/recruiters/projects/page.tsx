@@ -79,6 +79,8 @@ function NewProjectModal({ onClose, onCreate }: {
   const [step, setStep] = useState<1 | 2>(1);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   // Step 2 — search tab
   const [jdTab, setJdTab] = useState<"search" | "upload">("search");
@@ -150,6 +152,8 @@ function NewProjectModal({ onClose, onCreate }: {
         description: description.trim(),
         org_id: DEFAULT_ORG,
         job_id: selectedJdId,
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
       });
       onCreate(project);
     } catch (err: unknown) {
@@ -193,6 +197,21 @@ function NewProjectModal({ onClose, onCreate }: {
                 placeholder="Notes about this job role…"
                 className="input w-full text-sm resize-none"
               />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">Ad Start Date <span className="text-muted-foreground font-normal">(optional)</span></label>
+                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+                  className="input w-full text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">Ad End Date <span className="text-muted-foreground font-normal">(optional)</span></label>
+                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+                  min={startDate || undefined}
+                  className="input w-full text-sm"
+                />
+              </div>
             </div>
             <div className="flex gap-3 pt-1">
               <button type="button" onClick={onClose}
