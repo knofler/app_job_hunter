@@ -13,6 +13,8 @@ export interface Project {
   resume_ids: string[];
   status: "active" | "archived";
   run_count: number;
+  start_date: string | null;
+  end_date: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -90,6 +92,8 @@ export async function createProject(data: {
   description?: string;
   org_id: string;
   job_id?: string | null;
+  start_date?: string;
+  end_date?: string;
 }): Promise<Project> {
   return apiFetch<Project>(BASE, {
     method: "POST",
