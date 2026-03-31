@@ -11,6 +11,7 @@ import ConfirmModal from "@/components/ui/ConfirmModal";
 const DEFAULT_ORG = "global";
 
 interface JDOption { id: string; title: string; company?: string; }
+interface Company { id: string; name: string; }
 
 function ScoreBadge({ count }: { count: number }) {
   return (
@@ -81,6 +82,10 @@ function NewProjectModal({ onClose, onCreate }: {
   const [description, setDescription] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
+  const [newCompanyName, setNewCompanyName] = useState("");
+  const [creatingCompany, setCreatingCompany] = useState(false);
 
   // Step 2 — search tab
   const [jdTab, setJdTab] = useState<"search" | "upload">("search");
@@ -97,6 +102,31 @@ function NewProjectModal({ onClose, onCreate }: {
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetchFromApi<{ items?: Company[] }>(`/api/companies?org_id=${DEFAULT_ORG}`)
+      .then(d => setCompanies(d.items ?? []))
+      .catch(() => setCompanies([]));
+  }, []);
+
+  const handleCreateCompany = async () => {
+    if (!newCompanyName.trim()) return;
+    setCreatingCompany(true);
+    try {
+      const res = await fetch("/api/companies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newCompanyName.trim() }),
+      });
+      if (res.ok) {
+        const company = await res.json() as Company;
+        setCompanies(prev => [...prev, company]);
+        setSelectedCompanyId(company.id);
+        setNewCompanyName("");
+      }
+    } catch { /* ignore */ }
+    finally { setCreatingCompany(false); }
+  };
 
   useEffect(() => {
     if (step === 2 && jdTab === "search") {
@@ -154,6 +184,7 @@ function NewProjectModal({ onClose, onCreate }: {
         job_id: selectedJdId,
         start_date: startDate || undefined,
         end_date: endDate || undefined,
+        company_id: selectedCompanyId || undefined,
       });
       onCreate(project);
     } catch (err: unknown) {
@@ -197,6 +228,39 @@ function NewProjectModal({ onClose, onCreate }: {
                 placeholder="Notes about this job role…"
                 className="input w-full text-sm resize-none"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">Company <span className="text-muted-foreground font-normal">(optional)</span></label>
+              <div className="flex gap-2">
+                <select
+                  value={selectedCompanyId}
+                  onChange={e => setSelectedCompanyId(e.target.value)}
+                  className="input flex-1 text-sm"
+                >
+                  <option value="">— Select a company —</option>
+                  {companies.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-2 mt-2">
+                <input
+                  type="text"
+                  value={newCompanyName}
+                  onChange={e => setNewCompanyName(e.target.value)}
+                  placeholder="Or create new company…"
+                  className="input flex-1 text-sm"
+                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleCreateCompany(); } }}
+                />
+                <button
+                  type="button"
+                  onClick={handleCreateCompany}
+                  disabled={!newCompanyName.trim() || creatingCompany}
+                  className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-40"
+                >
+                  {creatingCompany ? "…" : "+ Add"}
+                </button>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
