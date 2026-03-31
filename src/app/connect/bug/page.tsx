@@ -112,6 +112,7 @@ export default function BugReportsPage() {
   const [expectedBehavior, setExpectedBehavior] = useState("");
   const [actualBehavior, setActualBehavior] = useState("");
   const [screenshots, setScreenshots] = useState<string[]>([]);
+  const [reporterEmail, setReporterEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   // List state
@@ -176,6 +177,7 @@ export default function BugReportsPage() {
           expectedBehavior: expectedBehavior.trim() || undefined,
           actualBehavior: actualBehavior.trim() || undefined,
           screenshots: screenshots.length > 0 ? screenshots : undefined,
+          reporter_email: reporterEmail.trim() || undefined,
         }),
       });
 
@@ -550,6 +552,21 @@ export default function BugReportsPage() {
                   });
                   e.target.value = "";
                 }}
+              />
+            </div>
+
+            {/* Email for notifications */}
+            <div>
+              <label htmlFor="bug-email" className="mb-1.5 block text-sm font-medium text-zinc-300">
+                Your Email <span className="text-zinc-500">(optional — get notified when status changes)</span>
+              </label>
+              <input
+                id="bug-email"
+                type="email"
+                value={reporterEmail}
+                onChange={(e) => setReporterEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
               />
             </div>
 
