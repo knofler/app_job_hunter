@@ -131,6 +131,7 @@ export default function FeatureRequestsPage() {
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editPriority, setEditPriority] = useState<Priority>("medium");
+  const [editScreenshots, setEditScreenshots] = useState<string[]>([]);
 
   // Toast
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
@@ -303,6 +304,7 @@ export default function FeatureRequestsPage() {
     setEditTitle(feature.title);
     setEditDescription(feature.description);
     setEditPriority(feature.priority);
+    setEditScreenshots(feature.screenshots ?? []);
   };
 
   const handleSaveEdit = async (featureId: string) => {
@@ -317,6 +319,7 @@ export default function FeatureRequestsPage() {
           title: editTitle.trim(),
           description: editDescription.trim(),
           priority: editPriority,
+          screenshots: editScreenshots.length > 0 ? editScreenshots : undefined,
         }),
       });
       if (!res.ok) throw new Error("Failed to update feature request");
@@ -896,6 +899,50 @@ export default function FeatureRequestsPage() {
                               );
                             })}
                           </div>
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-zinc-400">Screenshots</label>
+                          <div
+                            className={`border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition-colors ${
+                              editScreenshots.length > 0 ? "border-violet-500/30 bg-violet-500/5" : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-600"
+                            }`}
+                            onClick={() => document.getElementById("edit-feat-screenshot-input")?.click()}
+                            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            onDrop={(e) => {
+                              e.preventDefault(); e.stopPropagation();
+                              Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/")).forEach(file => {
+                                const reader = new FileReader();
+                                reader.onload = () => { if (typeof reader.result === "string") setEditScreenshots(prev => [...prev, reader.result as string]); };
+                                reader.readAsDataURL(file);
+                              });
+                            }}
+                          >
+                            {editScreenshots.length === 0 ? (
+                              <p className="text-xs text-zinc-500">Drop images or <span className="text-violet-400">browse</span></p>
+                            ) : (
+                              <div className="flex flex-wrap gap-2 justify-center">
+                                {editScreenshots.map((src, i) => (
+                                  <div key={i} className="relative group">
+                                    <img src={src} alt={`Screenshot ${i + 1}`} className="h-12 w-auto rounded border border-zinc-700" />
+                                    <button type="button"
+                                      onClick={(e) => { e.stopPropagation(); setEditScreenshots(prev => prev.filter((_, j) => j !== i)); }}
+                                      className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-red-500 text-white text-[10px] leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >x</button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <input id="edit-feat-screenshot-input" type="file" accept="image/*" multiple className="hidden"
+                            onChange={(e) => {
+                              Array.from(e.target.files || []).forEach(file => {
+                                const reader = new FileReader();
+                                reader.onload = () => { if (typeof reader.result === "string") setEditScreenshots(prev => [...prev, reader.result as string]); };
+                                reader.readAsDataURL(file);
+                              });
+                              e.target.value = "";
+                            }}
+                          />
                         </div>
                         <div className="flex gap-2 justify-end">
                           <button
