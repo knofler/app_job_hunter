@@ -268,6 +268,26 @@ export default function BugReportsPage() {
     }
   };
 
+  const handleReopen = async (bugId: string) => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/connect/bugs/${bugId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status: "reported" }),
+      });
+      if (!res.ok) throw new Error("Failed to reopen bug report");
+      setToast({ message: "Bug reopened — status reset to reported", type: "success" });
+      setLoading(true);
+      fetchBugs();
+    } catch (err) {
+      setToast({ message: err instanceof Error ? err.message : "Failed to reopen", type: "error" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleClose = async (bugId: string) => {
     setSaving(true);
     try {
@@ -795,6 +815,16 @@ export default function BugReportsPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                           </svg>
                           Confirm Fixed — Close Case
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleReopen(bug._id); }}
+                          disabled={saving}
+                          className="flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
+                          </svg>
+                          Reopen — Not Fixed
                         </button>
                       </div>
                     )}

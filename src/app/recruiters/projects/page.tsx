@@ -21,11 +21,23 @@ function ScoreBadge({ count }: { count: number }) {
   );
 }
 
+function ExpiryBadge({ endDate }: { endDate: string | null }) {
+  if (!endDate) return null;
+  const end = new Date(endDate);
+  const now = new Date();
+  const daysLeft = Math.ceil((end.getTime() - now.getTime()) / 86400000);
+  if (daysLeft < 0) return <span className="text-[10px] font-medium text-red-400">Expired</span>;
+  if (daysLeft <= 3) return <span className="text-[10px] font-medium text-red-400">{daysLeft}d left</span>;
+  if (daysLeft <= 7) return <span className="text-[10px] font-medium text-amber-400">{daysLeft}d left</span>;
+  return <span className="text-[10px] text-muted-foreground">{daysLeft}d left</span>;
+}
+
 function ProjectCard({ project, onDelete }: { project: Project; onDelete: (id: string) => void }) {
   const resumeCount = project.resume_ids?.length ?? 0;
   const updatedAt = new Date(project.updated_at).toLocaleDateString("en-AU", {
     day: "numeric", month: "short", year: "numeric",
   });
+  const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString("en-AU", { day: "numeric", month: "short" }) : null;
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   return (
@@ -35,10 +47,16 @@ function ProjectCard({ project, onDelete }: { project: Project; onDelete: (id: s
           <div className="flex items-center gap-2 mb-1">
             <span className={`inline-flex h-2 w-2 rounded-full ${project.status === "active" ? "bg-emerald-400" : "bg-zinc-500"}`} />
             <span className="text-xs text-muted-foreground capitalize">{project.status}</span>
+            <ExpiryBadge endDate={project.end_date} />
           </div>
-          <h3 className="font-semibold text-foreground truncate">{project.name}</h3>
+          <h3 className="text-sm font-semibold text-foreground line-clamp-2">{project.name}</h3>
+          {(project.start_date || project.end_date) && (
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {fmtDate(project.start_date) ?? "—"} → {fmtDate(project.end_date) ?? "—"}
+            </p>
+          )}
           {project.description && (
-            <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{project.description}</p>
+            <p className="mt-1 text-xs text-muted-foreground line-clamp-1">{project.description}</p>
           )}
         </div>
         {/* Delete controls — z-10 so they sit above the Link overlay */}
@@ -392,6 +410,8 @@ export default function ProjectsPage() {
   const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState("");
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "archived">("all");
+  const [sortMode, setSortMode] = useState<"newest" | "end_date" | "start_date">("newest");
 
   const fetchProjects = useCallback(async () => {
     setLoading(true);
@@ -425,6 +445,22 @@ export default function ProjectsPage() {
     }
   }
 
+  const filteredProjects = projects
+    .filter(p => statusFilter === "all" || p.status === statusFilter)
+    .sort((a, b) => {
+      if (sortMode === "end_date") {
+        const aEnd = a.end_date ? new Date(a.end_date).getTime() : Infinity;
+        const bEnd = b.end_date ? new Date(b.end_date).getTime() : Infinity;
+        return aEnd - bEnd;
+      }
+      if (sortMode === "start_date") {
+        const aStart = a.start_date ? new Date(a.start_date).getTime() : Infinity;
+        const bStart = b.start_date ? new Date(b.start_date).getTime() : Infinity;
+        return aStart - bStart;
+      }
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
   return (
     <div className="min-h-screen bg-background px-6 py-8">
       {showModal && (
@@ -453,6 +489,28 @@ export default function ProjectsPage() {
             New Job Role
           </button>
         </div>
+
+        {/* Filter + Sort */}
+        {!loading && projects.length > 0 && (
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
+              {(["all", "active", "archived"] as const).map(f => (
+                <button key={f} onClick={() => setStatusFilter(f)}
+                  className={`rounded-md px-3 py-1 text-xs font-medium transition-colors capitalize ${
+                    statusFilter === f ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"
+                  }`}>{f}</button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
+              {([["newest", "Newest"], ["end_date", "End Date"], ["start_date", "Start Date"]] as const).map(([val, label]) => (
+                <button key={val} onClick={() => setSortMode(val)}
+                  className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                    sortMode === val ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"
+                  }`}>{label}</button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Content */}
         {loading ? (
@@ -486,7 +544,11 @@ export default function ProjectsPage() {
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {projects.map((p) => (
+            {filteredProjects.length === 0 ? (
+              <div className="col-span-full text-center py-12 text-sm text-muted-foreground">
+                No {statusFilter === "all" ? "" : statusFilter} job roles found.
+              </div>
+            ) : filteredProjects.map((p) => (
               <ProjectCard key={p.id} project={p} onDelete={requestDelete} />
             ))}
           </div>
