@@ -32,7 +32,7 @@ function ExpiryBadge({ endDate }: { endDate: string | null }) {
   return <span className="text-[10px] text-muted-foreground">{daysLeft}d left</span>;
 }
 
-function ProjectCard({ project, onDelete }: { project: Project; onDelete: (id: string) => void }) {
+function ProjectCard({ project, onDelete, companyName }: { project: Project; onDelete: (id: string) => void; companyName?: string }) {
   const resumeCount = project.resume_ids?.length ?? 0;
   const updatedAt = new Date(project.updated_at).toLocaleDateString("en-AU", {
     day: "numeric", month: "short", year: "numeric",
@@ -50,6 +50,9 @@ function ProjectCard({ project, onDelete }: { project: Project; onDelete: (id: s
             <ExpiryBadge endDate={project.end_date} />
           </div>
           <h3 className="text-sm font-semibold text-foreground line-clamp-2">{project.name}</h3>
+          {companyName && (
+            <p className="text-[11px] text-primary/70 font-medium">{companyName}</p>
+          )}
           {(project.start_date || project.end_date) && (
             <p className="mt-1 text-[11px] text-muted-foreground">
               {fmtDate(project.start_date) ?? "—"} → {fmtDate(project.end_date) ?? "—"}
@@ -359,9 +362,17 @@ function NewProjectModal({ onClose, onCreate }: {
                     </div>
                   ) : (
                     <>
-                      <label className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 cursor-pointer transition-colors ${
-                        jdFile ? "border-primary/50 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/30"
-                      }`}>
+                      <label
+                        className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 cursor-pointer transition-colors ${
+                          jdFile ? "border-primary/50 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/30"
+                        }`}
+                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        onDrop={(e) => {
+                          e.preventDefault(); e.stopPropagation();
+                          const file = e.dataTransfer.files?.[0];
+                          if (file) { setJdFile(file); setError(""); }
+                        }}
+                      >
                         <input type="file" accept=".pdf,.doc,.docx,.txt" className="hidden"
                           onChange={e => { setJdFile(e.target.files?.[0] ?? null); setError(""); }} />
                         <svg className={`h-8 w-8 ${jdFile ? "text-primary" : "text-muted-foreground"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -411,14 +422,22 @@ export default function ProjectsPage() {
   const [error, setError] = useState("");
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "archived">("all");
+  const [companyFilter, setCompanyFilter] = useState<string>("all");
   const [sortMode, setSortMode] = useState<"newest" | "end_date" | "start_date">("newest");
+  const [companyMap, setCompanyMap] = useState<Record<string, string>>({});
 
   const fetchProjects = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await listProjects(DEFAULT_ORG);
+      const [data, companiesRes] = await Promise.all([
+        listProjects(DEFAULT_ORG),
+        fetchFromApi<{ items?: Company[] }>(`/api/companies?org_id=${DEFAULT_ORG}`).catch(() => null),
+      ]);
       setProjects(data.items);
       setTotal(data.total);
+      const map: Record<string, string> = {};
+      (companiesRes?.items ?? []).forEach(c => { map[c.id] = c.name; });
+      setCompanyMap(map);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load projects");
     } finally {
@@ -445,8 +464,11 @@ export default function ProjectsPage() {
     }
   }
 
+  const uniqueCompanyIds = [...new Set(projects.map(p => p.company_id).filter(Boolean))] as string[];
+
   const filteredProjects = projects
     .filter(p => statusFilter === "all" || p.status === statusFilter)
+    .filter(p => companyFilter === "all" || p.company_id === companyFilter)
     .sort((a, b) => {
       if (sortMode === "end_date") {
         const aEnd = a.end_date ? new Date(a.end_date).getTime() : Infinity;
@@ -501,6 +523,15 @@ export default function ProjectsPage() {
                   }`}>{f}</button>
               ))}
             </div>
+            {uniqueCompanyIds.length > 0 && (
+              <select value={companyFilter} onChange={e => setCompanyFilter(e.target.value)}
+                className="rounded-lg border border-border bg-card px-2 py-1 text-xs text-foreground">
+                <option value="all">All Companies</option>
+                {uniqueCompanyIds.map(id => (
+                  <option key={id} value={id}>{companyMap[id] || id}</option>
+                ))}
+              </select>
+            )}
             <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
               {([["newest", "Newest"], ["end_date", "End Date"], ["start_date", "Start Date"]] as const).map(([val, label]) => (
                 <button key={val} onClick={() => setSortMode(val)}
@@ -549,7 +580,7 @@ export default function ProjectsPage() {
                 No {statusFilter === "all" ? "" : statusFilter} job roles found.
               </div>
             ) : filteredProjects.map((p) => (
-              <ProjectCard key={p.id} project={p} onDelete={requestDelete} />
+              <ProjectCard key={p.id} project={p} onDelete={requestDelete} companyName={p.company_id ? companyMap[p.company_id] : undefined} />
             ))}
           </div>
         )}

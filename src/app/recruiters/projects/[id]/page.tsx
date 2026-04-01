@@ -794,9 +794,17 @@ function ResumePickerModal({
             <>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Resume Files (select multiple)</label>
-                <label className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 cursor-pointer transition-colors ${
-                  files.length > 0 ? "border-primary/50 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/30"
-                }`}>
+                <label
+                  className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 cursor-pointer transition-colors ${
+                    files.length > 0 ? "border-primary/50 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/30"
+                  }`}
+                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                  onDrop={(e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    const dropped = Array.from(e.dataTransfer.files);
+                    if (dropped.length > 0) { setFiles(dropped); setUploadError(""); }
+                  }}
+                >
                   <input type="file" accept=".pdf,.doc,.docx" multiple className="hidden"
                     onChange={e => { setFiles(Array.from(e.target.files ?? [])); setUploadError(""); }} />
                   <svg className={`h-8 w-8 ${files.length > 0 ? "text-primary" : "text-muted-foreground"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
