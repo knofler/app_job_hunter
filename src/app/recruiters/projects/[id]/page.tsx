@@ -835,6 +835,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
   const { id: projectId } = use(params);
 
   const [project, setProject] = useState<Project | null>(null);
+  const isExpired = !!(project?.end_date && new Date(project.end_date).getTime() < Date.now());
   const [runs, setRuns] = useState<ProjectRun[]>([]);
   const [reports, setReports] = useState<ProjectReport[]>([]);
   const [context, setContextText] = useState("");
@@ -959,6 +960,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
   useEffect(() => { fetchAll(); }, [projectId]); // eslint-disable-line
 
   async function handleAddResumes(ids: string[]) {
+    if (isExpired) { alert("This job role has expired. No new activities allowed."); return; }
     try {
       await addResumesToProject(projectId, ids);
       fetchAll(); // refresh project + resume names
@@ -1111,7 +1113,12 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
 
   return (
     <>
-      {showRunModal && (
+      {isExpired && (
+        <div className="sticky top-14 z-30 bg-red-950/90 border-b border-red-500/30 px-4 py-2 text-center text-sm text-red-300 backdrop-blur-sm">
+          This job role expired on {new Date(project!.end_date!).toLocaleDateString()}. Resume uploads and new analysis runs are disabled.
+        </div>
+      )}
+      {showRunModal && !isExpired && (
         <NewRunModal
           projectId={projectId}
           onClose={() => setShowRunModal(false)}

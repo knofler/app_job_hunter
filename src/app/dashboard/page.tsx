@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { fetchFromApi } from "@/lib/api";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 
@@ -98,11 +97,20 @@ export default function DashboardPage() {
   const loadDashboardData = useCallback(async () => {
     try {
       setError(null);
+      // Use Next.js proxy routes (not fetchFromApi) so admin token is injected server-side
+      const fetchProxy = async <T,>(url: string): Promise<T | null> => {
+        try {
+          const res = await fetch(url, { cache: "no-store", credentials: "include" });
+          if (!res.ok) return null;
+          return await res.json() as T;
+        } catch { return null; }
+      };
+
       const [projectsRes, candidatesRes, bugsRes, featuresRes] = await Promise.all([
-        fetchFromApi<{ items?: JobRole[]; total?: number }>("/api/projects?org_id=global&page=1&page_size=5").catch(() => null),
-        fetchFromApi<{ items?: unknown[]; total?: number }>("/api/candidates?page=1&page_size=1").catch(() => null),
-        fetchFromApi<{ items?: BugReport[]; total?: number }>("/api/connect/bugs?limit=100").catch(() => null),
-        fetchFromApi<{ items?: FeatureRequest[]; total?: number }>("/api/connect/features?limit=100").catch(() => null),
+        fetchProxy<{ items?: JobRole[]; total?: number }>("/api/projects?org_id=global&page=1&page_size=5"),
+        fetchProxy<{ items?: unknown[]; total?: number }>("/api/candidates?page=1&page_size=1"),
+        fetchProxy<{ items?: BugReport[]; total?: number }>("/api/connect/bugs?limit=100"),
+        fetchProxy<{ items?: FeatureRequest[]; total?: number }>("/api/connect/features?limit=100"),
       ]);
 
       const jobs = projectsRes?.items || [];
