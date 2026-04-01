@@ -19,10 +19,12 @@ const NAV_ITEMS: Record<Persona, NavItem[]> = {
     { label: "Find Jobs", href: "/job-search" },
     { label: "My Applications", href: "/my-jobs" },
     { label: "My Resume", href: "/resume" },
+    { label: "Product", href: "/product" },
     { label: "Connect", href: "/connect" },
   ],
   recruiter: [
     { label: "Job Roles", href: "/recruiters/projects" },
+    { label: "Product", href: "/product" },
     { label: "Connect", href: "/connect" },
   ],
   admin: [
@@ -30,6 +32,7 @@ const NAV_ITEMS: Record<Persona, NavItem[]> = {
     { label: "AI Prompts", href: "/settings/prompts" },
     { label: "Organisations", href: "/settings/orgs" },
     { label: "Data Management", href: "/settings/data" },
+    { label: "Product", href: "/product" },
     { label: "Connect", href: "/connect" },
   ],
 };

@@ -129,6 +129,16 @@ export default function ConnectHubPage() {
       accentBg: "bg-emerald-500/10",
       accentText: "text-emerald-400",
     },
+    {
+      title: "Live Status",
+      description: "Real-time progress tracking on bug fixes and feature requests being worked on.",
+      href: "/connect/status",
+      icon: <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
+      countLabel: "Live",
+      accentBorder: "border-amber-500/30",
+      accentBg: "bg-amber-500/10",
+      accentText: "text-amber-400",
+    },
   ];
 
   return (

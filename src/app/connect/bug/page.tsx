@@ -113,6 +113,7 @@ export default function BugReportsPage() {
   const [actualBehavior, setActualBehavior] = useState("");
   const [screenshots, setScreenshots] = useState<string[]>([]);
   const [reporterEmail, setReporterEmail] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // List state
@@ -161,7 +162,7 @@ export default function BugReportsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !description.trim()) return;
+    if (!title.trim() || !description.trim() || !reporterEmail.trim()) return;
 
     setSubmitting(true);
     try {
@@ -177,7 +178,8 @@ export default function BugReportsPage() {
           expectedBehavior: expectedBehavior.trim() || undefined,
           actualBehavior: actualBehavior.trim() || undefined,
           screenshots: screenshots.length > 0 ? screenshots : undefined,
-          reporter_email: reporterEmail.trim() || undefined,
+          reporter_email: reporterEmail.trim(),
+          is_public: isPublic,
         }),
       });
 
@@ -558,16 +560,32 @@ export default function BugReportsPage() {
             {/* Email for notifications */}
             <div>
               <label htmlFor="bug-email" className="mb-1.5 block text-sm font-medium text-zinc-300">
-                Your Email <span className="text-zinc-500">(optional — get notified when status changes)</span>
+                Your Email <span className="text-red-400">*</span>
               </label>
               <input
                 id="bug-email"
                 type="email"
+                required
                 value={reporterEmail}
                 onChange={(e) => setReporterEmail(e.target.value)}
                 placeholder="you@example.com"
                 className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
               />
+              <p className="mt-1 text-xs text-zinc-500">Required — you&apos;ll receive status updates via email</p>
+            </div>
+
+            {/* Public visibility */}
+            <div className="flex items-center gap-3">
+              <input
+                id="bug-public"
+                type="checkbox"
+                checked={isPublic}
+                onChange={(e) => setIsPublic(e.target.checked)}
+                className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-violet-500 focus:ring-violet-500"
+              />
+              <label htmlFor="bug-public" className="text-sm text-zinc-300">
+                Make this ticket public <span className="text-zinc-500">(visible to all users on the status page)</span>
+              </label>
             </div>
 
             {/* Submit */}
