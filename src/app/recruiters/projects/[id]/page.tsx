@@ -844,6 +844,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
 
   const [project, setProject] = useState<Project | null>(null);
   const isExpired = !!(project?.end_date && new Date(project.end_date).getTime() < Date.now());
+  const [companyName, setCompanyName] = useState<string | null>(null);
   const [runs, setRuns] = useState<ProjectRun[]>([]);
   const [reports, setReports] = useState<ProjectReport[]>([]);
   const [context, setContextText] = useState("");
@@ -897,6 +898,12 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
         getProjectContext(projectId).catch(() => ({ context: "", context_config: null })),
       ]);
       setProject(proj);
+      // Resolve company name
+      if (proj.company_id) {
+        fetchFromApi<{ name?: string }>(`/api/companies/${proj.company_id}`)
+          .then(c => setCompanyName(c?.name ?? null))
+          .catch(() => setCompanyName(null));
+      }
       setRuns(runList);
       setReports(reportList);
       setContextText(ctx.context ?? "");
@@ -1184,6 +1191,29 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
             </Link>
             <h1 className="text-sm font-bold text-foreground leading-tight mt-1">{project.name}</h1>
             {project.description && <p className="text-xs text-muted-foreground mt-1">{project.description}</p>}
+
+            {/* Project metadata — company, dates, expiry */}
+            {(companyName || project.start_date || project.end_date) && (
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+                {companyName && (
+                  <span className="text-primary/80 font-medium">{companyName}</span>
+                )}
+                {(project.start_date || project.end_date) && (
+                  <span className="text-muted-foreground">
+                    {project.start_date ? new Date(project.start_date).toLocaleDateString("en-AU", { day: "numeric", month: "short" }) : "—"}
+                    {" → "}
+                    {project.end_date ? new Date(project.end_date).toLocaleDateString("en-AU", { day: "numeric", month: "short" }) : "—"}
+                  </span>
+                )}
+                {project.end_date && (() => {
+                  const days = Math.ceil((new Date(project.end_date).getTime() - Date.now()) / 86400000);
+                  if (days < 0) return <span className="font-medium text-red-400">Expired</span>;
+                  if (days <= 3) return <span className="font-medium text-red-400">{days}d left</span>;
+                  if (days <= 7) return <span className="font-medium text-amber-400">{days}d left</span>;
+                  return <span className="text-muted-foreground">{days}d left</span>;
+                })()}
+              </div>
+            )}
 
             {/* JD Banner */}
             {project.job_id ? (
