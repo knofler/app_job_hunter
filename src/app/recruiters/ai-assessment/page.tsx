@@ -20,6 +20,7 @@ interface JobOption {
   id: string;
   title: string;
   description?: string;
+  company?: string;
 }
 
 interface SkillMatch {
@@ -161,6 +162,7 @@ export default function AIAssessmentPage() {
         id: j.id as string,
         title: (j.title as string) || "Untitled",
         description: j.description as string | undefined,
+        company: j.company as string | undefined,
       }));
       setJobOptions(items);
       setJobsLoaded(true);
@@ -344,7 +346,7 @@ export default function AIAssessmentPage() {
                 <option value="">Select a job…</option>
                 {jobOptions.map((j) => (
                   <option key={j.id} value={j.id}>
-                    {j.title}
+                    {j.company ? `${j.company} — ${j.title}` : j.title}
                   </option>
                 ))}
               </select>

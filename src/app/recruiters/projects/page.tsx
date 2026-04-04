@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { createProject, deleteProject, listProjects, type Project } from "@/lib/projects-api";
+import { createProject, deleteProject, updateProject, listProjects, type Project } from "@/lib/projects-api";
 import { fetchFromApi } from "@/lib/api";
 import Badge from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -32,27 +32,27 @@ function ExpiryBadge({ endDate }: { endDate: string | null }) {
   return <span className="text-[10px] text-muted-foreground">{daysLeft}d left</span>;
 }
 
-function ProjectCard({ project, onDelete, companyName }: { project: Project; onDelete: (id: string) => void; companyName?: string }) {
+function ProjectCard({ project, onArchive, companyName }: { project: Project; onArchive: (id: string) => void; companyName?: string; }) {
   const resumeCount = project.resume_ids?.length ?? 0;
   const updatedAt = new Date(project.updated_at).toLocaleDateString("en-AU", {
     day: "numeric", month: "short", year: "numeric",
   });
   const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString("en-AU", { day: "numeric", month: "short" }) : null;
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmArchive, setConfirmArchive] = useState(false);
 
   return (
     <Card hoverable className="group relative p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 mb-1">
+          {companyName && (
+            <p className="text-xs text-primary/80 font-semibold mb-0.5">{companyName}</p>
+          )}
+          <h3 className="text-sm font-semibold text-foreground line-clamp-2">{project.name}</h3>
+          <div className="flex items-center gap-2 mt-1">
             <span className={`inline-flex h-2 w-2 rounded-full ${project.status === "active" ? "bg-emerald-400" : "bg-zinc-500"}`} />
             <span className="text-xs text-muted-foreground capitalize">{project.status}</span>
             <ExpiryBadge endDate={project.end_date} />
           </div>
-          <h3 className="text-sm font-semibold text-foreground line-clamp-2">{project.name}</h3>
-          {companyName && (
-            <p className="text-[11px] text-primary/70 font-medium">{companyName}</p>
-          )}
           {(project.start_date || project.end_date) && (
             <p className="mt-1 text-[11px] text-muted-foreground">
               {fmtDate(project.start_date) ?? "—"} → {fmtDate(project.end_date) ?? "—"}
@@ -62,23 +62,25 @@ function ProjectCard({ project, onDelete, companyName }: { project: Project; onD
             <p className="mt-1 text-xs text-muted-foreground line-clamp-1">{project.description}</p>
           )}
         </div>
-        {/* Delete controls — z-10 so they sit above the Link overlay */}
+        {/* Archive controls — z-10 so they sit above the Link overlay */}
         <div className="relative z-10 shrink-0">
-          {!confirmDelete ? (
-            <button
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirmDelete(true); }}
-              className="opacity-0 group-hover:opacity-100 rounded p-1 text-muted-foreground hover:text-rose-400 transition-all"
-              title="Delete project"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
-          ) : (
-            <div className="flex items-center gap-2" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-              <button onClick={() => onDelete(project.id)} className="text-xs font-medium text-rose-400 hover:text-rose-300">Delete</button>
-              <button onClick={() => setConfirmDelete(false)} className="text-xs text-muted-foreground hover:text-foreground">Cancel</button>
-            </div>
+          {project.status === "active" && (
+            !confirmArchive ? (
+              <button
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirmArchive(true); }}
+                className="opacity-0 group-hover:opacity-100 rounded p-1 text-muted-foreground hover:text-amber-400 transition-all"
+                title="Archive job role"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                </svg>
+              </button>
+            ) : (
+              <div className="flex items-center gap-2" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                <button onClick={() => onArchive(project.id)} className="text-xs font-medium text-amber-400 hover:text-amber-300">Archive</button>
+                <button onClick={() => setConfirmArchive(false)} className="text-xs text-muted-foreground hover:text-foreground">Cancel</button>
+              </div>
+            )
           )}
         </div>
       </div>
@@ -420,7 +422,7 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState("");
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [archiveTargetId, setArchiveTargetId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "archived">("all");
   const [companyFilter, setCompanyFilter] = useState<string>("all");
   const [sortMode, setSortMode] = useState<"newest" | "end_date" | "start_date">("newest");
@@ -447,20 +449,19 @@ export default function ProjectsPage() {
 
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
 
-  function requestDelete(id: string) {
-    setDeleteTargetId(id);
+  function requestArchive(id: string) {
+    setArchiveTargetId(id);
   }
 
-  async function confirmDeleteProject() {
-    if (!deleteTargetId) return;
+  async function confirmArchiveProject() {
+    if (!archiveTargetId) return;
     try {
-      await deleteProject(deleteTargetId);
-      setProjects((p) => p.filter((x) => x.id !== deleteTargetId));
-      setTotal((t) => t - 1);
+      await updateProject(archiveTargetId, { status: "archived" });
+      setProjects((p) => p.map((x) => x.id === archiveTargetId ? { ...x, status: "archived" as const } : x));
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Delete failed");
+      alert(err instanceof Error ? err.message : "Archive failed");
     } finally {
-      setDeleteTargetId(null);
+      setArchiveTargetId(null);
     }
   }
 
@@ -514,7 +515,19 @@ export default function ProjectsPage() {
 
         {/* Filter + Sort */}
         {!loading && projects.length > 0 && (
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 flex-wrap mb-2">
+            {uniqueCompanyIds.length > 0 && (
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs font-medium text-foreground">Company Name</span>
+                <select value={companyFilter} onChange={e => setCompanyFilter(e.target.value)}
+                  className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-foreground min-w-[180px]">
+                  <option value="all">All Companies</option>
+                  {uniqueCompanyIds.map(id => (
+                    <option key={id} value={id}>{companyMap[id] || id}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
               {(["all", "active", "archived"] as const).map(f => (
                 <button key={f} onClick={() => setStatusFilter(f)}
@@ -523,16 +536,7 @@ export default function ProjectsPage() {
                   }`}>{f}</button>
               ))}
             </div>
-            {uniqueCompanyIds.length > 0 && (
-              <select value={companyFilter} onChange={e => setCompanyFilter(e.target.value)}
-                className="rounded-lg border border-border bg-card px-2 py-1 text-xs text-foreground">
-                <option value="all">All Companies</option>
-                {uniqueCompanyIds.map(id => (
-                  <option key={id} value={id}>{companyMap[id] || id}</option>
-                ))}
-              </select>
-            )}
-            <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5 ml-auto">
               {([["newest", "Newest"], ["end_date", "End Date"], ["start_date", "Start Date"]] as const).map(([val, label]) => (
                 <button key={val} onClick={() => setSortMode(val)}
                   className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
@@ -580,21 +584,21 @@ export default function ProjectsPage() {
                 No {statusFilter === "all" ? "" : statusFilter} job roles found.
               </div>
             ) : filteredProjects.map((p) => (
-              <ProjectCard key={p.id} project={p} onDelete={requestDelete} companyName={p.company_id ? companyMap[p.company_id] : undefined} />
+              <ProjectCard key={p.id} project={p} onArchive={requestArchive} companyName={p.company_id ? companyMap[p.company_id] : undefined} />
             ))}
           </div>
         )}
       </div>
 
       <ConfirmModal
-        open={deleteTargetId !== null}
-        title="Delete Job Role"
-        message="Delete this job role and all its runs? This action cannot be undone."
-        confirmLabel="Delete"
+        open={archiveTargetId !== null}
+        title="Archive Job Role"
+        message="Archive this job role? It will be moved to the archived tab and can be restored later."
+        confirmLabel="Archive"
         cancelLabel="Cancel"
         variant="danger"
-        onConfirm={() => void confirmDeleteProject()}
-        onCancel={() => setDeleteTargetId(null)}
+        onConfirm={() => void confirmArchiveProject()}
+        onCancel={() => setArchiveTargetId(null)}
       />
     </div>
   );
