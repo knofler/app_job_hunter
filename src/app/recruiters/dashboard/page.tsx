@@ -134,7 +134,7 @@ export default function RecruiterDashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         <MetricCard label="Job Roles" value={projects.length} icon="📁" accent="bg-primary/10" />
         <MetricCard label="Companies" value={counts.companies} icon="🏢" accent="bg-cyan-500/10" />
-        <MetricCard label="Candidates" value={counts.candidates || (seedStatus.users ?? "—")} icon="👥" accent="bg-emerald-500/10" />
+        <MetricCard label="Candidates" value={counts.candidates ?? (seedStatus.users ?? "—")} icon="👥" accent="bg-emerald-500/10" />
         <MetricCard label="Resumes Loaded" value={totalResumes || (seedStatus.resumes ?? 0)} icon="📄" accent="bg-indigo-500/10" />
         <MetricCard label="AI Runs" value={totalRuns} icon="⚡" accent="bg-amber-500/10" />
         <MetricCard label="Bug Reports" value={`${counts.bugs.total}`} icon="🐛" accent="bg-orange-500/10" />

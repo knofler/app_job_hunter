@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { createProject, deleteProject, updateProject, listProjects, type Project } from "@/lib/projects-api";
+import { createProject, updateProject, listProjects, type Project } from "@/lib/projects-api";
 import { fetchFromApi } from "@/lib/api";
 import Badge from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -68,7 +68,7 @@ function ProjectCard({ project, onArchive, companyName }: { project: Project; on
             !confirmArchive ? (
               <button
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirmArchive(true); }}
-                className="opacity-0 group-hover:opacity-100 rounded p-1 text-muted-foreground hover:text-amber-400 transition-all"
+                className="opacity-0 group-hover:opacity-100 focus:opacity-100 rounded p-1 text-muted-foreground hover:text-amber-400 transition-all"
                 title="Archive job role"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
