@@ -196,9 +196,9 @@ export default function JobDetailPage() {
             <div className="mb-8">
               <h2 className="text-2xl font-bold text-foreground mb-4">Full Job Posting</h2>
               <div className="bg-muted/50 p-6 rounded-lg border">
-                <div className="text-sm text-foreground/80 whitespace-pre-line font-sans leading-relaxed">
+                <pre className="text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed font-sans">
                   {formatPreviewText(job.jd_content)}
-                </div>
+                </pre>
               </div>
             </div>
           )}

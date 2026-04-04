@@ -22,6 +22,13 @@ interface SeedStatus {
   projects?: number;
 }
 
+interface DashboardCounts {
+  candidates: number;
+  companies: number;
+  bugs: { total: number; open: number; resolved: number };
+  features: { total: number; open: number; shipped: number };
+}
+
 function MetricCard({ label, value, icon, accent }: { label: string; value: string | number; icon: string; accent?: string }) {
   return (
     <Card className="p-4 flex items-start gap-4">
@@ -52,18 +59,48 @@ function EmptyState({ message }: { message: string }) {
 export default function RecruiterDashboardPage() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [seedStatus, setSeedStatus] = useState<SeedStatus>({});
+  const [counts, setCounts] = useState<DashboardCounts>({ candidates: 0, companies: 0, bugs: { total: 0, open: 0, resolved: 0 }, features: { total: 0, open: 0, shipped: 0 } });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const fetchProxy = async <T,>(url: string): Promise<T | null> => {
+      try {
+        const res = await fetch(url, { cache: "no-store", credentials: "include" });
+        if (!res.ok) return null;
+        return await res.json() as T;
+      } catch { return null; }
+    };
+
     const loadData = async () => {
       try {
-        const [projRes, seedRes] = await Promise.all([
+        const [projRes, seedRes, candidatesRes, companiesRes, bugsRes, featuresRes] = await Promise.all([
           fetchFromApi("/api/projects?org_id=global&page=1&page_size=20").catch(() => null) as Promise<{ items?: unknown[] } | null>,
           fetchFromApi("/api/admin/seed/status").catch(() => null),
+          fetchProxy<{ items?: unknown[]; total?: number }>("/api/candidates?page=1&page_size=1"),
+          fetchProxy<{ items?: unknown[]; total?: number }>("/api/companies?org_id=global"),
+          fetchProxy<{ items?: Array<{ status?: string }>; total?: number }>("/api/connect/bugs?limit=100"),
+          fetchProxy<{ items?: Array<{ status?: string }>; total?: number }>("/api/connect/features?limit=100"),
         ]);
         if ((projRes as { items?: unknown[] })?.items) setProjects((projRes as { items: ProjectSummary[] }).items);
         else if (Array.isArray(projRes)) setProjects(projRes as ProjectSummary[]);
         if (seedRes) setSeedStatus(seedRes);
+
+        const bugs = bugsRes?.items || [];
+        const features = featuresRes?.items || [];
+        setCounts({
+          candidates: candidatesRes?.total ?? 0,
+          companies: companiesRes?.total ?? companiesRes?.items?.length ?? 0,
+          bugs: {
+            total: bugsRes?.total ?? bugs.length,
+            open: bugs.filter(b => b.status === "reported" || b.status === "working").length,
+            resolved: bugs.filter(b => b.status === "deployed" || b.status === "closed").length,
+          },
+          features: {
+            total: featuresRes?.total ?? features.length,
+            open: features.filter(f => f.status === "reported" || f.status === "working").length,
+            shipped: features.filter(f => f.status === "deployed" || f.status === "accepted").length,
+          },
+        });
       } finally {
         setLoading(false);
       }
@@ -94,11 +131,14 @@ export default function RecruiterDashboardPage() {
       </div>
 
       {/* Metrics row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricCard label="Active Projects" value={projects.length} icon="📁" accent="bg-primary/10" />
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <MetricCard label="Job Roles" value={projects.length} icon="📁" accent="bg-primary/10" />
+        <MetricCard label="Companies" value={counts.companies} icon="🏢" accent="bg-cyan-500/10" />
+        <MetricCard label="Candidates" value={counts.candidates || (seedStatus.users ?? "—")} icon="👥" accent="bg-emerald-500/10" />
         <MetricCard label="Resumes Loaded" value={totalResumes || (seedStatus.resumes ?? 0)} icon="📄" accent="bg-indigo-500/10" />
         <MetricCard label="AI Runs" value={totalRuns} icon="⚡" accent="bg-amber-500/10" />
-        <MetricCard label="Candidates Seeded" value={seedStatus.users ?? "—"} icon="👥" accent="bg-emerald-500/10" />
+        <MetricCard label="Bug Reports" value={`${counts.bugs.total}`} icon="🐛" accent="bg-orange-500/10" />
+        <MetricCard label="Feature Requests" value={`${counts.features.total}`} icon="💡" accent="bg-violet-500/10" />
       </div>
 
       {/* Two-panel */}
