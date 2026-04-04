@@ -4,12 +4,46 @@
 
 ---
 
+## CRITICAL RULES (read before doing anything)
+
+1. **NEVER push directly to `main`.** All code goes to `test` branch first. Push to `test` → verify preview → PR to `main` → merge. This is non-negotiable.
+2. **NEVER run `npm install`, `npm ci`, `npx`, or `node` on the host machine.** Always use `docker compose exec app <command>`. Only exception: CI runners.
+3. **NEVER commit `node_modules/`, `.env`, or secrets.** Check `.gitignore` before staging.
+4. **Docker container naming:** All `container_name` in `docker-compose.yml` MUST use the **exact folder name** as prefix (preserve casing): `{folderName}-app`, `{folderName}-mongo`, `{folderName}-api`. Example: folder `agentFlow` → `agentFlow-app`, `agentFlow-mongo`. If non-compliant → `docker compose down`, fix names, rebuild.
+
+---
+
+## Keyword Execution Protocol (MANDATORY for all keywords)
+
+When executing ANY keyword (`ship it`, `make prod`, `make preview`, `agent mode`, etc.), you MUST follow this protocol:
+
+1. **Announce**: Before starting, list ALL steps you will execute as a numbered checklist.
+2. **Report per step**: Before each step, say what you're about to do. After each step, report the result (done/skipped/failed).
+3. **No silent steps**: Never perform a step without announcing it first and reporting the outcome.
+4. **Summary table**: After ALL steps are complete, output a summary table:
+
+```
+| # | Step | Status | Notes |
+|---|------|--------|-------|
+| 1 | Commit changes | Done | 3 files changed |
+| 2 | Push to test | Done | CI triggered |
+| 3 | Wait for CI | Done | All checks passed |
+| ... | ... | ... | ... |
+```
+
+Status values: `Done`, `Skipped` (with reason), `Failed` (with error).
+
+This protocol is **mandatory** — never skip the announcement, per-step reporting, or summary table.
+
+---
+
 ## On Session Start
 
-1. Read `AI/state/STATE.md` and `AI/state/AI_AGENT_HANDOFF.md` to synchronize project context
-2. Read `AI/documentation/AI_RULES.md` for technical mandates
-3. Review `AI/documentation/MULTI_AGENT_ROUTING.md` for routing reference
-4. Dispatch `project-manager` to assess current status and identify the next work priority
+1. **Multi-machine check** (MANDATORY): Run `hostname -s`, compare with `Last machine:` in `AI/state/AI_AGENT_HANDOFF.md`. If different machine → clean Dropbox conflicts, rebuild Docker (`docker compose down && docker compose up -d --build`), verify build. See `AI/documentation/MULTI_MACHINE_WORKFLOW.md`.
+2. Read `AI/state/STATE.md` and `AI/state/AI_AGENT_HANDOFF.md` to synchronize project context
+3. Read `AI/documentation/AI_RULES.md` for technical mandates
+4. Review `AI/documentation/MULTI_AGENT_ROUTING.md` for routing reference
+5. Dispatch `project-manager` to assess current status and identify the next work priority
 
 ---
 
@@ -120,10 +154,10 @@ The user may type these short phrases instead of full prompts. Execute the full 
 | Keyword | Action |
 |---------|--------|
 | `hello` | Show all available keywords and their usage as a table. |
-| `start work` | Read `AI/state/STATE.md` + `AI/state/AI_AGENT_HANDOFF.md`. Assess status. Report what's done, in-progress, blocked. Identify next priority. |
-| `agent mode` | **Full multi-agent activation.** 1. Read `AI/state/STATE.md` + `AI/state/AI_AGENT_HANDOFF.md` + `AI/documentation/AI_RULES.md` + `AI/documentation/MULTI_AGENT_ROUTING.md`. 2. Report: completed, in-progress/blocked, next priority. 3. Dispatch all relevant lanes in parallel — Lane A (frontend-specialist + ui-ux-specialist), Lane B (api-specialist + database-specialist), Lane C (devops-specialist + security-specialist), Lane D (documentation-specialist + solution-architect + project-manager), Cross-lane (tech-lead + qa-specialist). Only sequence when one specialist's output is required input for another. 4. After every completed task, auto-update `AI/state/STATE.md` and log to `AI/logs/claude_log.md`. |
-| `ship it` | 1. Commit all changes with descriptive message. 2. Push to remote. 3. Update `AI/state/STATE.md` with progress. 4. Update `AI/state/AI_AGENT_HANDOFF.md` with context for next session. 5. Log to `AI/logs/claude_log.md`. **Do NOT run update_all — this is a project, not the master repo.** |
-| `wrap up` | Update `AI/state/STATE.md` with progress. Write `AI/state/AI_AGENT_HANDOFF.md` for next session. Log to `AI/logs/claude_log.md`. No commit. |
+| `start work` | **0. Multi-machine check (MANDATORY):** Run `hostname -s`, read `Last machine:` from `AI/state/AI_AGENT_HANDOFF.md`. If different → read `AI/documentation/MULTI_MACHINE_WORKFLOW.md` and execute the full checklist: clean Dropbox conflicts, rebuild Docker (`docker compose down && docker compose up -d --build`), verify build. **1.** Read `AI/state/STATE.md` + `AI/state/AI_AGENT_HANDOFF.md`. Assess status. Report what's done, in-progress, blocked. Identify next priority. |
+| `agent mode` | **Full multi-agent activation.** 0. **Project identity:** Display current project/repo name prominently. 0b. **Multi-machine check:** Run `hostname -s`, compare with handoff. If different → full checklist. 0c. **Docker naming check:** Verify all `container_name` in docker-compose.yml use `{reponame}-` prefix. If not → `docker compose down`, fix names, `docker compose up -d --build`. 1. Read state + handoff + AI_RULES + MULTI_AGENT_ROUTING. 2. Load SONA context (patterns relevant to current work). 3. Report: completed, in-progress/blocked, next priority. 4. Dispatch all relevant lanes in parallel — A (frontend + ui-ux), B (api + database), C (devops + security), D (docs + architect + PM), Cross (tech-lead + QA). 5. Auto-update state and logs after every task. |
+| `ship it` | **Safe deployment via test branch.** 1. Commit all changes with descriptive message. 2. Push to `test` branch (NEVER directly to `main`). 3. Wait for CI to pass (lint, type-check, test). 4. Verify Vercel preview deployment succeeded. 5. Ask user to test the preview URL. 6. When user confirms, create PR `test` → `main` with summary. 7. Run AI code review on the PR. 8. When all checks pass, merge the PR. 9. Confirm production deployment complete. 10. Update `AI/state/STATE.md` + `AI/state/AI_AGENT_HANDOFF.md` + `AI/logs/claude_log.md`. **Do NOT run update_all — this is a project, not the master repo.** |
+| `wrap up` | **Session close with traffic-light dashboard.** 1. Run session-close (summarize, update STATE.md, handoff, log). 2. Show dashboard: `[OK]` green, `[!!]` yellow, `[XX]` red for: commit, push, STATE.md, handoff, branch, Docker, CI. 3. If all green → "Safe to close". If red → list what needs fixing. |
 | `status` | Read `AI/state/STATE.md` and give a quick summary: done, in-progress, blocked, next priority. |
 | `review` | Dispatch `tech-lead` for code review + `qa-specialist` for test coverage check on recent changes. |
 | `plan [feature]` | Dispatch `solution-architect` + `product-manager` + `tech-ba` to break down a feature into specs, stories, and ADR before code. |
@@ -131,7 +165,40 @@ The user may type these short phrases instead of full prompts. Execute the full 
 | `audit` | Dispatch `security-specialist` (OWASP) + `qa-specialist` (coverage) + `tech-lead` (standards) in parallel. |
 | `handoff` | Prepare full handoff: update STATE.md, write detailed AI_AGENT_HANDOFF.md, log session — ready for a different AI agent. |
 | `list` | **Audit all managed repos.** Read `config/managed_repos.txt` from the AI master repo, check each path for: AI/ folder exists, STATE.md exists, CLAUDE.md exists, GEMINI.md exists. Output a markdown table with columns: Project, Level (standalone/workspace root/sub-repo), AI/, STATE.md, CLAUDE.md, GEMINI.md. Bold workspace roots and standalones. |
-| `make prod` | **Productionise this project.** 0. **Check first:** Look for existing Vercel config (`.vercel/project.json`, `vercel ls`), Render config (`render.yaml`), and Atlas connection string in env. If already configured → verify health, report status, done. If partially configured → only provision what's missing. 1. Detect project type (Next.js → Vercel, Express → Render, MongoDB → Atlas). 2. Create Vercel project + set env vars + deploy. 3. Provision MongoDB Atlas DB user + connection string. 4. Create Render service if standalone API. 5. Generate `.vercelignore` and/or `render.yaml`. 6. Verify health endpoint returns OK. 7. Update state files with production URLs. |
+| `show urls` | Show all deployment URLs for this project: production (main branch) and preview (test branch). Check `.vercel/project.json` for Vercel project name, `render.yaml` for Render. Production: `https://{project}.vercel.app`. Preview: `https://{project}-git-test-{org}.vercel.app`. |
+| `check bugs` | Pull open bugs from the Connect Hub DB (`BugReport` collection). List by severity. Suggest which to fix first based on severity and age. |
+| `fix bug [id]` | Pull bug details from DB. Set status to "working". Analyse root cause, implement fix on `test` branch, push, create PR. Update bug: status → "solved", resolution, prUrl. |
+| `check features` | Pull open feature requests from DB (`FeatureRequest` collection). List by priority and upvotes. Suggest which to implement first. |
+| `build feature [id]` | Pull feature details from DB. Set status to "working". Generate implementation plan, implement on `test` branch, push, create PR. Update feature: status → "solved", prUrl. |
+| `triage` | Pull all "reported" bugs and features from DB. AI analyses each: set severity/priority, detect duplicates, assign to specialist agent, update status to "triaged". |
+| `merge it` | Merge `test` → `main` via PR. Create PR if not exists, verify CI passes, merge, update any bug/feature DB status from "solved" to "deployed" with `deployedAt` timestamp. Confirm production deployment complete. |
+| `connect setup` | **Integrate Connect Hub into this project.** 1. Read `AI/documentation/CONNECT_HUB.md` — this is the FULL instruction doc with every step. 2. Check if Connect Hub files exist in `src/models/BugReport.ts`, `src/app/api/connect/`, `src/app/connect/`. If missing, tell user: "Connect Hub files not found. Run this from the master AI repo first: `./scripts/init_connect.sh /path/to/this/project`". 3. If files exist, follow Steps 1-8 in CONNECT_HUB.md: verify files → fix import placeholders (`__DB_IMPORT__`, `__AUTH_IMPORT__`, `__MODELS_PATH__`) → update middleware → update model barrel exports → add nav item → type check → test → report summary table. |
+| `make preview` | **Set up the test→preview pipeline for this repo.** 1. Create `test` branch from `main` if not exists. 2. Push `test` to remote. 3. Add CI workflows (`.github/workflows/ci.yml` + `merge-gate.yml`) if missing. 4. Set branch protection via `gh` CLI. 5. Sync `test` with latest `main`. 6. Report preview URL. |
+| `make prod` | **Productionise this project with branching strategy.** 0. **Check first:** Look for existing Vercel config, Render config, Atlas connection. If already configured → verify health, report status, done. 1. **Set up branching:** Create `test` branch, add CI workflows (`.github/workflows/ci.yml` + `merge-gate.yml`), set branch protection rules. 2. **Provision infrastructure:** Detect project type (Next.js → Vercel, Express → Render, MongoDB → Atlas). Create Vercel project + deploy from `main`. Set env vars for both Production and Preview environments. 3. **Verify:** Push test commit to `test` branch, confirm CI passes + Vercel preview deploys. Verify health endpoint. 4. **Update:** State files with production URLs + preview URL pattern. |
+
+---
+
+## Deployment Workflow (Branching Strategy)
+
+**NEVER push directly to `main`. All code goes through `test` branch first.**
+
+```
+1. Push to test     →  git push origin test
+2. CI runs          →  lint, type-check, test (automatic)
+3. Preview deploys  →  Vercel generates preview URL (automatic)
+4. User tests       →  AI asks user to verify preview URL
+5. Create PR        →  gh pr create --base main --head test
+6. AI reviews PR    →  code review + merge gate check
+7. Merge            →  gh pr merge --merge
+8. Prod deploys     →  Vercel auto-deploys to production (automatic)
+9. Notify           →  AI confirms "Production deployment complete"
+```
+
+**Branch protection rules:**
+- `main`: PR required, CI must pass (Lint, Type-check, Test)
+- `test`: CI must pass, direct push allowed
+
+**Docker-only development:** NEVER run `npm install`, `npm ci`, `npx`, or `node` directly on the host machine. Always use `docker compose exec app <command>`. The only exception is CI runners (GitHub Actions).
 
 ---
 

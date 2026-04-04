@@ -1,0 +1,66 @@
+{
+  "project": {
+    "name": "job-hunter-app",
+    "package_name": "job-hunter-app",
+    "version": "0.1.0",
+    "path": "/Users/rummanahmed/Dropbox/Dev/PROJECT/CODE/_MY_PROJECT/JOB_HUNTER/job-hunter-app",
+    "scanned_at": "2026-03-28T14:36:18Z"
+  },
+  "stack": {
+    "types": ["nodejs","nextjs"],
+    "frameworks": ["Next.js","React","Tailwind CSS","TypeScript"],
+    "databases": [],
+    "auth": ["Auth0"],
+    "deployment": ["Vercel","Docker","GitHub Actions"],
+    "test_frameworks": ["Jest"]
+  },
+  "structure": {
+    "total_files": 465,
+    "file_counts": {
+      "typescript": 103,
+      "tsx": 89,
+      "javascript": 0,
+      "jsx": 0,
+      "python": 0,
+      "css": 1,
+      "markdown": 209,
+      "json": 8,
+      "yaml": 3
+    },
+    "entry_points": ["src/app/ (Next.js App Router)"],
+    "api_route_count": 63,
+    "test_file_count": 17,
+    "models": []
+  },
+  "dependencies": {
+    "production": 8,
+    "dev": 20,
+    "npm_scripts": ["dev","build","vercel-build","start","lint","typecheck","test","test:watch","test:e2e","test:e2e:ui","test:e2e:report","verify"]
+  },
+  "docker": {
+    "has_dockerfile": true,
+    "has_compose": false,
+    "compose_name": "",
+    "services": []
+  },
+  "git": {
+    "is_repo": true,
+    "remote": "git@github.com:knofler/app_job_hunter.git",
+    "branch": "test",
+    "total_commits": 192
+  },
+  "ai_framework": {
+    "has_ai_dir": true,
+    "has_state": false,
+    "has_handoff": false,
+    "has_claude_md": true
+  },
+  "env_vars": ["NEXT_PUBLIC_API_URL","NEXT_PUBLIC_API_URL_LOCAL","NEXT_PUBLIC_API_URL_INTERNAL","NEXT_PUBLIC_API_FORCE_REMOTE","NEXT_PUBLIC_USE_DUMMY_DATA","ADMIN_TOKEN","NEXT_PUBLIC_ORG_ID","ADMIN_API_KEY","AUTH0_SECRET","AUTH0_BASE_URL","AUTH0_ISSUER_BASE_URL","AUTH0_CLIENT_ID","AUTH0_CLIENT_SECRET","AUTH0_AUDIENCE"],
+  "recommendations": {
+    "needs_docker": false,
+    "needs_ci": false,
+    "needs_tests": false,
+    "needs_ai_framework": false,
+    "needs_env_example": false
+  }
+}
