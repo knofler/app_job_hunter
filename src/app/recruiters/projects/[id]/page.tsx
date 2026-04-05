@@ -25,7 +25,7 @@ import {
   scoreContext,
   getRunPdfUrl,
 } from "@/lib/projects-api";
-import { fetchFromApi } from "@/lib/api";
+
 import DeepAssessButton from "@/components/DeepAssessButton";
 import Badge from "@/components/ui/Badge";
 import { scoreVariant } from "@/lib/status-variants";
@@ -685,8 +685,9 @@ function ResumePickerModal({
   const [uploadError, setUploadError] = useState("");
 
   useEffect(() => {
-    fetchFromApi(`/api/recruiter-ranking/resumes?org_id=${DEFAULT_ORG}&limit=100`)
-      .then((d) => setAllResumes((d as { items?: typeof allResumes })?.items ?? []))
+    fetch(`/api/recruiter-ranking/resumes?org_id=${DEFAULT_ORG}&limit=100`, { cache: "no-store" })
+      .then(r => r.ok ? r.json() as Promise<{ items?: typeof allResumes }> : null)
+      .then((d) => setAllResumes(d?.items ?? []))
       .catch(() => setAllResumes([]))
       .finally(() => setLoadingList(false));
   }, []);
@@ -898,11 +899,24 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
         getProjectContext(projectId).catch(() => ({ context: "", context_config: null })),
       ]);
       setProject(proj);
-      // Resolve company name
+      // Resolve company name via proxy route (not fetchFromApi — needs admin token on Vercel)
       if (proj.company_id) {
-        fetchFromApi<{ name?: string }>(`/api/companies/${proj.company_id}`)
+        fetch(`/api/companies/${proj.company_id}`, { cache: "no-store" })
+          .then(r => r.ok ? r.json() as Promise<{ name?: string }> : null)
           .then(c => setCompanyName(c?.name ?? null))
           .catch(() => setCompanyName(null));
+      }
+      // Auto-load JD info so title shows in sidebar immediately (without opening the panel)
+      if (proj.job_id) {
+        fetch(`/api/jobs/${proj.job_id}`)
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (data) {
+              const job = data.job ?? data;
+              setPreviewJd({ id: proj.job_id!, title: job.title ?? "Job Description", description: job.jd_content || job.description || "" });
+            }
+          })
+          .catch(() => {});
       }
       setRuns(runList);
       setReports(reportList);
@@ -1183,8 +1197,8 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
         `} style={{ top: 56 }}>
           {/* Header */}
           <div className="px-4 py-4 border-b border-border">
-            <Link href="/recruiters/projects" className="text-xs text-muted-foreground hover:text-primary mb-2 flex items-center gap-1">
-              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <Link href="/recruiters/projects" className="text-sm font-medium text-muted-foreground hover:text-primary mb-2 flex items-center gap-1.5">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
               Job Roles
@@ -1818,6 +1832,22 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                       )}
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* Custom prompt / specific skill used */}
+              {!!selectedRun.params?.custom_prompt && (
+                <details className="rounded-lg border border-blue-500/20 bg-blue-500/5" open>
+                  <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-blue-400 select-none">
+                    ✏️ Custom Prompt Used
+                  </summary>
+                  <p className="px-3 pb-3 pt-1 text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">{String(selectedRun.params.custom_prompt)}</p>
+                </details>
+              )}
+              {!!selectedRun.params?.specific_skill && (
+                <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 px-3 py-2">
+                  <span className="text-xs font-medium text-violet-400">🎯 Skill Focus: </span>
+                  <span className="text-xs text-muted-foreground">{String(selectedRun.params.specific_skill)}</span>
                 </div>
               )}
 

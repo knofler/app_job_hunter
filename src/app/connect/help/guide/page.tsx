@@ -22,8 +22,6 @@ const SECTIONS: Section[] = [
     id: "getting-started",
     title: "Getting Started",
     icon: "rocket",
-    screenshot: "/guide/getting-started.png",
-    screenshotAlt: "Job Hunter home page showing persona selection and navigation",
     content: (
       <div className="space-y-3 text-sm text-zinc-300">
         <p>Job Hunter helps recruiters screen candidates with AI-powered analysis and helps candidates find their best job matches.</p>
@@ -39,8 +37,6 @@ const SECTIONS: Section[] = [
     id: "recruiter-workflow",
     title: "Recruiter Workflow",
     icon: "briefcase",
-    screenshot: "/guide/recruiter-jobroles.png",
-    screenshotAlt: "Job Roles page showing role cards with company, status, and archive controls",
     content: (
       <div className="space-y-4 text-sm text-zinc-300">
         <div>
@@ -70,8 +66,6 @@ const SECTIONS: Section[] = [
     id: "candidate-workflow",
     title: "Candidate Workflow",
     icon: "user",
-    screenshot: "/guide/candidate-jobs.png",
-    screenshotAlt: "Job search page with filters and job listings",
     content: (
       <div className="space-y-4 text-sm text-zinc-300">
         <div>
@@ -97,8 +91,6 @@ const SECTIONS: Section[] = [
     id: "connect-hub",
     title: "Connect Hub",
     icon: "chat",
-    screenshot: "/guide/connect-hub.png",
-    screenshotAlt: "Connect Hub landing page with bug reports, features, and help sections",
     content: (
       <div className="space-y-4 text-sm text-zinc-300">
         <div>
@@ -120,8 +112,6 @@ const SECTIONS: Section[] = [
     id: "dashboard",
     title: "Dashboard",
     icon: "chart",
-    screenshot: "/guide/dashboard.png",
-    screenshotAlt: "Dashboard showing job roles, candidates, companies, and bug/feature metrics",
     content: (
       <div className="space-y-3 text-sm text-zinc-300">
         <p className="text-zinc-400">The Dashboard shows a live overview of your workspace:</p>
