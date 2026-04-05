@@ -1069,7 +1069,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
       const res = await fetch(`/api/jobs/${jobId}`);
       const data = await res.json();
       const job = data.job ?? data;
-      setPreviewJd({ id: jobId, title: job.title ?? "Job Description", description: job.description || job.jd_content || "" });
+      setPreviewJd({ id: jobId, title: job.title ?? "Job Description", description: job.jd_content || job.description || "" });
     } catch { /* silent */ }
     finally { setJdLoading(false); }
   }

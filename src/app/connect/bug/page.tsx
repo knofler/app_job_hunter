@@ -122,6 +122,7 @@ export default function BugReportsPage() {
   const [statusFilter, setStatusFilter] = useState<BugStatus | "all">("all");
   const [sortMode, setSortMode] = useState<"newest" | "oldest" | "severity">("newest");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   // Edit state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -983,9 +984,9 @@ export default function BugReportsPage() {
                         <h4 className="text-xs font-medium uppercase tracking-wider text-zinc-500">Screenshots</h4>
                         <div className="mt-2 flex flex-wrap gap-2">
                           {bug.screenshots.map((src, i) => (
-                            <a key={i} href={src} target="_blank" rel="noopener noreferrer">
+                            <button key={i} type="button" onClick={() => setPreviewImage(src)} className="focus:outline-none">
                               <img src={src} alt={`Screenshot ${i + 1}`} className="h-32 w-auto rounded border border-zinc-700 hover:border-violet-500 transition-colors cursor-zoom-in" />
-                            </a>
+                            </button>
                           ))}
                         </div>
                       </div>
@@ -1019,6 +1020,26 @@ export default function BugReportsPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => setPreviewImage(null)}
+        >
+          <button
+            onClick={() => setPreviewImage(null)}
+            className="absolute top-4 right-4 text-white/70 hover:text-white text-3xl leading-none z-10"
+          >
+            &times;
+          </button>
+          <img
+            src={previewImage}
+            alt="Screenshot preview"
+            className="max-h-[85vh] max-w-[90vw] rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </div>

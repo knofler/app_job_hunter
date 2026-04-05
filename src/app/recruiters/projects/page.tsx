@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { createProject, updateProject, listProjects, type Project } from "@/lib/projects-api";
-import { fetchFromApi } from "@/lib/api";
 import Badge from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import ConfirmModal from "@/components/ui/ConfirmModal";
@@ -127,8 +126,9 @@ function NewProjectModal({ onClose, onCreate }: {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetchFromApi<{ items?: Company[] }>(`/api/companies?org_id=${DEFAULT_ORG}`)
-      .then(d => setCompanies(d.items ?? []))
+    fetch(`/api/companies?org_id=${DEFAULT_ORG}`, { cache: "no-store" })
+      .then(r => r.ok ? r.json() as Promise<{ items?: Company[] }> : null)
+      .then(d => setCompanies(d?.items ?? []))
       .catch(() => setCompanies([]));
   }, []);
 
@@ -154,8 +154,9 @@ function NewProjectModal({ onClose, onCreate }: {
   useEffect(() => {
     if (step === 2 && jdTab === "search") {
       setLoadingJds(true);
-      fetchFromApi(`/api/jobs/descriptions?org_id=${DEFAULT_ORG}&limit=50`)
-        .then(d => setJdOptions((d as { items?: JDOption[] })?.items ?? []))
+      fetch(`/api/jobs/descriptions?org_id=${DEFAULT_ORG}&limit=50`, { cache: "no-store" })
+        .then(r => r.ok ? r.json() as Promise<{ items?: JDOption[] }> : null)
+        .then(d => setJdOptions(d?.items ?? []))
         .catch(() => setJdOptions([]))
         .finally(() => setLoadingJds(false));
     }
@@ -433,7 +434,7 @@ export default function ProjectsPage() {
     try {
       const [data, companiesRes] = await Promise.all([
         listProjects(DEFAULT_ORG),
-        fetchFromApi<{ items?: Company[] }>(`/api/companies?org_id=${DEFAULT_ORG}`).catch(() => null),
+        fetch(`/api/companies?org_id=${DEFAULT_ORG}`, { cache: "no-store" }).then(r => r.ok ? r.json() as Promise<{ items?: Company[] }> : null).catch(() => null),
       ]);
       setProjects(data.items);
       setTotal(data.total);

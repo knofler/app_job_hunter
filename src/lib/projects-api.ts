@@ -106,7 +106,7 @@ export async function createProject(data: {
 
 export async function updateProject(projectId: string, updates: Partial<Pick<Project, "name" | "description" | "job_id" | "status">>): Promise<Project> {
   return apiFetch<Project>(`${BASE}/${projectId}`, {
-    method: "PATCH",
+    method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(updates),
   });
