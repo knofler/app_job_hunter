@@ -21,13 +21,13 @@ const NAV_ITEMS: Record<Persona, NavItem[]> = {
     { label: "My Resume", href: "/resume" },
     { label: "Product", href: "/product" },
     { label: "Connect", href: "/connect" },
-    { label: "Guide", href: "/connect/help/guide" },
+    { label: "User Guide", href: "/connect/help/guide" },
   ],
   recruiter: [
     { label: "Job Roles", href: "/recruiters/projects" },
     { label: "Product", href: "/product" },
     { label: "Connect", href: "/connect" },
-    { label: "Guide", href: "/connect/help/guide" },
+    { label: "User Guide", href: "/connect/help/guide" },
   ],
   admin: [
     { label: "LLM Providers", href: "/settings/llm" },
@@ -36,7 +36,7 @@ const NAV_ITEMS: Record<Persona, NavItem[]> = {
     { label: "Data Management", href: "/settings/data" },
     { label: "Product", href: "/product" },
     { label: "Connect", href: "/connect" },
-    { label: "Guide", href: "/connect/help/guide" },
+    { label: "User Guide", href: "/connect/help/guide" },
   ],
 };
 
