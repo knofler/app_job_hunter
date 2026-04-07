@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import {
   addResumesToProject,
-  deleteProject,
   getProject,
   getProjectContext,
   listReports,
@@ -870,7 +869,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
   const [error, setError] = useState("");
   const [showRunModal, setShowRunModal] = useState(false);
   const [showResumePicker, setShowResumePicker] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
   const [rerunSkill, setRerunSkill] = useState("");
@@ -878,14 +877,17 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
   const [rerunLoading, setRerunLoading] = useState(false);
   const router = useRouter();
 
-  async function handleDeleteProject() {
+  async function handleArchiveProject() {
     if (!project) return;
-    setDeleting(true);
+    setArchiving(true);
     try {
-      await deleteProject(projectId);
-      router.push("/recruiters/projects");
+      await updateProject(projectId, { status: "archived" });
+      setProject({ ...project, status: "archived" as const });
+      setConfirmDelete(false);
     } catch {
-      setDeleting(false);
+      /* ignore */
+    } finally {
+      setArchiving(false);
       setConfirmDelete(false);
     }
   }
@@ -1197,8 +1199,8 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
         `} style={{ top: 56 }}>
           {/* Header */}
           <div className="px-4 py-4 border-b border-border">
-            <Link href="/recruiters/projects" className="text-sm font-medium text-muted-foreground hover:text-primary mb-2 flex items-center gap-1.5">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <Link href="/recruiters/projects" className="text-base font-semibold text-muted-foreground hover:text-primary mb-2 flex items-center gap-1.5">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
               Job Roles
@@ -1230,7 +1232,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
             )}
 
             {/* JD Banner */}
-            {project.job_id ? (
+            {project.job_id && project.job_id.length > 0 ? (
               <button
                 onClick={() => handlePreviewJd(project.job_id!)}
                 className={`mt-2 w-full flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-left transition-colors ${
@@ -1245,33 +1247,35 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
             ) : (
               <p className="mt-2 text-xs text-muted-foreground italic">No JD linked</p>
             )}
-            {!confirmDelete ? (
-              <button
-                onClick={() => setConfirmDelete(true)}
-                className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-rose-400 transition-colors"
-              >
-                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                Delete project
-              </button>
-            ) : (
-              <div className="mt-2 flex items-center gap-2">
-                <span className="text-xs text-rose-400">Are you sure?</span>
+            {project.status === "active" && (
+              !confirmDelete ? (
                 <button
-                  onClick={handleDeleteProject}
-                  disabled={deleting}
-                  className="text-xs font-medium text-rose-400 hover:text-rose-300 disabled:opacity-50"
+                  onClick={() => setConfirmDelete(true)}
+                  className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-amber-400 transition-colors"
                 >
-                  {deleting ? "Deleting…" : "Yes, delete"}
+                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  </svg>
+                  Archive
                 </button>
-                <button
-                  onClick={() => setConfirmDelete(false)}
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                >
-                  Cancel
-                </button>
-              </div>
+              ) : (
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-xs text-amber-400">Archive this job role?</span>
+                  <button
+                    onClick={handleArchiveProject}
+                    disabled={archiving}
+                    className="text-xs font-medium text-amber-400 hover:text-amber-300 disabled:opacity-50"
+                  >
+                    {archiving ? "Archiving…" : "Yes, archive"}
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )
             )}
           </div>
 

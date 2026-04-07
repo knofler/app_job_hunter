@@ -518,10 +518,10 @@ export default function ProjectsPage() {
         {!loading && projects.length > 0 && (
           <div className="flex items-center gap-4 flex-wrap mb-2">
             {uniqueCompanyIds.length > 0 && (
-              <div className="flex flex-col gap-0.5">
-                <span className="text-xs font-medium text-foreground">Company Name</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-foreground">Company Name</span>
                 <select value={companyFilter} onChange={e => setCompanyFilter(e.target.value)}
-                  className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-foreground min-w-[180px]">
+                  className="rounded-lg border border-border bg-card px-3 py-1 text-xs font-medium text-foreground min-w-[180px]">
                   <option value="all">All Companies</option>
                   {uniqueCompanyIds.map(id => (
                     <option key={id} value={id}>{companyMap[id] || id}</option>
