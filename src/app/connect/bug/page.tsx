@@ -26,6 +26,7 @@ interface BugReport {
   resolution?: string;
   rejection_reason?: string;
   screenshots?: string[];
+  reporter_name?: string;
   prLink?: string;
   created_at?: string;
   updated_at?: string;
@@ -121,6 +122,7 @@ export default function BugReportsPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<BugStatus | "all">("all");
   const [sortMode, setSortMode] = useState<"newest" | "oldest" | "severity">("newest");
+  const [searchQuery, setSearchQuery] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
@@ -343,7 +345,11 @@ export default function BugReportsPage() {
   const filteredBugs = (statusFilter === "all"
     ? bugs
     : bugs.filter((b) => b.status === statusFilter)
-  ).sort((a, b) => {
+  ).filter((b) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return b.title.toLowerCase().includes(q) || b.description.toLowerCase().includes(q) || (b.reporter_name ?? "").toLowerCase().includes(q);
+  }).sort((a, b) => {
     if (sortMode === "severity") return (SEVERITY_RANK[a.severity] ?? 2) - (SEVERITY_RANK[b.severity] ?? 2);
     const aTime = new Date(a.created_at || a.createdAt || "").getTime();
     const bTime = new Date(b.created_at || b.createdAt || "").getTime();
@@ -696,6 +702,17 @@ export default function BugReportsPage() {
             Severity
           </button>
         </div>
+      </div>
+
+      {/* Search */}
+      <div>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search bugs by title, description, or reporter..."
+          className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-violet-500 focus:outline-none transition-colors"
+        />
       </div>
 
       {/* Loading */}

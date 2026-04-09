@@ -1839,6 +1839,14 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                 </div>
               )}
 
+              {/* Run info summary */}
+              <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                <span><strong className="text-foreground">Type:</strong> {selectedRun.run_label || selectedRun.run_type}</span>
+                {!!selectedRun.params?.top_n && <span><strong className="text-foreground">Top N:</strong> {String(selectedRun.params.top_n)}</span>}
+                <span><strong className="text-foreground">Candidates:</strong> {selectedRun.ranked?.length ?? 0}</span>
+                {selectedRun.duration_seconds != null && <span><strong className="text-foreground">Duration:</strong> {selectedRun.duration_seconds}s</span>}
+              </div>
+
               {/* Custom prompt / specific skill used */}
               {!!selectedRun.params?.custom_prompt && (
                 <details className="rounded-lg border border-blue-500/20 bg-blue-500/5" open>

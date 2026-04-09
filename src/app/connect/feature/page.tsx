@@ -28,6 +28,7 @@ interface FeatureRequest {
   implementation_plan?: string;
   prLink?: string;
   screenshots?: string[];
+  reporter_name?: string;
   created_at?: string;
   updated_at?: string;
   createdAt?: string;
@@ -123,7 +124,9 @@ export default function FeatureRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<FeatureStatus | "all">("all");
   const [sortMode, setSortMode] = useState<SortMode>("newest");
+  const [searchQuery, setSearchQuery] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [votingIds, setVotingIds] = useState<Set<string>>(new Set());
 
   // Edit state
@@ -361,7 +364,11 @@ export default function FeatureRequestsPage() {
   const filteredFeatures = (statusFilter === "all"
     ? features
     : features.filter((f) => f.status === statusFilter)
-  ).sort((a, b) => {
+  ).filter((f) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return f.title.toLowerCase().includes(q) || f.description.toLowerCase().includes(q) || (f.reporter_name ?? "").toLowerCase().includes(q);
+  }).sort((a, b) => {
     if (sortMode === "votes") return (b.votes || 0) - (a.votes || 0);
     return new Date(b.created_at || b.createdAt || "").getTime() - new Date(a.created_at || a.createdAt || "").getTime();
   });
@@ -689,6 +696,17 @@ export default function FeatureRequestsPage() {
         </div>
       </div>
 
+      {/* Search */}
+      <div>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search features by title, description, or reporter..."
+          className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-violet-500 focus:outline-none transition-colors"
+        />
+      </div>
+
       {/* Loading */}
       {loading && (
         <div className="space-y-3">
@@ -1000,9 +1018,9 @@ export default function FeatureRequestsPage() {
                         <h4 className="text-xs font-medium uppercase tracking-wider text-zinc-500">Screenshots</h4>
                         <div className="mt-2 flex flex-wrap gap-2">
                           {feature.screenshots.map((src, i) => (
-                            <a key={i} href={src} target="_blank" rel="noopener noreferrer">
+                            <button key={i} type="button" onClick={() => setPreviewImage(src)} className="focus:outline-none">
                               <img src={src} alt={`Screenshot ${i + 1}`} className="h-32 w-auto rounded border border-zinc-700 hover:border-violet-500 transition-colors cursor-zoom-in" />
-                            </a>
+                            </button>
                           ))}
                         </div>
                       </div>
@@ -1029,6 +1047,26 @@ export default function FeatureRequestsPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => setPreviewImage(null)}
+        >
+          <button
+            onClick={() => setPreviewImage(null)}
+            className="absolute top-4 right-4 text-white/70 hover:text-white text-3xl leading-none z-10"
+          >
+            &times;
+          </button>
+          <img
+            src={previewImage}
+            alt="Screenshot preview"
+            className="max-h-[85vh] max-w-[90vw] rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </div>
