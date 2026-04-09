@@ -424,7 +424,7 @@ export default function ProjectsPage() {
   const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState("");
   const [archiveTargetId, setArchiveTargetId] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "archived">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "archived">("active");
   const [companyFilter, setCompanyFilter] = useState<string>("all");
   const [sortMode, setSortMode] = useState<"newest" | "end_date" | "start_date">("newest");
   const [companyMap, setCompanyMap] = useState<Record<string, string>>({});
@@ -521,7 +521,7 @@ export default function ProjectsPage() {
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-foreground">Company Name</span>
                 <select value={companyFilter} onChange={e => setCompanyFilter(e.target.value)}
-                  className="rounded-lg border border-border bg-card px-3 py-1 text-xs font-medium text-foreground min-w-[180px]">
+                  className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground min-w-[180px] h-[30px]">
                   <option value="all">All Companies</option>
                   {uniqueCompanyIds.map(id => (
                     <option key={id} value={id}>{companyMap[id] || id}</option>
