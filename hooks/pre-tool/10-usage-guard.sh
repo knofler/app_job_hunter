@@ -47,6 +47,31 @@ warnings_sent=$(grep '^warnings_sent=' "$METRICS_FILE" | cut -d= -f2)
 : "${duration_minutes:=240}"
 : "${max_weighted_actions:=300}"
 
+# ── Stale session check ──
+# If the session has expired (e.g. stale file from previous session/machine via Dropbox),
+# reset metrics instead of blocking. This prevents false 95% blocks on new sessions.
+NOW_CHECK=$(date +%s)
+expires_epoch=$(grep '^expires_epoch=' "$METRICS_FILE" | cut -d= -f2)
+: "${expires_epoch:=0}"
+if [[ "$NOW_CHECK" -gt "$expires_epoch" && "$expires_epoch" -gt 0 ]]; then
+  # Session expired — reset the file
+  NOW_ISO=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+  EXP_EPOCH=$(( NOW_CHECK + (duration_minutes * 60) ))
+  EXP_ISO=$(date -u -r "$EXP_EPOCH" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date -u -d "@$EXP_EPOCH" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "unknown")
+  cat > "$METRICS_FILE" <<RESET
+started=$NOW_ISO
+started_epoch=$NOW_CHECK
+expires=$EXP_ISO
+expires_epoch=$EXP_EPOCH
+duration_minutes=$duration_minutes
+max_weighted_actions=$max_weighted_actions
+action_count=1
+weighted_actions=$WEIGHT
+warnings_sent=
+RESET
+  exit 0
+fi
+
 # ── Determine action weight ──
 WEIGHT="0.5"
 if [[ -n "$CONFIG_FILE" ]] && command -v jq &>/dev/null; then
