@@ -31,6 +31,70 @@ import { scoreVariant } from "@/lib/status-variants";
 
 const DEFAULT_ORG = "global";
 
+// Common resume section headings that an old/buggy parser sometimes mis-stored
+// as a candidate's name. When we see one, fall back to deriving the name from
+// the filename. Lowercase comparison.
+const SECTION_HEADING_NAMES: ReadonlySet<string> = new Set([
+  "top skills", "skills", "key skills", "core competencies", "technical skills",
+  "summary", "professional summary", "career summary", "executive summary",
+  "experience", "work experience", "professional experience", "employment history",
+  "education", "academic background", "qualifications",
+  "profile", "about", "about me", "contact", "contact information",
+  "objective", "career objective", "personal information",
+  "references", "languages", "certifications", "awards", "honors",
+  "achievements", "projects", "interests", "hobbies", "publications",
+  "training", "volunteer experience", "resume",
+]);
+
+function looksLikeNameSegment(seg: string): boolean {
+  if (!seg || seg.length > 25 || /\d/.test(seg)) return false;
+  // Initial: single uppercase letter, optional period.
+  if (/^[A-Z]\.?$/.test(seg)) return true;
+  // All-caps surname (2-10 chars).
+  if (/^[A-Z]{2,10}\.?$/.test(seg)) return true;
+  // Mixed/CamelCase: starts uppercase, lowercase somewhere, must end in
+  // lowercase (or initial period). Rejects hash chunks like ``AEMAAAzT``.
+  if (/^[A-Z](?:[A-Za-z'-]*[a-z])(?:[A-Z][a-z]+)*\.?$/.test(seg)) return true;
+  return false;
+}
+
+// LinkedIn-style export filename: FirstName_LastName_<base64hash>.pdf
+// Handles all-caps surnames (KAISER → Kaiser), CamelCase, and middle initials (S.).
+// Returns "" if no plausible name can be extracted.
+function deriveNameFromFilename(filename: string | null | undefined): string {
+  if (!filename) return "";
+  const base = filename.replace(/\.[^.]+$/, "");
+  const parts: string[] = [];
+  const segs = base.split("_");
+  for (let i = 0; i < segs.length; i++) {
+    const raw = segs[i];
+    if (!looksLikeNameSegment(raw)) break;
+    // From the 3rd position onward, only accept initials or proper-cased names
+    // (reject all-caps hash prefixes like ``AEMAAD``).
+    if (i >= 2) {
+      const isInitial = /^[A-Z]\.?$/.test(raw);
+      const isProperCased = /^[A-Za-z]+$/.test(raw) && raw !== raw.toUpperCase();
+      if (!isInitial && !isProperCased) break;
+    }
+    let seg = raw;
+    if (seg.length >= 2 && /^[A-Z]+$/.test(seg)) {
+      seg = seg.charAt(0) + seg.slice(1).toLowerCase();
+    }
+    parts.push(seg);
+    if (parts.length >= 4) break;
+  }
+  return parts.length >= 2 ? parts.join(" ") : "";
+}
+
+function deriveResumeDisplayName(name: string | null | undefined, filename: string | null | undefined, fallbackId: string): string {
+  const trimmed = (name ?? "").trim();
+  const isBad = !trimmed || trimmed === "Resume" || SECTION_HEADING_NAMES.has(trimmed.toLowerCase());
+  if (!isBad) return trimmed;
+  const fromFile = deriveNameFromFilename(filename);
+  if (fromFile) return fromFile;
+  return `Resume …${fallbackId.slice(-6)}`;
+}
+
 // ── Shared PDF text cleaner ───────────────────────────────────────────────────
 function cleanPdf(text: string): string[] {
   // Detect fragmented PDF extraction: word-per-line OR char-per-line artifact.
@@ -64,11 +128,50 @@ function cleanPdf(text: string): string[] {
     text = text.replace(new RegExp(PARA, "g"), "\n");
   }
 
-  return text
+  const lines = text
     .split("\n")
     .map(l => l.replace(/[ \t]{2,}/g, " ").replace(/[♂♀⚥⚨]/g, "").trimEnd())
     .filter(l => l.trim() !== "")
-    .filter((l, i, arr) => !(l.trim() === "" && arr[i - 1]?.trim() === ""));
+    .filter((l, i, arr) => !(l.trim() === "" && arr[i - 1]?.trim() === ""))
+    // Drop LinkedIn-style page footers
+    .filter(l => !/^Page \d+ of \d+$/i.test(l.trim()));
+
+  // Reflow wrapped lines. Join a line into its predecessor when:
+  //  - predecessor doesn't end in sentence-final punctuation
+  //  - predecessor isn't a section heading
+  //  - current line starts lowercase (a strong continuation signal)
+  //  - current line isn't a bullet
+  const BULLET_RE = /^\s*[-•*◆⬥●‣]/;
+  const ENDS_SENTENCE = /[.?!:;,]$/;
+  const ALL_CAPS_HEADING_RE = /^[A-Z][A-Z &/()–-]+:?$/;
+  // A short Title-Case line like "Contact", "Summary", "Top Skills", "Honors-Awards"
+  // is almost certainly a heading, not a paragraph that just happens to wrap.
+  function looksLikeHeading(line: string): boolean {
+    const t = line.trim().replace(/:$/, "");
+    if (!t || t.length > 40) return false;
+    if (ALL_CAPS_HEADING_RE.test(t)) return true;
+    const words = t.split(/\s+/);
+    if (words.length > 4) return false;
+    return words.every(w => /^[A-Z][A-Za-z'.-]*$/.test(w));
+  }
+  const out: string[] = [];
+  for (const line of lines) {
+    const prev = out[out.length - 1];
+    const startsLower = /^[a-z]/.test(line);
+    const isBullet = BULLET_RE.test(line);
+    if (
+      prev &&
+      !isBullet &&
+      startsLower &&
+      !ENDS_SENTENCE.test(prev) &&
+      !looksLikeHeading(prev)
+    ) {
+      out[out.length - 1] = prev + " " + line.trim();
+    } else {
+      out.push(line);
+    }
+  }
+  return out;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -253,10 +356,11 @@ function FormatJd({ text, jobTitle }: { text: string; jobTitle?: string }) {
 // RESUME FORMATTER — modern resume template
 // ════════════════════════════════════════════════════════════════════════════
 const RESUME_SECTIONS = new Set([
-  "education", "experience", "skills", "technical skills", "projects",
+  "education", "experience", "skills", "top skills", "technical skills", "projects",
   "certifications", "certification", "summary", "objective",
   "work experience", "professional experience", "professional summary",
-  "core competencies", "publications", "awards", "activities",
+  "core competencies", "publications", "awards", "honors", "honors-awards",
+  "honors and awards", "activities",
   "languages", "interests", "volunteering", "volunteer", "leadership",
   "references", "additional", "achievements", "key skills",
   "recent experience", "recent relevant experience", "relevant experience",
@@ -271,7 +375,12 @@ type ResumeBlock =
   | { kind: "section"; text: string }
   | { kind: "entry"; org: string; date: string; subtitle: string[]; bullets: string[] }
   | { kind: "bullets"; items: string[] }
+  | { kind: "chips"; items: string[] }
   | { kind: "text"; text: string };
+
+const SKILL_LIKE_SECTIONS = new Set([
+  "top skills", "skills", "key skills", "technical skills", "core competencies", "languages",
+]);
 
 function parseResume(text: string): ResumeBlock[] {
   const lines = cleanPdf(text);
@@ -310,6 +419,7 @@ function parseResume(text: string): ResumeBlock[] {
   let curEntry: Extract<ResumeBlock, { kind: "entry" }> | null = null;
   let pendingBullets: string[] = [];
   let pendingText: string[] = [];
+  let pendingChips: string[] = [];
 
   function flushBullets() {
     if (!pendingBullets.length) return;
@@ -321,6 +431,12 @@ function parseResume(text: string): ResumeBlock[] {
     if (curEntry) { curEntry.subtitle.push(pendingText.join(" ")); pendingText = []; }
     else { blocks.push({ kind: "text", text: pendingText.join(" ") }); pendingText = []; }
   }
+  function flushChips() {
+    if (!pendingChips.length) return;
+    blocks.push({ kind: "chips", items: [...pendingChips] });
+    pendingChips = [];
+  }
+  function flushAll() { flushBullets(); flushText(); flushChips(); }
   function flushEntry() {
     if (curEntry) { blocks.push({ ...curEntry }); curEntry = null; }
   }
@@ -328,12 +444,12 @@ function parseResume(text: string): ResumeBlock[] {
   for (; i < lines.length; i++) {
     const raw = lines[i];
     const t = stripIcons(raw);
-    if (!t) { flushBullets(); flushText(); continue; }
+    if (!t) { flushAll(); continue; }
 
     const lower = t.toLowerCase().replace(/:$/, "");
 
     if (RESUME_SECTIONS.has(lower)) {
-      flushBullets(); flushText(); flushEntry();
+      flushAll(); flushEntry();
       curSection = lower;
       blocks.push({ kind: "section", text: t.replace(/:$/, "") });
       continue;
@@ -345,14 +461,14 @@ function parseResume(text: string): ResumeBlock[] {
       /^[A-Z][A-Z0-9 &/()–-]+$/.test(t) &&
       !/^\d/.test(t);
     if (isAllCapsHeader) {
-      flushBullets(); flushText(); flushEntry();
+      flushAll(); flushEntry();
       curSection = lower;
       blocks.push({ kind: "section", text: t.replace(/:$/, "") });
       continue;
     }
 
     if (t.startsWith("•") || t.startsWith("-") || t.startsWith("*") || t.startsWith("◆") || t.startsWith("⬥") || t.startsWith("●")) {
-      flushText();
+      flushText(); flushChips();
       const item = t.replace(/^[•*◆⬥●-]\s*/, "");
       if (curEntry) curEntry.bullets.push(item);
       else pendingBullets.push(item);
@@ -367,10 +483,22 @@ function parseResume(text: string): ResumeBlock[] {
     ].includes(curSection);
     const dateMatch = t.match(DATE_RE);
     if (inExpOrEdu && dateMatch) {
-      flushBullets(); flushText(); flushEntry();
+      flushAll(); flushEntry();
       const datePart = dateMatch[0];
       const orgPart = t.replace(datePart, "").replace(/\s+$/, "").trim();
       curEntry = { kind: "entry", org: orgPart, date: datePart, subtitle: [], bullets: [] };
+      continue;
+    }
+
+    // Skill-like sections: render entries as chips. Merge parenthetical
+    // continuations (e.g. "(OOP)" after "Object-Oriented Programming") into the
+    // previous chip.
+    if (SKILL_LIKE_SECTIONS.has(curSection) && !curEntry) {
+      if (pendingChips.length && /^\(/.test(t)) {
+        pendingChips[pendingChips.length - 1] += " " + t;
+      } else {
+        pendingChips.push(t);
+      }
       continue;
     }
 
@@ -380,7 +508,7 @@ function parseResume(text: string): ResumeBlock[] {
     flushBullets(); flushText();
     pendingText.push(t);
   }
-  flushBullets(); flushText(); flushEntry();
+  flushAll(); flushEntry();
   return blocks;
 }
 
@@ -461,6 +589,16 @@ function FormatResume({ text }: { text: string }) {
               </li>
             ))}
           </ul>
+        );
+
+        if (b.kind === "chips") return (
+          <div key={i} className="flex flex-wrap gap-1.5">
+            {b.items.map((item, j) => (
+              <span key={j} className="inline-flex items-center rounded-full bg-primary/8 border border-primary/15 px-2.5 py-0.5 text-xs text-foreground">
+                {item}
+              </span>
+            ))}
+          </div>
         );
 
         if (b.kind === "text") return (
@@ -706,8 +844,12 @@ function ResumePickerModal({
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
         setUploadProgress(`Uploading ${i + 1} of ${files.length}: ${f.name}`);
-        // Derive candidate name from filename (strip extension, replace underscores/hyphens)
-        const candidateName = f.name.replace(/\.[^.]+$/, "").replace(/[_-]/g, " ").trim();
+        // Prefer LinkedIn-style derivation (FirstName_LastName_<hash>.pdf →
+        // "Firstname Lastname"); fall back to the basic cleanup for other
+        // filename shapes.
+        const candidateName =
+          deriveNameFromFilename(f.name) ||
+          f.name.replace(/\.[^.]+$/, "").replace(/[_-]/g, " ").trim();
         const formData = new FormData();
         formData.append("file", f);
         formData.append("candidate_name", candidateName); // Creates/finds candidate by name
@@ -854,7 +996,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
   const [expandedCoreDims, setExpandedCoreDims] = useState<string[]>([]);
   const [dimWeights, setDimWeights] = useState<Record<string, number>>({});
   const [resumeNames, setResumeNames] = useState<Record<string, string>>({});
-  const [resumeDetails, setResumeDetails] = useState<Record<string, { name: string; preview: string; summary: string; skills: string[] }>>({});
+  const [resumeDetails, setResumeDetails] = useState<Record<string, { name: string; filename?: string; preview: string; summary: string; skills: string[] }>>({});
   const [contextScore, setContextScore] = useState<ContextScore | null>(null);
   const [selectedContextKeys, setSelectedContextKeys] = useState<string[]>([]);
   const [scoringLoading, setScoringLoading] = useState(false);
@@ -937,12 +1079,12 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
       if (proj.resume_ids?.length > 0) {
         fetch(`/api/recruiter-ranking/resumes?org_id=global&limit=500`)
           .then(r => r.ok ? r.json() : { items: [] })
-          .then(async (d: { items?: Array<{ id: string; name: string; preview?: string; summary?: string; skills?: string[] }> }) => {
+          .then(async (d: { items?: Array<{ id: string; name: string; filename?: string; preview?: string; summary?: string; skills?: string[] }> }) => {
             const names: Record<string, string> = {};
-            const details: Record<string, { name: string; preview: string; summary: string; skills: string[] }> = {};
+            const details: Record<string, { name: string; filename?: string; preview: string; summary: string; skills: string[] }> = {};
             (d.items ?? []).forEach(r => {
               names[r.id] = r.name;
-              details[r.id] = { name: r.name, preview: r.preview ?? "", summary: r.summary ?? "", skills: r.skills ?? [] };
+              details[r.id] = { name: r.name, filename: r.filename, preview: r.preview ?? "", summary: r.summary ?? "", skills: r.skills ?? [] };
             });
             // Fetch any project resumes missing from the bulk list individually
             const missingIds = (proj.resume_ids ?? []).filter(rid => !names[rid]);
@@ -956,7 +1098,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                     const resolvedName = r.candidate_name || r.name || "";
                     if (resolvedName) {
                       names[rid] = resolvedName;
-                      details[rid] = { name: resolvedName, preview: r.preview ?? r.extracted_text ?? r.content ?? "", summary: r.summary ?? "", skills: Array.isArray(r.skills) ? r.skills : [] };
+                      details[rid] = { name: resolvedName, filename: r.filename, preview: r.preview ?? r.extracted_text ?? r.content ?? "", summary: r.summary ?? "", skills: Array.isArray(r.skills) ? r.skills : [] };
                     }
                   })
                   .catch(() => {})
@@ -1319,10 +1461,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                     >
                       <div className="min-w-0">
                         <p className="text-xs font-medium text-foreground truncate">
-                          {(() => {
-                            const n = resumeDetails[rid]?.name || resumeNames[rid];
-                            return n && n !== "Resume" ? n : `Resume …${rid.slice(-6)}`;
-                          })()}
+                          {deriveResumeDisplayName(resumeDetails[rid]?.name || resumeNames[rid], resumeDetails[rid]?.filename, rid)}
                         </p>
                         <p className="text-xs text-muted-foreground font-mono truncate">{rid.slice(-8)}</p>
                       </div>
