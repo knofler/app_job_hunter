@@ -844,8 +844,12 @@ function ResumePickerModal({
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
         setUploadProgress(`Uploading ${i + 1} of ${files.length}: ${f.name}`);
-        // Derive candidate name from filename (strip extension, replace underscores/hyphens)
-        const candidateName = f.name.replace(/\.[^.]+$/, "").replace(/[_-]/g, " ").trim();
+        // Prefer LinkedIn-style derivation (FirstName_LastName_<hash>.pdf →
+        // "Firstname Lastname"); fall back to the basic cleanup for other
+        // filename shapes.
+        const candidateName =
+          deriveNameFromFilename(f.name) ||
+          f.name.replace(/\.[^.]+$/, "").replace(/[_-]/g, " ").trim();
         const formData = new FormData();
         formData.append("file", f);
         formData.append("candidate_name", candidateName); // Creates/finds candidate by name
