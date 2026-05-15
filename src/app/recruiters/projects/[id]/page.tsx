@@ -31,6 +31,70 @@ import { scoreVariant } from "@/lib/status-variants";
 
 const DEFAULT_ORG = "global";
 
+// Common resume section headings that an old/buggy parser sometimes mis-stored
+// as a candidate's name. When we see one, fall back to deriving the name from
+// the filename. Lowercase comparison.
+const SECTION_HEADING_NAMES: ReadonlySet<string> = new Set([
+  "top skills", "skills", "key skills", "core competencies", "technical skills",
+  "summary", "professional summary", "career summary", "executive summary",
+  "experience", "work experience", "professional experience", "employment history",
+  "education", "academic background", "qualifications",
+  "profile", "about", "about me", "contact", "contact information",
+  "objective", "career objective", "personal information",
+  "references", "languages", "certifications", "awards", "honors",
+  "achievements", "projects", "interests", "hobbies", "publications",
+  "training", "volunteer experience", "resume",
+]);
+
+function looksLikeNameSegment(seg: string): boolean {
+  if (!seg || seg.length > 25 || /\d/.test(seg)) return false;
+  // Initial: single uppercase letter, optional period.
+  if (/^[A-Z]\.?$/.test(seg)) return true;
+  // All-caps surname (2-10 chars).
+  if (/^[A-Z]{2,10}\.?$/.test(seg)) return true;
+  // Mixed/CamelCase: starts uppercase, lowercase somewhere, must end in
+  // lowercase (or initial period). Rejects hash chunks like ``AEMAAAzT``.
+  if (/^[A-Z](?:[A-Za-z'-]*[a-z])(?:[A-Z][a-z]+)*\.?$/.test(seg)) return true;
+  return false;
+}
+
+// LinkedIn-style export filename: FirstName_LastName_<base64hash>.pdf
+// Handles all-caps surnames (KAISER → Kaiser), CamelCase, and middle initials (S.).
+// Returns "" if no plausible name can be extracted.
+function deriveNameFromFilename(filename: string | null | undefined): string {
+  if (!filename) return "";
+  const base = filename.replace(/\.[^.]+$/, "");
+  const parts: string[] = [];
+  const segs = base.split("_");
+  for (let i = 0; i < segs.length; i++) {
+    const raw = segs[i];
+    if (!looksLikeNameSegment(raw)) break;
+    // From the 3rd position onward, only accept initials or proper-cased names
+    // (reject all-caps hash prefixes like ``AEMAAD``).
+    if (i >= 2) {
+      const isInitial = /^[A-Z]\.?$/.test(raw);
+      const isProperCased = /^[A-Za-z]+$/.test(raw) && raw !== raw.toUpperCase();
+      if (!isInitial && !isProperCased) break;
+    }
+    let seg = raw;
+    if (seg.length >= 2 && /^[A-Z]+$/.test(seg)) {
+      seg = seg.charAt(0) + seg.slice(1).toLowerCase();
+    }
+    parts.push(seg);
+    if (parts.length >= 4) break;
+  }
+  return parts.length >= 2 ? parts.join(" ") : "";
+}
+
+function deriveResumeDisplayName(name: string | null | undefined, filename: string | null | undefined, fallbackId: string): string {
+  const trimmed = (name ?? "").trim();
+  const isBad = !trimmed || trimmed === "Resume" || SECTION_HEADING_NAMES.has(trimmed.toLowerCase());
+  if (!isBad) return trimmed;
+  const fromFile = deriveNameFromFilename(filename);
+  if (fromFile) return fromFile;
+  return `Resume …${fallbackId.slice(-6)}`;
+}
+
 // ── Shared PDF text cleaner ───────────────────────────────────────────────────
 function cleanPdf(text: string): string[] {
   // Detect fragmented PDF extraction: word-per-line OR char-per-line artifact.
@@ -854,7 +918,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
   const [expandedCoreDims, setExpandedCoreDims] = useState<string[]>([]);
   const [dimWeights, setDimWeights] = useState<Record<string, number>>({});
   const [resumeNames, setResumeNames] = useState<Record<string, string>>({});
-  const [resumeDetails, setResumeDetails] = useState<Record<string, { name: string; preview: string; summary: string; skills: string[] }>>({});
+  const [resumeDetails, setResumeDetails] = useState<Record<string, { name: string; filename?: string; preview: string; summary: string; skills: string[] }>>({});
   const [contextScore, setContextScore] = useState<ContextScore | null>(null);
   const [selectedContextKeys, setSelectedContextKeys] = useState<string[]>([]);
   const [scoringLoading, setScoringLoading] = useState(false);
@@ -937,12 +1001,12 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
       if (proj.resume_ids?.length > 0) {
         fetch(`/api/recruiter-ranking/resumes?org_id=global&limit=500`)
           .then(r => r.ok ? r.json() : { items: [] })
-          .then(async (d: { items?: Array<{ id: string; name: string; preview?: string; summary?: string; skills?: string[] }> }) => {
+          .then(async (d: { items?: Array<{ id: string; name: string; filename?: string; preview?: string; summary?: string; skills?: string[] }> }) => {
             const names: Record<string, string> = {};
-            const details: Record<string, { name: string; preview: string; summary: string; skills: string[] }> = {};
+            const details: Record<string, { name: string; filename?: string; preview: string; summary: string; skills: string[] }> = {};
             (d.items ?? []).forEach(r => {
               names[r.id] = r.name;
-              details[r.id] = { name: r.name, preview: r.preview ?? "", summary: r.summary ?? "", skills: r.skills ?? [] };
+              details[r.id] = { name: r.name, filename: r.filename, preview: r.preview ?? "", summary: r.summary ?? "", skills: r.skills ?? [] };
             });
             // Fetch any project resumes missing from the bulk list individually
             const missingIds = (proj.resume_ids ?? []).filter(rid => !names[rid]);
@@ -956,7 +1020,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                     const resolvedName = r.candidate_name || r.name || "";
                     if (resolvedName) {
                       names[rid] = resolvedName;
-                      details[rid] = { name: resolvedName, preview: r.preview ?? r.extracted_text ?? r.content ?? "", summary: r.summary ?? "", skills: Array.isArray(r.skills) ? r.skills : [] };
+                      details[rid] = { name: resolvedName, filename: r.filename, preview: r.preview ?? r.extracted_text ?? r.content ?? "", summary: r.summary ?? "", skills: Array.isArray(r.skills) ? r.skills : [] };
                     }
                   })
                   .catch(() => {})
@@ -1319,10 +1383,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ id:
                     >
                       <div className="min-w-0">
                         <p className="text-xs font-medium text-foreground truncate">
-                          {(() => {
-                            const n = resumeDetails[rid]?.name || resumeNames[rid];
-                            return n && n !== "Resume" ? n : `Resume …${rid.slice(-6)}`;
-                          })()}
+                          {deriveResumeDisplayName(resumeDetails[rid]?.name || resumeNames[rid], resumeDetails[rid]?.filename, rid)}
                         </p>
                         <p className="text-xs text-muted-foreground font-mono truncate">{rid.slice(-8)}</p>
                       </div>
